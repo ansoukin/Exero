@@ -1197,7 +1197,7 @@ return { success = true, count = count }</code></pre>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>当前进度如何？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）与 Phase 3（时间轴页面）均已完成。时间轴三视图、拖拽编辑、长按菜单、临时调课、学期制多周课表已联调通过。下一步进入 Phase 4（可视化编辑器）。完整计划见 <a href="https://github.com/ansoukin/exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
+        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）与 Phase 3（时间轴页面）均已完成。时间轴三视图、拖拽编辑、长按菜单、临时调课、学期制多周课表已联调通过。下一步进入 Phase 4（可视化编辑器）。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
       </div>
     </div>
   </div>
@@ -1282,11 +1282,11 @@ return { success = true, count = count }</code></pre>
     <h2 class="cta-title reveal">开始探索</h2>
     <p class="cta-desc reveal">源代码完全开源，欢迎 Star、Issue、PR。完整设计文档请见 SPEC.md。</p>
     <div class="cta-actions reveal">
-      <a href="https://github.com/ansoukin/exero" target="_blank" rel="noopener" class="btn btn-accent">
+      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="btn btn-accent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.8-1.6 8.2-6.1 8.2-11.4C24 5.9 18.6.5 12 .5z"/></svg>
         GitHub 仓库
       </a>
-      <a href="https://github.com/ansoukin/exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener" class="btn btn-outline">
+      <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener" class="btn btn-outline">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         设计文档
       </a>
@@ -1306,20 +1306,20 @@ return { success = true, count = count }</code></pre>
       <div class="footer-brand">
         <div class="footer-logo">D</div>
         <div>
-          <div class="footer-name">Dominate</div>
+          <div class="footer-name">Exero</div>
           <div class="footer-sub">个人自动化助手 · MIT License</div>
         </div>
       </div>
       <div class="footer-links">
-        <a href="https://github.com/ansoukin/Dominate" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/ansoukin/Dominate/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>
-        <a href="https://github.com/ansoukin/Dominate/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>
+        <a href="https://github.com/ansoukin/Exero/blob/main/README.md" target="_blank" rel="noopener">README</a>
         <a href="https://developer.hitokoto.cn/" target="_blank" rel="noopener">Hitokoto</a>
       </div>
     </div>
     <div class="footer-bottom">
       <p>Built with Tauri v2 · Rust · React</p>
-      <p style="margin-top:4px;">© 2026 Dominate. All rights reserved.</p>
+      <p style="margin-top:4px;">© 2026 Exero. All rights reserved.</p>
     </div>
   </div>
 </footer>
@@ -1880,7 +1880,7 @@ async function loadHitokoto() {
   } catch (e) {
     setTimeout(() => {
       textEl.textContent = '愿你的代码永远编译通过，永不报错。';
-      fromEl.textContent = '—— Dominate';
+      fromEl.textContent = '—— Exero';
       container.classList.remove('loading');
     }, 350);
   }

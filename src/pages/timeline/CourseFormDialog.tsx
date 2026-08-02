@@ -106,14 +106,14 @@ export function CourseFormDialog({
     setError(null);
     if (course) {
       // 编辑模式：填充原数据
-      setSubjectName(course.subject_name);
+      setSubjectName(course.subject);
       setDayOfWeek(course.day_of_week);
       setUseGridMode(course.period_index !== null);
       setPeriodIndex(course.period_index);
       setStartTime(course.start_time ?? "08:00");
       setEndTime(course.end_time ?? "08:45");
       setWeekPattern(course.week_pattern);
-      setLocation(course.location ?? "");
+      setLocation(course.room ?? "");
       setTeacher(course.teacher ?? "");
       setColor(course.color);
       setFlowId(course.flow_id);
@@ -155,13 +155,13 @@ export function CourseFormDialog({
     try {
       if (isEdit && course) {
         const req: UpdateCourseRequest = {
-          subject_name: subjectName.trim(),
+          subject: subjectName.trim(),
           day_of_week: dayOfWeek,
           period_index: useGridMode ? periodIndex : null,
           start_time: useGridMode ? null : startTime,
           end_time: useGridMode ? null : endTime,
           week_pattern: weekPattern,
-          location: location.trim() || null,
+          room: location.trim() || null,
           teacher: teacher.trim() || null,
           color: color,
           flow_id: flowId,
@@ -172,13 +172,13 @@ export function CourseFormDialog({
       } else {
         const req: CreateCourseRequest = {
           semester_id: semesterId,
-          subject_name: subjectName.trim(),
+          subject: subjectName.trim(),
           day_of_week: dayOfWeek,
           period_index: useGridMode ? periodIndex : null,
           start_time: useGridMode ? null : startTime,
           end_time: useGridMode ? null : endTime,
           week_pattern: weekPattern,
-          location: location.trim() || null,
+          room: location.trim() || null,
           teacher: teacher.trim() || null,
           color: color,
           flow_id: flowId,
@@ -197,7 +197,7 @@ export function CourseFormDialog({
 
   async function handleDelete() {
     if (!course) return;
-    if (!confirm(`确定删除「${course.subject_name}」？此操作不可撤销。`)) return;
+    if (!confirm(`确定删除「${course.subject}」？此操作不可撤销。`)) return;
     setSaving(true);
     try {
       await courseCommands.delete(course.id);
@@ -291,7 +291,7 @@ export function CourseFormDialog({
                     {periods.map((p) => (
                       <SelectItem key={p.id} value={String(p.period_index)}>
                         第{p.period_index}节 {p.start_time}-{p.end_time}
-                        {p.label ? ` · ${p.label}` : ""}
+                        {p.name ? ` · ${p.name}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

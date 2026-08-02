@@ -16,14 +16,14 @@ pub fn init() -> Result<()> {
     std::fs::create_dir_all(&log_dir).ok();
 
     // 文件 appender：按日期切割
-    let file_appender = tracing_appender::rolling::daily(&log_dir, "dominate.log");
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "exero.log");
     let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
     // 保留 _guard 引用防止 drop（实际上 let 绑定已经保留到函数结束）
     let _ = &non_blocking_file;
 
     // 环境变量覆盖日志级别
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,dominate=debug"));
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,exero=debug"));
 
     #[cfg(debug_assertions)]
     {

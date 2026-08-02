@@ -1,7 +1,7 @@
 //! 数据库连接管理
 //!
 //! 基于 rusqlite 提供 SQLite 连接，使用 Mutex 保护并发访问。
-//! 数据库文件位于 `<可执行文件目录>/data/dominate.db`，符合便携式部署需求。
+//! 数据库文件位于 `<可执行文件目录>/data/exero.db`，符合便携式部署需求。
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -51,7 +51,7 @@ impl Database {
 
     /// 在便携式部署目录下打开默认数据库
     ///
-    /// 路径：`<可执行文件目录>/data/dominate.db`
+    /// 路径：`<可执行文件目录>/data/exero.db`
     pub fn open_default() -> Result<Self> {
         let path = Self::default_db_path()?;
         Self::open(path)
@@ -63,7 +63,7 @@ impl Database {
             .parent()
             .ok_or_else(|| AppError::Other("无法获取可执行文件目录".into()))?
             .to_path_buf();
-        Ok(exe_dir.join("data").join("dominate.db"))
+        Ok(exe_dir.join("data").join("exero.db"))
     }
 
     /// 获取数据库文件路径
@@ -127,7 +127,7 @@ impl Database {
 
     /// 启动时备份数据库
     ///
-    /// 使用 SQLite Online Backup API，在不停服的情况下备份到 `backup/dominate_YYYYMMDD.db`。
+    /// 使用 SQLite Online Backup API，在不停服的情况下备份到 `backup/exero_YYYYMMDD.db`。
     /// 保留最近 3 份，超出自动删除。
     pub fn backup_on_startup(&self) -> Result<()> {
         let backup_dir = self
@@ -138,7 +138,7 @@ impl Database {
         std::fs::create_dir_all(&backup_dir)?;
 
         let date = chrono::Local::now().format("%Y%m%d");
-        let backup_path = backup_dir.join(format!("dominate_{}.db", date));
+        let backup_path = backup_dir.join(format!("exero_{}.db", date));
 
         if backup_path.exists() {
             tracing::info!("今日已备份，跳过: {}", backup_path.display());
@@ -172,7 +172,7 @@ impl Database {
             .filter(|e| {
                 e.file_name()
                     .to_str()
-                    .map(|n| n.starts_with("dominate_") && n.ends_with(".db"))
+                    .map(|n| n.starts_with("exero_") && n.ends_with(".db"))
                     .unwrap_or(false)
             })
             .collect();

@@ -11,7 +11,8 @@ use crate::db::Repository;
 use crate::error::Result;
 use crate::models::{
     ClassPeriodInput, CreateCourseRequest, CreateOverrideRequest, CreateSemesterRequest,
-    Course, ScheduleOverride, Semester, ClassPeriod, UpdateCourseRequest, UpdateSemesterRequest,
+    CreateWeeklyTemplateRequest, Course, ScheduleOverride, Semester, ClassPeriod,
+    UpdateCourseRequest, UpdateSemesterRequest, UpdateWeeklyTemplateRequest, WeeklyTemplate,
 };
 use crate::state::AppState;
 
@@ -87,6 +88,46 @@ pub async fn set_class_periods(
 ) -> Result<()> {
     let repo = Repository::new(&state.db);
     repo.set_class_periods(&semester_id, &periods)
+}
+
+// ============ 周课表模板 ============
+
+/// 列出指定学期的所有周模板
+#[tauri::command]
+pub async fn list_weekly_templates(
+    state: State<'_, Arc<AppState>>,
+    semester_id: String,
+) -> Result<Vec<WeeklyTemplate>> {
+    let repo = Repository::new(&state.db);
+    repo.list_weekly_templates(&semester_id)
+}
+
+/// 创建周模板
+#[tauri::command]
+pub async fn create_weekly_template(
+    state: State<'_, Arc<AppState>>,
+    request: CreateWeeklyTemplateRequest,
+) -> Result<WeeklyTemplate> {
+    let repo = Repository::new(&state.db);
+    repo.create_weekly_template(request)
+}
+
+/// 更新周模板
+#[tauri::command]
+pub async fn update_weekly_template(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+    request: UpdateWeeklyTemplateRequest,
+) -> Result<WeeklyTemplate> {
+    let repo = Repository::new(&state.db);
+    repo.update_weekly_template(&id, request)
+}
+
+/// 删除周模板
+#[tauri::command]
+pub async fn delete_weekly_template(state: State<'_, Arc<AppState>>, id: String) -> Result<()> {
+    let repo = Repository::new(&state.db);
+    repo.delete_weekly_template(&id)
 }
 
 // ============ 课程 ============

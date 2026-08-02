@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Dominate 默认权限：允许前端调用所有已注册的 Tauri 命令与所需插件能力",
+  "description": "Exero 默认权限：允许前端调用所有已注册的 Tauri 命令与所需插件能力",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -2,63 +2,66 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  LayoutGrid,
-  Clock,
   Loader2,
+  Layers,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { Semester } from "@/lib/tauri";
+import type { Semester, WeeklyTemplate } from "@/lib/tauri";
 import {
   useTimelineStore,
-  type TimelineEditMode,
   type TimelineView,
 } from "@/stores/timeline";
-import {
-  WEEKDAY_LABELS,
-  getWeekday,
-  isToday,
-  weekStartDate,
-} from "./utils";
+import { weekStartDate } from "./utils";
 
 interface TimelineToolbarProps {
   semesters: Semester[];
   semestersLoading: boolean;
   totalWeeks: number;
-  /** 周次变化时重新加载 */
+  /** 周模板列表（用于显示当前模板名） */
+  templates: WeeklyTemplate[];
+  /** 学期变化时回调 */
   onSemesterChange?: (id: string) => void;
+  /** 打开周模板管理对话框 */
+  onOpenTemplateDialog?: () => void;
 }
 
 /**
- * 时间轴顶部工具栏
+ * 时间轴顶部工具栏（SPEC V2 修订 3.5 页面 2）
  *
- * 三大切换器：
- * 1. 学期切换（SPEC：多周课表，通过侧边栏按钮切换学期）
- * 2. 视图切换（日 / 周 / 月）
- * 3. 拖拽模式切换（格点 / 自由）
+ * 三大功能区：
+ * 1. 学期切换（左侧）
+ * 2. 视图切换（日/周/月/年四级递进，SPEC V2 修订）
+ * 3. 周模板切换 + 周次导航（右侧，日/周视图显示周次导航）
  *
- * 周次导航：上一周 / 下一周 + 当前周显示
+ * SPEC V2 变更：
+ * - 视图从"周/月/年"修订为"日/周/月/年"
+ * - 日视图为时间轴形态（拖拽编辑），周/月/年为网格形态（信息总览）
  */
 export function TimelineToolbar({
   semesters,
   semestersLoading,
   totalWeeks,
+  templates,
   onSemesterChange,
+  onOpenTemplateDialog,
 }: TimelineToolbarProps) {
   const view = useTimelineStore((s) => s.view);
-  const editMode = useTimelineStore((s) => s.editMode);
   const activeSemesterId = useTimelineStore((s) => s.activeSemesterId);
   const currentWeek = useTimelineStore((s) => s.currentWeek);
-  const selectedDate = useTimelineStore((s) => s.selectedDate);
+  const activeTemplateId = useTimelineStore((s) => s.activeTemplateId);
   const setView = useTimelineStore((s) => s.setView);
-  const setEditMode = useTimelineStore((s) => s.setEditMode);
   const setActiveSemester = useTimelineStore((s) => s.setActiveSemester);
   const setCurrentWeek = useTimelineStore((s) => s.setCurrentWeek);
   const prevWeek = useTimelineStore((s) => s.prevWeek);
   const nextWeek = useTimelineStore((s) => s.nextWeek);
 
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
+
+  // 当前激活的周模板（NULL=普通周）
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId);
+  const activeTemplateName = activeTemplate?.name ?? "普通周";
 
   function handleSemesterChange(id: string) {
     setActiveSemester(id);
@@ -93,9 +96,9 @@ export function TimelineToolbar({
 
       <div className="h-6 w-px bg-border" />
 
-      {/* 视图切换：日 / 周 / 月 */}
+      {/* 视图切换：日 / 周 / 月 / 年（SPEC V2 修订：四级递进） */}
       <div className="flex items-center rounded-md border bg-background p-0.5">
-        {(["day", "week", "month"] as TimelineView[]).map((v) => (
+        {(["day", "week", "month", "year"] as TimelineView[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -106,46 +109,28 @@ export function TimelineToolbar({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {v === "day" ? "日" : v === "week" ? "周" : "月"}
+            {v === "day" ? "日" : v === "week" ? "周" : v === "month" ? "月" : "年"}
           </button>
         ))}
       </div>
 
-      <div className="h-6 w-px bg-border" />
-
-      {/* 拖拽模式切换：格点 / 自由 */}
-      <div className="flex items-center rounded-md border bg-background p-0.5">
-        <button
-          onClick={() => setEditMode("grid")}
-          className={cn(
-            "flex h-8 items-center gap-1 rounded px-3 text-sm font-medium transition-colors",
-            editMode === "grid"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="节次格点模式（结构化）"
-        >
-          <LayoutGrid className="h-3.5 w-3.5" />
-          格点
-        </button>
-        <button
-          onClick={() => setEditMode("free")}
-          className={cn(
-            "flex h-8 items-center gap-1 rounded px-3 text-sm font-medium transition-colors",
-            editMode === "free"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="自由模式（任意时间）"
-        >
-          <Clock className="h-3.5 w-3.5" />
-          自由
-        </button>
-      </div>
-
       <div className="ml-auto flex items-center gap-2">
-        {/* 周次导航（仅周/日视图显示） */}
-        {view !== "month" && activeSemester && (
+        {/* 周模板切换按钮 */}
+        {activeSemester && onOpenTemplateDialog && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenTemplateDialog}
+            className="h-8 gap-1.5"
+            title="管理周模板（普通周/特殊周）"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span className="max-w-[120px] truncate">{activeTemplateName}</span>
+          </Button>
+        )}
+
+        {/* 周次导航（日/周视图显示，SPEC V2 修订：日视图也按周导航） */}
+        {(view === "day" || view === "week") && activeSemester && (
           <>
             <Button
               variant="ghost"
@@ -159,12 +144,6 @@ export function TimelineToolbar({
             </Button>
             <span className="min-w-[80px] text-center text-sm font-medium">
               第 {currentWeek} 周
-              {view === "day" && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  · {WEEKDAY_LABELS[getWeekday(selectedDate)]}
-                  {isToday(selectedDate) ? " · 今天" : ""}
-                </span>
-              )}
             </span>
             <Button
               variant="ghost"
@@ -176,14 +155,10 @@ export function TimelineToolbar({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <span className="text-xs text-muted-foreground">
+              起始 {weekStartDate(activeSemester.start_date, currentWeek)}
+            </span>
           </>
-        )}
-
-        {/* 周视图下的周起始日期提示 */}
-        {view === "week" && activeSemester && (
-          <span className="text-xs text-muted-foreground">
-            起始 {weekStartDate(activeSemester.start_date, currentWeek)}
-          </span>
         )}
       </div>
     </div>

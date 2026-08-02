@@ -65,10 +65,10 @@ export function Sidebar() {
           )}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
-            D
+            E
           </div>
           {!collapsed && (
-            <span className="text-base tracking-tight">Dominate</span>
+            <span className="text-base tracking-tight">Exero</span>
           )}
         </div>
       </div>

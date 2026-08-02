@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   Pencil,
   Copy,
-  CalendarX,
   CalendarClock,
   Trash2,
-  X,
+  CalendarX,
+  ArrowRight,
+  ChevronRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +20,7 @@ export interface CourseActionMenuPosition {
 }
 
 interface CourseActionMenuProps {
-  /** 菜单定位（长按触发时记录的坐标） */
+  /** 菜单定位（长按/右键触发时记录的坐标） */
   position: CourseActionMenuPosition | null;
   /** 目标课程 */
   course: Course | null;
@@ -29,23 +30,25 @@ interface CourseActionMenuProps {
   onEdit?: (course: Course) => void;
   /** 复制到其他时间 */
   onDuplicate?: (course: Course) => void;
-  /** 临时取消该课程（当天） */
+  /** 临时取消当天（二级菜单直接触发） */
   onCancelOccurrence?: (course: Course) => void;
-  /** 临时调整该课程（当天） */
+  /** 临时换时间（二级菜单触发，打开对话框） */
   onMoveOccurrence?: (course: Course) => void;
   /** 删除课程（永久） */
   onDelete?: (course: Course) => void;
 }
 
 /**
- * 课程长按操作菜单（SPEC 3.5：触屏无右键，长按 500ms 弹出）
+ * 课程操作菜单（右键即时 / 触屏长按 500ms）
  *
- * 浮动定位到长按坐标，提供：
+ * 浮动定位到触发坐标，提供：
  * - 编辑（打开表单）
  * - 复制（创建副本到其他时间）
- * - 临时取消（当天取消，不修改常规课表）
- * - 临时调整（当天换时间）
+ * - 临时调整（hover 展开二级子菜单：取消当天 / 换时间）
  * - 删除（永久删除）
+ *
+ * 二级子菜单：hover "临时调整" 项时向右展开，
+ * 避免弹窗二次交互，符合桌面右键菜单惯例。
  */
 export function CourseActionMenu({
   position,
@@ -59,14 +62,17 @@ export function CourseActionMenu({
 }: CourseActionMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<CourseActionMenuPosition | null>(null);
+  // 二级子菜单展开状态
+  const [submenuOpen, setSubmenuOpen] = useState(false);
+  const submenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 根据视口边界调整菜单位置，避免溢出
   useEffect(() => {
     if (!position) {
       setAdjustedPos(null);
+      setSubmenuOpen(false);
       return;
     }
-    // 等下一帧让菜单渲染后再测量尺寸
     requestAnimationFrame(() => {
       if (!menuRef.current) {
         setAdjustedPos(position);
@@ -76,9 +82,8 @@ export function CourseActionMenu({
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       let { x, y } = position;
-      // 右溢出 → 向左偏移
-      if (x + rect.width > vw - 8) x = Math.max(8, vw - rect.width - 8);
-      // 下溢出 → 向上偏移
+      // 右溢出（含子菜单宽度 ~160px）→ 向左偏移
+      if (x + rect.width + 160 > vw - 8) x = Math.max(8, vw - rect.width - 8);
       if (y + rect.height > vh - 8) y = Math.max(8, vh - rect.height - 8);
       setAdjustedPos({ x, y });
     });
@@ -88,21 +93,34 @@ export function CourseActionMenu({
   useEffect(() => {
     if (!position) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        setSubmenuOpen(false);
+        onClose();
+      }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [position, onClose]);
 
+  // 清理子菜单定时器
+  useEffect(() => {
+    return () => {
+      if (submenuTimer.current) clearTimeout(submenuTimer.current);
+    };
+  }, []);
+
   if (!position || !course) return null;
 
-  const actions = [
-    { icon: Pencil, label: "编辑课程", onClick: onEdit, danger: false },
-    { icon: Copy, label: "复制到...", onClick: onDuplicate, danger: false },
-    { icon: CalendarX, label: "临时取消当天", onClick: onCancelOccurrence, danger: false },
-    { icon: CalendarClock, label: "临时调整当天", onClick: onMoveOccurrence, danger: false },
-    { icon: Trash2, label: "永久删除", onClick: onDelete, danger: true },
-  ].filter((a) => a.onClick !== undefined);
+  const openSubmenu = () => {
+    if (submenuTimer.current) clearTimeout(submenuTimer.current);
+    setSubmenuOpen(true);
+  };
+  const closeSubmenu = () => {
+    if (submenuTimer.current) clearTimeout(submenuTimer.current);
+    submenuTimer.current = setTimeout(() => setSubmenuOpen(false), 200);
+  };
+
+  const hasOverride = onCancelOccurrence || onMoveOccurrence;
 
   return (
     <>
@@ -125,27 +143,99 @@ export function CourseActionMenu({
         }}
       >
         <div className="px-2 py-1.5 text-xs text-muted-foreground">
-          {course.subject_name}
+          {course.subject}
         </div>
         <div className="h-px bg-muted" />
-        {actions.map((action) => (
-          <button
-            key={action.label}
-            role="menuitem"
-            onClick={() => {
-              action.onClick?.(course);
-              onClose();
-            }}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
-              action.danger && "text-destructive hover:bg-destructive/10 hover:text-destructive"
-            )}
+
+        {/* 编辑 */}
+        {onEdit && (
+          <MenuItem icon={Pencil} label="编辑课程" onClick={() => { onEdit(course); onClose(); }} />
+        )}
+
+        {/* 复制 */}
+        {onDuplicate && (
+          <MenuItem icon={Copy} label="复制到..." onClick={() => { onDuplicate(course); onClose(); }} />
+        )}
+
+        {/* 临时调整（含二级子菜单） */}
+        {hasOverride && (
+          <div
+            onMouseEnter={openSubmenu}
+            onMouseLeave={closeSubmenu}
+            className="relative"
           >
-            <action.icon className="h-4 w-4" />
-            {action.label}
-          </button>
-        ))}
+            <button
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <CalendarClock className="h-4 w-4" />
+              <span className="flex-1 text-left">临时调整</span>
+              <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+            </button>
+
+            {/* 二级子菜单 */}
+            {submenuOpen && (
+              <div
+                className="absolute left-full top-0 ml-1 min-w-[150px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                onMouseEnter={openSubmenu}
+                onMouseLeave={closeSubmenu}
+              >
+                {onCancelOccurrence && (
+                  <MenuItem
+                    icon={CalendarX}
+                    label="取消当天"
+                    onClick={() => { onCancelOccurrence(course); onClose(); }}
+                  />
+                )}
+                {onMoveOccurrence && (
+                  <MenuItem
+                    icon={ArrowRight}
+                    label="换时间"
+                    onClick={() => { onMoveOccurrence(course); onClose(); }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 删除 */}
+        {onDelete && (
+          <MenuItem
+            icon={Trash2}
+            label="永久删除"
+            danger
+            onClick={() => { onDelete(course); onClose(); }}
+          />
+        )}
       </div>
     </>
+  );
+}
+
+/** 菜单项（单级） */
+function MenuItem({
+  icon: Icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
+        danger && "text-destructive hover:bg-destructive/10 hover:text-destructive"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
   );
 }

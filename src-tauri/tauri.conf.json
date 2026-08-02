@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Dominate",
+  "productName": "Exero",
   "version": "0.4.0-alpha.1",
-  "identifier": "com.dominate.app",
+  "identifier": "com.exero.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Dominate",
+        "title": "Exero",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
@@ -34,9 +34,9 @@
     "icon": [
       "icons/icon.ico"
     ],
-    "publisher": "Dominate",
+    "publisher": "Exero",
     "category": "Utility",
     "shortDescription": "个人自动化助手",
-    "longDescription": "Dominate - 基于 Tauri + Rust 的 Windows 桌面自动化管理工具"
+    "longDescription": "Exero - 基于 Tauri + Rust 的 Windows 桌面自动化管理工具"
   }
 }

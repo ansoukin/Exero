@@ -232,7 +232,7 @@ export interface Semester {
   name: string;
   start_date: string;
   end_date: string;
-  total_weeks: number;
+  week_count: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -243,7 +243,7 @@ export interface CreateSemesterRequest {
   name: string;
   start_date: string;
   end_date: string;
-  total_weeks: number;
+  week_count: number;
 }
 
 /** 更新学期请求（镜像 UpdateSemesterRequest） */
@@ -251,7 +251,7 @@ export interface UpdateSemesterRequest {
   name?: string | null;
   start_date?: string | null;
   end_date?: string | null;
-  total_weeks?: number | null;
+  week_count?: number | null;
   is_active?: boolean | null;
 }
 
@@ -262,7 +262,7 @@ export interface ClassPeriod {
   period_index: number;
   start_time: string;
   end_time: string;
-  label: string | null;
+  name: string | null;
 }
 
 /** 节次输入（镜像 ClassPeriodInput，用于批量替换） */
@@ -270,20 +270,21 @@ export interface ClassPeriodInput {
   period_index: number;
   start_time: string;
   end_time: string;
-  label?: string | null;
+  name?: string | null;
 }
 
 /** 课程条目（镜像 Course） */
 export interface Course {
   id: string;
   semester_id: string;
-  subject_name: string;
+  template_id: string | null;
+  subject: string;
   day_of_week: number;
   period_index: number | null;
   start_time: string | null;
   end_time: string | null;
   week_pattern: string;
-  location: string | null;
+  room: string | null;
   teacher: string | null;
   color: string | null;
   flow_id: string | null;
@@ -295,13 +296,14 @@ export interface Course {
 /** 创建课程请求（镜像 CreateCourseRequest） */
 export interface CreateCourseRequest {
   semester_id: string;
-  subject_name: string;
+  template_id?: string | null;
+  subject: string;
   day_of_week: number;
   period_index?: number | null;
   start_time?: string | null;
   end_time?: string | null;
   week_pattern?: string | null;
-  location?: string | null;
+  room?: string | null;
   teacher?: string | null;
   color?: string | null;
   flow_id?: string | null;
@@ -310,13 +312,14 @@ export interface CreateCourseRequest {
 
 /** 更新课程请求（镜像 UpdateCourseRequest） */
 export interface UpdateCourseRequest {
-  subject_name?: string | null;
+  template_id?: string | null;
+  subject?: string | null;
   day_of_week?: number | null;
   period_index?: number | null;
   start_time?: string | null;
   end_time?: string | null;
   week_pattern?: string | null;
-  location?: string | null;
+  room?: string | null;
   teacher?: string | null;
   color?: string | null;
   flow_id?: string | null;
@@ -332,11 +335,10 @@ export interface ScheduleOverride {
   semester_id: string;
   date: string;
   course_id: string | null;
-  override_type: OverrideType;
-  new_day_of_week: number | null;
-  new_period_index: number | null;
-  new_start_time: string | null;
-  new_end_time: string | null;
+  type: OverrideType;
+  target_period_index: number | null;
+  target_start_time: string | null;
+  target_end_time: string | null;
   note: string | null;
   created_at: string;
 }
@@ -346,12 +348,37 @@ export interface CreateOverrideRequest {
   semester_id: string;
   date: string;
   course_id?: string | null;
-  override_type: OverrideType;
-  new_day_of_week?: number | null;
-  new_period_index?: number | null;
-  new_start_time?: string | null;
-  new_end_time?: string | null;
+  type: OverrideType;
+  target_period_index?: number | null;
+  target_start_time?: string | null;
+  target_end_time?: string | null;
   note?: string | null;
+}
+
+/** 周课表模板（镜像 WeeklyTemplate） */
+export interface WeeklyTemplate {
+  id: string;
+  semester_id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 创建周模板请求（镜像 CreateWeeklyTemplateRequest） */
+export interface CreateWeeklyTemplateRequest {
+  semester_id: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+}
+
+/** 更新周模板请求（镜像 UpdateWeeklyTemplateRequest） */
+export interface UpdateWeeklyTemplateRequest {
+  name?: string | null;
+  description?: string | null;
+  color?: string | null;
 }
 
 // ---- 学期 ----
@@ -372,6 +399,17 @@ export const classPeriodCommands = {
     invoke<ClassPeriod[]>("list_class_periods", { semesterId }),
   set: (semesterId: string, periods: ClassPeriodInput[]) =>
     invoke<void>("set_class_periods", { semesterId, periods }),
+};
+
+// ---- 周课表模板 ----
+export const weeklyTemplateCommands = {
+  list: (semesterId: string) =>
+    invoke<WeeklyTemplate[]>("list_weekly_templates", { semesterId }),
+  create: (request: CreateWeeklyTemplateRequest) =>
+    invoke<WeeklyTemplate>("create_weekly_template", { request }),
+  update: (id: string, request: UpdateWeeklyTemplateRequest) =>
+    invoke<WeeklyTemplate>("update_weekly_template", { id, request }),
+  delete: (id: string) => invoke<void>("delete_weekly_template", { id }),
 };
 
 // ---- 课程 ----

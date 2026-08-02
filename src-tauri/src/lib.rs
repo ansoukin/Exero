@@ -1,4 +1,4 @@
-//! Dominate 应用库入口
+//! Exero 应用库入口
 //!
 //! 提供 Tauri 应用启动、插件注册、命令暴露等核心功能。
 
@@ -26,7 +26,7 @@ pub fn run() {
         eprintln!("日志系统初始化失败: {e}");
     }
 
-    tracing::info!("Dominate v{} 启动中", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Exero v{} 启动中", env!("CARGO_PKG_VERSION"));
 
     // 启动 Tauri 应用
     tauri::Builder::default()
@@ -87,6 +87,11 @@ pub fn run() {
             // 节次定义命令
             commands::courses::list_class_periods,
             commands::courses::set_class_periods,
+            // 周课表模板命令
+            commands::courses::list_weekly_templates,
+            commands::courses::create_weekly_template,
+            commands::courses::update_weekly_template,
+            commands::courses::delete_weekly_template,
             // 课程相关命令
             commands::courses::list_courses,
             commands::courses::get_course,

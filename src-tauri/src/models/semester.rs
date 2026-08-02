@@ -20,8 +20,8 @@ pub struct Semester {
     pub start_date: String,
     /// 学期结束日期（ISO "2027-01-20"）
     pub end_date: String,
-    /// 总周数
-    pub total_weeks: i32,
+    /// 总周数（SPEC V2：week_count）
+    pub week_count: i32,
     /// 是否当前激活学期
     pub is_active: bool,
     /// 创建时间
@@ -32,14 +32,14 @@ pub struct Semester {
 
 impl Semester {
     /// 创建新学期（生成新 ID，默认未激活）
-    pub fn new(name: impl Into<String>, start_date: impl Into<String>, end_date: impl Into<String>, total_weeks: i32) -> Self {
+    pub fn new(name: impl Into<String>, start_date: impl Into<String>, end_date: impl Into<String>, week_count: i32) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
             name: name.into(),
             start_date: start_date.into(),
             end_date: end_date.into(),
-            total_weeks,
+            week_count,
             is_active: false,
             created_at: now,
             updated_at: now,
@@ -53,7 +53,7 @@ pub struct CreateSemesterRequest {
     pub name: String,
     pub start_date: String,
     pub end_date: String,
-    pub total_weeks: i32,
+    pub week_count: i32,
 }
 
 /// 更新学期请求
@@ -62,7 +62,7 @@ pub struct UpdateSemesterRequest {
     pub name: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
-    pub total_weeks: Option<i32>,
+    pub week_count: Option<i32>,
     pub is_active: Option<bool>,
 }
 
@@ -82,8 +82,8 @@ pub struct ClassPeriod {
     pub start_time: String,
     /// 结束时间 "08:45"
     pub end_time: String,
-    /// 可选标签（如 "早读"/"晚自习"）
-    pub label: Option<String>,
+    /// 可选名称（如 "早读"/"晚自习"）（SPEC V2：name）
+    pub name: Option<String>,
 }
 
 impl ClassPeriod {
@@ -100,7 +100,7 @@ impl ClassPeriod {
             period_index,
             start_time: start_time.into(),
             end_time: end_time.into(),
-            label: None,
+            name: None,
         }
     }
 }
@@ -111,5 +111,5 @@ pub struct ClassPeriodInput {
     pub period_index: i32,
     pub start_time: String,
     pub end_time: String,
-    pub label: Option<String>,
+    pub name: Option<String>,
 }

@@ -1,4 +1,4 @@
-# Dominate
+# Exero
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4.svg)]()
@@ -29,7 +29,7 @@
 
 - Tauri v2 + React 18 + TypeScript + Vite 前端骨架
 - Tailwind CSS v3 + shadcn/ui 配置（Win11 Fluent Design，8 色主题色板）
-- 侧边栏布局（D Logo + 5 项导航 + 可折叠，触控目标 ≥ 48px）
+- 侧边栏布局（E Logo + 5 项导航 + 可折叠，触控目标 ≥ 48px）
 - 5 页面骨架（首页 / 时间轴 / 快捷指令 / 性能优化 / 设置）
 - 首页 Dashboard 4 模块（今日任务预览 / 最近执行记录 / 系统状态占位 / 快捷动作）
 - Zustand 状态管理（页面切换 + 侧边栏折叠）
@@ -71,7 +71,7 @@ cd src-tauri
 ## 项目结构
 
 ```text
-Dominate/
+Exero/
 ├── src-tauri/               # Rust 后端
 │   ├── src/
 │   │   ├── db/              # 数据库层（connection / migrations / repository）

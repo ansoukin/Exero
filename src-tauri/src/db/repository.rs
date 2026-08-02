@@ -12,9 +12,10 @@ use crate::error::{AppError, Result};
 use crate::models::{
     common::{ActionType, ExecutionStatus, TriggerType},
     Action, AutomationFlow, ClassPeriod, ClassPeriodInput, Course, CreateCourseRequest,
-    CreateFlowRequest, CreateOverrideRequest, CreateSemesterRequest, ExecutionLog, LogFilter,
-    OverrideType, ScheduleOverride, Semester, Setting, Trigger, UpdateCourseRequest,
-    UpdateFlowRequest, UpdateSemesterRequest,
+    CreateFlowRequest, CreateOverrideRequest, CreateSemesterRequest, CreateWeeklyTemplateRequest,
+    ExecutionLog, LogFilter, OverrideType, ScheduleOverride, Semester, Setting, Trigger,
+    UpdateCourseRequest, UpdateFlowRequest, UpdateSemesterRequest, UpdateWeeklyTemplateRequest,
+    WeeklyTemplate,
 };
 
 /// 仓库：提供所有实体的 CRUD 操作
@@ -444,7 +445,7 @@ impl<'a> Repository<'a> {
     pub fn list_semesters(&self) -> Result<Vec<Semester>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, name, start_date, end_date, total_weeks, is_active, created_at, updated_at
+                "SELECT id, name, start_date, end_date, week_count, is_active, created_at, updated_at
                  FROM semesters
                  ORDER BY start_date DESC",
             )?;
@@ -460,7 +461,7 @@ impl<'a> Repository<'a> {
         self.db.with_conn(|conn| {
             let semester = conn
                 .query_row(
-                    "SELECT id, name, start_date, end_date, total_weeks, is_active, created_at, updated_at
+                    "SELECT id, name, start_date, end_date, week_count, is_active, created_at, updated_at
                      FROM semesters WHERE id = ?1",
                     params![id],
                     row_to_semester,
@@ -475,7 +476,7 @@ impl<'a> Repository<'a> {
         self.db.with_conn(|conn| {
             let semester = conn
                 .query_row(
-                    "SELECT id, name, start_date, end_date, total_weeks, is_active, created_at, updated_at
+                    "SELECT id, name, start_date, end_date, week_count, is_active, created_at, updated_at
                      FROM semesters WHERE is_active = 1 LIMIT 1",
                     [],
                     row_to_semester,
@@ -487,19 +488,19 @@ impl<'a> Repository<'a> {
 
     /// 创建学期
     pub fn create_semester(&self, req: CreateSemesterRequest) -> Result<Semester> {
-        let semester = Semester::new(req.name, req.start_date, req.end_date, req.total_weeks);
+        let semester = Semester::new(req.name, req.start_date, req.end_date, req.week_count);
 
         self.db.with_conn(|conn| {
             conn.execute(
                 "INSERT INTO semesters
-                 (id, name, start_date, end_date, total_weeks, is_active, created_at, updated_at)
+                 (id, name, start_date, end_date, week_count, is_active, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     semester.id,
                     semester.name,
                     semester.start_date,
                     semester.end_date,
-                    semester.total_weeks,
+                    semester.week_count,
                     semester.is_active as i32,
                     semester.created_at.to_rfc3339(),
                     semester.updated_at.to_rfc3339(),
@@ -526,8 +527,8 @@ impl<'a> Repository<'a> {
         if let Some(end_date) = req.end_date {
             semester.end_date = end_date;
         }
-        if let Some(total_weeks) = req.total_weeks {
-            semester.total_weeks = total_weeks;
+        if let Some(week_count) = req.week_count {
+            semester.week_count = week_count;
         }
         if let Some(is_active) = req.is_active {
             semester.is_active = is_active;
@@ -544,7 +545,7 @@ impl<'a> Repository<'a> {
             }
             tx.execute(
                 "UPDATE semesters
-                 SET name = ?2, start_date = ?3, end_date = ?4, total_weeks = ?5,
+                 SET name = ?2, start_date = ?3, end_date = ?4, week_count = ?5,
                      is_active = ?6, updated_at = ?7
                  WHERE id = ?1",
                 params![
@@ -552,7 +553,7 @@ impl<'a> Repository<'a> {
                     semester.name,
                     semester.start_date,
                     semester.end_date,
-                    semester.total_weeks,
+                    semester.week_count,
                     semester.is_active as i32,
                     semester.updated_at.to_rfc3339(),
                 ],
@@ -577,7 +578,7 @@ impl<'a> Repository<'a> {
     pub fn list_class_periods(&self, semester_id: &str) -> Result<Vec<ClassPeriod>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, semester_id, period_index, start_time, end_time, label
+                "SELECT id, semester_id, period_index, start_time, end_time, name
                  FROM class_periods
                  WHERE semester_id = ?1
                  ORDER BY period_index ASC",
@@ -603,7 +604,7 @@ impl<'a> Repository<'a> {
             for p in periods {
                 tx.execute(
                     "INSERT INTO class_periods
-                     (id, semester_id, period_index, start_time, end_time, label)
+                     (id, semester_id, period_index, start_time, end_time, name)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                     params![
                         Uuid::new_v4().to_string(),
@@ -611,7 +612,7 @@ impl<'a> Repository<'a> {
                         p.period_index,
                         p.start_time,
                         p.end_time,
-                        p.label,
+                        p.name,
                     ],
                 )?;
             }
@@ -625,8 +626,8 @@ impl<'a> Repository<'a> {
     pub fn list_courses(&self, semester_id: &str) -> Result<Vec<Course>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, semester_id, subject_name, day_of_week, period_index, start_time,
-                        end_time, week_pattern, location, teacher, color, flow_id, note,
+                "SELECT id, semester_id, template_id, subject, day_of_week, period_index, start_time,
+                        end_time, week_pattern, room, teacher, color, flow_id, note,
                         created_at, updated_at
                  FROM courses
                  WHERE semester_id = ?1
@@ -644,8 +645,8 @@ impl<'a> Repository<'a> {
         self.db.with_conn(|conn| {
             let course = conn
                 .query_row(
-                    "SELECT id, semester_id, subject_name, day_of_week, period_index, start_time,
-                            end_time, week_pattern, location, teacher, color, flow_id, note,
+                    "SELECT id, semester_id, template_id, subject, day_of_week, period_index, start_time,
+                            end_time, week_pattern, room, teacher, color, flow_id, note,
                             created_at, updated_at
                      FROM courses WHERE id = ?1",
                     params![id],
@@ -662,13 +663,14 @@ impl<'a> Repository<'a> {
         let course = Course {
             id: Uuid::new_v4().to_string(),
             semester_id: req.semester_id,
-            subject_name: req.subject_name,
+            template_id: req.template_id,
+            subject: req.subject,
             day_of_week: req.day_of_week,
             period_index: req.period_index,
             start_time: req.start_time,
             end_time: req.end_time,
             week_pattern: req.week_pattern.unwrap_or_else(|| "all".to_string()),
-            location: req.location,
+            room: req.room,
             teacher: req.teacher,
             color: req.color,
             flow_id: req.flow_id,
@@ -680,19 +682,20 @@ impl<'a> Repository<'a> {
         self.db.with_conn(|conn| {
             conn.execute(
                 "INSERT INTO courses
-                 (id, semester_id, subject_name, day_of_week, period_index, start_time, end_time,
-                  week_pattern, location, teacher, color, flow_id, note, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                 (id, semester_id, template_id, subject, day_of_week, period_index, start_time, end_time,
+                  week_pattern, room, teacher, color, flow_id, note, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 params![
                     course.id,
                     course.semester_id,
-                    course.subject_name,
+                    course.template_id,
+                    course.subject,
                     course.day_of_week,
                     course.period_index,
                     course.start_time,
                     course.end_time,
                     course.week_pattern,
-                    course.location,
+                    course.room,
                     course.teacher,
                     course.color,
                     course.flow_id,
@@ -713,57 +716,61 @@ impl<'a> Repository<'a> {
             .get_course(id)?
             .ok_or_else(|| AppError::NotFound(format!("课程 {} 不存在", id)))?;
 
-        if let Some(subject_name) = req.subject_name {
-            course.subject_name = subject_name;
+        if let Some(template_id) = req.template_id {
+            course.template_id = template_id;
+        }
+        if let Some(subject) = req.subject {
+            course.subject = subject;
         }
         if let Some(day_of_week) = req.day_of_week {
             course.day_of_week = day_of_week;
         }
         if let Some(period_index) = req.period_index {
-            course.period_index = Some(period_index);
+            course.period_index = period_index;
         }
         if let Some(start_time) = req.start_time {
-            course.start_time = Some(start_time);
+            course.start_time = start_time;
         }
         if let Some(end_time) = req.end_time {
-            course.end_time = Some(end_time);
+            course.end_time = end_time;
         }
         if let Some(week_pattern) = req.week_pattern {
             course.week_pattern = week_pattern;
         }
-        if let Some(location) = req.location {
-            course.location = Some(location);
+        if let Some(room) = req.room {
+            course.room = room;
         }
         if let Some(teacher) = req.teacher {
-            course.teacher = Some(teacher);
+            course.teacher = teacher;
         }
         if let Some(color) = req.color {
-            course.color = Some(color);
+            course.color = color;
         }
         if let Some(flow_id) = req.flow_id {
-            course.flow_id = Some(flow_id);
+            course.flow_id = flow_id;
         }
         if let Some(note) = req.note {
-            course.note = Some(note);
+            course.note = note;
         }
         course.updated_at = Utc::now();
 
         self.db.with_conn(|conn| {
             conn.execute(
                 "UPDATE courses
-                 SET subject_name = ?2, day_of_week = ?3, period_index = ?4, start_time = ?5,
-                     end_time = ?6, week_pattern = ?7, location = ?8, teacher = ?9, color = ?10,
-                     flow_id = ?11, note = ?12, updated_at = ?13
+                 SET template_id = ?2, subject = ?3, day_of_week = ?4, period_index = ?5, start_time = ?6,
+                     end_time = ?7, week_pattern = ?8, room = ?9, teacher = ?10, color = ?11,
+                     flow_id = ?12, note = ?13, updated_at = ?14
                  WHERE id = ?1",
                 params![
                     course.id,
-                    course.subject_name,
+                    course.template_id,
+                    course.subject,
                     course.day_of_week,
                     course.period_index,
                     course.start_time,
                     course.end_time,
                     course.week_pattern,
-                    course.location,
+                    course.room,
                     course.teacher,
                     course.color,
                     course.flow_id,
@@ -785,14 +792,132 @@ impl<'a> Repository<'a> {
         })
     }
 
+    // ============ 周课表模板 CRUD ============
+
+    /// 列出指定学期的所有周模板
+    pub fn list_weekly_templates(&self, semester_id: &str) -> Result<Vec<WeeklyTemplate>> {
+        self.db.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, semester_id, name, description, color, created_at, updated_at
+                 FROM weekly_templates
+                 WHERE semester_id = ?1
+                 ORDER BY created_at ASC",
+            )?;
+            let templates = stmt
+                .query_map(params![semester_id], row_to_weekly_template)?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(templates)
+        })
+    }
+
+    /// 获取单个周模板
+    pub fn get_weekly_template(&self, id: &str) -> Result<Option<WeeklyTemplate>> {
+        self.db.with_conn(|conn| {
+            let template = conn
+                .query_row(
+                    "SELECT id, semester_id, name, description, color, created_at, updated_at
+                     FROM weekly_templates WHERE id = ?1",
+                    params![id],
+                    row_to_weekly_template,
+                )
+                .optional()?;
+            Ok(template)
+        })
+    }
+
+    /// 创建周模板
+    pub fn create_weekly_template(
+        &self,
+        req: CreateWeeklyTemplateRequest,
+    ) -> Result<WeeklyTemplate> {
+        let mut template = WeeklyTemplate::new(req.semester_id, req.name);
+        template.description = req.description;
+        template.color = req.color;
+
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO weekly_templates
+                 (id, semester_id, name, description, color, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    template.id,
+                    template.semester_id,
+                    template.name,
+                    template.description,
+                    template.color,
+                    template.created_at.to_rfc3339(),
+                    template.updated_at.to_rfc3339(),
+                ],
+            )?;
+            Ok(())
+        })?;
+
+        Ok(template)
+    }
+
+    /// 更新周模板
+    pub fn update_weekly_template(
+        &self,
+        id: &str,
+        req: UpdateWeeklyTemplateRequest,
+    ) -> Result<WeeklyTemplate> {
+        let mut template = self
+            .get_weekly_template(id)?
+            .ok_or_else(|| AppError::NotFound(format!("周模板 {} 不存在", id)))?;
+
+        if let Some(name) = &req.name {
+            template.name = name.clone();
+        }
+        if let Some(description) = &req.description {
+            template.description = Some(description.clone());
+        }
+        if let Some(color) = &req.color {
+            template.color = Some(color.clone());
+        }
+        template.updated_at = Utc::now();
+
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "UPDATE weekly_templates
+                 SET name = ?2, description = ?3, color = ?4, updated_at = ?5
+                 WHERE id = ?1",
+                params![
+                    template.id,
+                    template.name,
+                    template.description,
+                    template.color,
+                    template.updated_at.to_rfc3339(),
+                ],
+            )?;
+            Ok(())
+        })?;
+
+        Ok(template)
+    }
+
+    /// 删除周模板（关联课程的 template_id 置 NULL）
+    pub fn delete_weekly_template(&self, id: &str) -> Result<()> {
+        self.db.with_transaction(|tx| {
+            tx.execute(
+                "UPDATE courses SET template_id = NULL WHERE template_id = ?1",
+                params![id],
+            )?;
+            tx.execute(
+                "DELETE FROM weekly_templates WHERE id = ?1",
+                params![id],
+            )?;
+            Ok(())
+        })
+    }
+
     // ============ 临时调课 CRUD ============
 
     /// 列出指定学期某日期范围的调课记录
     pub fn list_overrides(&self, semester_id: &str) -> Result<Vec<ScheduleOverride>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, semester_id, date, course_id, override_type, new_day_of_week,
-                        new_period_index, new_start_time, new_end_time, note, created_at
+                "SELECT id, semester_id, date, course_id, type, target_period_index,
+                        target_start_time, target_end_time, note, created_at
                  FROM schedule_overrides
                  WHERE semester_id = ?1
                  ORDER BY date ASC",
@@ -812,8 +937,8 @@ impl<'a> Repository<'a> {
     ) -> Result<Vec<ScheduleOverride>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, semester_id, date, course_id, override_type, new_day_of_week,
-                        new_period_index, new_start_time, new_end_time, note, created_at
+                "SELECT id, semester_id, date, course_id, type, target_period_index,
+                        target_start_time, target_end_time, note, created_at
                  FROM schedule_overrides
                  WHERE semester_id = ?1 AND date = ?2",
             )?;
@@ -831,11 +956,10 @@ impl<'a> Repository<'a> {
             semester_id: req.semester_id,
             date: req.date,
             course_id: req.course_id,
-            override_type: req.override_type,
-            new_day_of_week: req.new_day_of_week,
-            new_period_index: req.new_period_index,
-            new_start_time: req.new_start_time,
-            new_end_time: req.new_end_time,
+            r#type: req.r#type,
+            target_period_index: req.target_period_index,
+            target_start_time: req.target_start_time,
+            target_end_time: req.target_end_time,
             note: req.note,
             created_at: Utc::now(),
         };
@@ -843,19 +967,18 @@ impl<'a> Repository<'a> {
         self.db.with_conn(|conn| {
             conn.execute(
                 "INSERT INTO schedule_overrides
-                 (id, semester_id, date, course_id, override_type, new_day_of_week,
-                  new_period_index, new_start_time, new_end_time, note, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                 (id, semester_id, date, course_id, type, target_period_index,
+                  target_start_time, target_end_time, note, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     override_record.id,
                     override_record.semester_id,
                     override_record.date,
                     override_record.course_id,
-                    override_record.override_type.as_str(),
-                    override_record.new_day_of_week,
-                    override_record.new_period_index,
-                    override_record.new_start_time,
-                    override_record.new_end_time,
+                    override_record.r#type.as_str(),
+                    override_record.target_period_index,
+                    override_record.target_start_time,
+                    override_record.target_end_time,
                     override_record.note,
                     override_record.created_at.to_rfc3339(),
                 ],
@@ -979,7 +1102,7 @@ fn row_to_semester(row: &rusqlite::Row<'_>) -> rusqlite::Result<Semester> {
         name: row.get(1)?,
         start_date: row.get(2)?,
         end_date: row.get(3)?,
-        total_weeks: row.get(4)?,
+        week_count: row.get(4)?,
         is_active: is_active != 0,
         created_at: DateTime::parse_from_rfc3339(&created_str)
             .map(|dt| dt.with_timezone(&Utc))
@@ -997,28 +1120,48 @@ fn row_to_class_period(row: &rusqlite::Row<'_>) -> rusqlite::Result<ClassPeriod>
         period_index: row.get(2)?,
         start_time: row.get(3)?,
         end_time: row.get(4)?,
-        label: row.get(5)?,
+        name: row.get(5)?,
     })
 }
 
 fn row_to_course(row: &rusqlite::Row<'_>) -> rusqlite::Result<Course> {
-    let created_str: String = row.get(13)?;
-    let updated_str: String = row.get(14)?;
+    let created_str: String = row.get(14)?;
+    let updated_str: String = row.get(15)?;
 
     Ok(Course {
         id: row.get(0)?,
         semester_id: row.get(1)?,
-        subject_name: row.get(2)?,
-        day_of_week: row.get(3)?,
-        period_index: row.get(4)?,
-        start_time: row.get(5)?,
-        end_time: row.get(6)?,
-        week_pattern: row.get(7)?,
-        location: row.get(8)?,
-        teacher: row.get(9)?,
-        color: row.get(10)?,
-        flow_id: row.get(11)?,
-        note: row.get(12)?,
+        template_id: row.get(2)?,
+        subject: row.get(3)?,
+        day_of_week: row.get(4)?,
+        period_index: row.get(5)?,
+        start_time: row.get(6)?,
+        end_time: row.get(7)?,
+        week_pattern: row.get(8)?,
+        room: row.get(9)?,
+        teacher: row.get(10)?,
+        color: row.get(11)?,
+        flow_id: row.get(12)?,
+        note: row.get(13)?,
+        created_at: DateTime::parse_from_rfc3339(&created_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now()),
+        updated_at: DateTime::parse_from_rfc3339(&updated_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now()),
+    })
+}
+
+fn row_to_weekly_template(row: &rusqlite::Row<'_>) -> rusqlite::Result<WeeklyTemplate> {
+    let created_str: String = row.get(5)?;
+    let updated_str: String = row.get(6)?;
+
+    Ok(WeeklyTemplate {
+        id: row.get(0)?,
+        semester_id: row.get(1)?,
+        name: row.get(2)?,
+        description: row.get(3)?,
+        color: row.get(4)?,
         created_at: DateTime::parse_from_rfc3339(&created_str)
             .map(|dt| dt.with_timezone(&Utc))
             .unwrap_or_else(|_| Utc::now()),
@@ -1029,20 +1172,19 @@ fn row_to_course(row: &rusqlite::Row<'_>) -> rusqlite::Result<Course> {
 }
 
 fn row_to_override(row: &rusqlite::Row<'_>) -> rusqlite::Result<ScheduleOverride> {
-    let override_type_str: String = row.get(4)?;
-    let created_str: String = row.get(10)?;
+    let type_str: String = row.get(4)?;
+    let created_str: String = row.get(9)?;
 
     Ok(ScheduleOverride {
         id: row.get(0)?,
         semester_id: row.get(1)?,
         date: row.get(2)?,
         course_id: row.get(3)?,
-        override_type: OverrideType::from_str(&override_type_str).unwrap_or(OverrideType::Cancel),
-        new_day_of_week: row.get(5)?,
-        new_period_index: row.get(6)?,
-        new_start_time: row.get(7)?,
-        new_end_time: row.get(8)?,
-        note: row.get(9)?,
+        r#type: OverrideType::from_str(&type_str).unwrap_or(OverrideType::Cancel),
+        target_period_index: row.get(5)?,
+        target_start_time: row.get(6)?,
+        target_end_time: row.get(7)?,
+        note: row.get(8)?,
         created_at: DateTime::parse_from_rfc3339(&created_str)
             .map(|dt| dt.with_timezone(&Utc))
             .unwrap_or_else(|_| Utc::now()),

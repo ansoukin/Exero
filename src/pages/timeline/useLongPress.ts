@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { suppressNextClick } from "./clickSuppression";
 
 /** 长按触发时携带的视口坐标（用于菜单定位） */
 export interface LongPressPosition {
@@ -14,6 +15,12 @@ export interface LongPressPosition {
  * - 触摸：pointerdown 开始计时，pointerup/pointercancel 取消
  *
  * 触发时回调接收视口坐标，用于菜单定位。
+ *
+ * 点击拦截说明：
+ * 浏览器事件顺序为 pointerdown -> pointerup -> click。若仅在 pointerup 中重置 isLongPress，
+ * 则随后派发的 click 会读到 isLongPress=false 从而误触发 onClick。
+ * 因此长按触发时调用全局 suppressNextClick()，CourseBlock.onClick 通过 shouldHandleClick() 检查。
+ * 全局标记避免 React state 更新时序与 click 派发时序错位。
  *
  * @param onLongPress 长按触发回调，携带触发坐标
  * @param duration 长按持续时间（毫秒），默认 500
@@ -40,6 +47,8 @@ export function useLongPress(
       clearTimer();
       timerRef.current = setTimeout(() => {
         setIsLongPress(true);
+        // 长按触发：调用全局拦截器，拦截随后派发的 click
+        suppressNextClick();
         onLongPress(posRef.current);
       }, duration);
     },
@@ -56,6 +65,8 @@ export function useLongPress(
 
   return {
     isLongPress,
+    /** 主动取消长按定时器（供拖拽激活等外部事件调用，避免与拖拽冲突） */
+    cancel,
     onPointerDown: start,
     onPointerUp: cancel,
     onPointerLeave: cancel,

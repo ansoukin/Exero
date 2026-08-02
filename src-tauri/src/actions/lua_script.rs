@@ -6,7 +6,7 @@
 //!
 //! - 默认严格沙箱：禁用 `os.execute` / `io.popen` / `loadfile` / `require` 等危险 API
 //! - 可选宽松沙箱：用户在设置中开启，允许上述 API（自负风险）
-//! - 注入受限的 `dominate` 库：仅允许读取变量、写日志、发送通知
+//! - 注入受限的 `exero` 库：仅允许读取变量、写日志、发送通知
 //!
 //! ## 脚本加载
 //!
@@ -85,8 +85,8 @@ impl ActionExecutor for LuaScriptExecutor {
         ctx_table.set("globals", globals_table)?;
         globals.set("ctx", ctx_table)?;
 
-        // 5. 注入 dominate 库（受限 API）
-        inject_dominate_lib(&lua, ctx)?;
+        // 5. 注入 exero 库（受限 API）
+        inject_exero_lib(&lua, ctx)?;
 
         // 6. 设置指令计数 hook（用于超时检测）
         let deadline = started + Duration::from_secs(timeout_secs as u64);
@@ -205,25 +205,25 @@ fn apply_sandbox(lua: &Lua, strict: bool) -> Result<()> {
     Ok(())
 }
 
-/// 注入受限的 dominate 库
+/// 注入受限的 exero 库
 ///
 /// 提供：
-/// - `dominate.log(msg)` — 写日志
-/// - `dominate.notify(level, title, body)` — 发送应用内通知
-/// - `dominate.get_var(name)` — 读取变量
-/// - `dominate.set_var(name, value, global?)` — 设置变量
-/// - `dominate.set_result(value)` — 设置脚本返回值
-fn inject_dominate_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
-    let dominate = lua.create_table()?;
+/// - `exero.log(msg)` — 写日志
+/// - `exero.notify(level, title, body)` — 发送应用内通知
+/// - `exero.get_var(name)` — 读取变量
+/// - `exero.set_var(name, value, global?)` — 设置变量
+/// - `exero.set_result(value)` — 设置脚本返回值
+fn inject_exero_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
+    let exero = lua.create_table()?;
 
-    // dominate.log(msg)
+    // exero.log(msg)
     let log_fn = lua.create_function(|_, msg: String| {
         tracing::info!("[lua] {}", msg);
         Ok(())
     })?;
-    dominate.set("log", log_fn)?;
+    exero.set("log", log_fn)?;
 
-    // dominate.notify(level, title, body)
+    // exero.notify(level, title, body)
     // 注意：闭包不能持有 &mut ctx，但我们可以通过 AppHandle 发送事件
     let app_handle = ctx.app_handle.clone();
     let flow_id = ctx.flow_id.clone();
@@ -240,18 +240,18 @@ fn inject_dominate_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
         }
         Ok(())
     })?;
-    dominate.set("notify", notify_fn)?;
+    exero.set("notify", notify_fn)?;
 
-    // dominate.set_result(value)
+    // exero.set_result(value)
     let globals = lua.globals();
     let set_result_fn = lua.create_function(move |_, value: LuaValue| {
         globals.set("__result", value)?;
         Ok(())
     })?;
-    dominate.set("set_result", set_result_fn)?;
+    exero.set("set_result", set_result_fn)?;
 
     // 注入到全局
-    lua.globals().set("dominate", dominate)?;
+    lua.globals().set("exero", exero)?;
 
     // 注入 get_var / set_var（需要访问 ctx 的变量，但闭包无法捕获 &mut ctx）
     // 简化方案：通过 Lua 全局变量 ctx 暴露，由用户在 Lua 中直接访问 ctx.locals / ctx.globals

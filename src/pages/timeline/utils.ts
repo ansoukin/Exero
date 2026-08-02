@@ -16,8 +16,11 @@ export const WEEKDAY_LABELS = [
   "周六",
 ] as const;
 
-/** 星期短标签（用于周视图表头） */
+/** 星期短标签（用于周视图表头，索引 = getDay() 返回值 0=周日） */
 export const WEEKDAY_SHORT = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+/** 周一为首的星期短标签（月视图表头用，按周一到周日排列） */
+export const WEEKDAY_SHORT_MON_FIRST = ["一", "二", "三", "四", "五", "六", "日"] as const;
 
 /**
  * 从 ISO 日期字符串获取星期几（0=周日 ... 6=周六）
@@ -149,15 +152,19 @@ export const MONTH_LABELS = [
 /**
  * 获取指定月份的日历网格（含前后月填充，共 42 天 = 6 周）
  *
+ * SPEC V2：周首日为周一（国内课表惯例），网格从该月第一天所在周的周一开始。
+ *
  * @param year 年
  * @param month 月（0-based）
- * @returns ISO 日期数组（从周日开始）
+ * @returns ISO 日期数组（从周一开始，共 42 天）
  */
 export function monthGrid(year: number, month: number): string[] {
   const first = new Date(year, month, 1);
   const firstDay = first.getDay(); // 0=周日
+  // 周一为首：周日(0) → 回退 6 天，周一(1) → 回退 0 天，周二(2) → 回退 1 天...
+  const offsetToMonday = firstDay === 0 ? 6 : firstDay - 1;
   const startDate = new Date(first);
-  startDate.setDate(first.getDate() - firstDay);
+  startDate.setDate(first.getDate() - offsetToMonday);
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(startDate);
     d.setDate(startDate.getDate() + i);
@@ -215,7 +222,7 @@ export interface DisplayCourse {
  * 合并规则：
  * 1. 取该星期的所有常规课程（按 week_pattern 过滤当前周次）
  * 2. 应用该日期的 cancel override → 标记为取消
- * 3. 应用该日期的 move override → 原位置取消，按 new_period_index/new_start_time 生成临时显示项
+ * 3. 应用该日期的 move override → 原位置取消，按 target_period_index/target_start_time 生成临时显示项
  * 4. 应用该日期的 add override → 直接生成临时显示项
  *
  * @param courses 学期所有常规课程
@@ -242,11 +249,11 @@ export function resolveDayCourses(
   const moveMap = new Map<string, ScheduleOverride>();
   const addOverrides: ScheduleOverride[] = [];
   for (const ov of overrides) {
-    if (ov.override_type === "cancel" && ov.course_id) {
+    if (ov.type === "cancel" && ov.course_id) {
       cancelSet.add(ov.course_id);
-    } else if (ov.override_type === "move" && ov.course_id) {
+    } else if (ov.type === "move" && ov.course_id) {
       moveMap.set(ov.course_id, ov);
-    } else if (ov.override_type === "add") {
+    } else if (ov.type === "add") {
       addOverrides.push(ov);
     }
   }
@@ -275,13 +282,13 @@ export function resolveDayCourses(
       });
 
       // 新位置生成临时显示项
-      const newPeriod = findPeriod(moveOv.new_period_index);
+      const newPeriod = findPeriod(moveOv.target_period_index);
       result.push({
         course,
         startTime:
-          moveOv.new_start_time ?? newPeriod?.start_time ?? "00:00",
-        endTime: moveOv.new_end_time ?? newPeriod?.end_time ?? "00:00",
-        periodIndex: moveOv.new_period_index ?? null,
+          moveOv.target_start_time ?? newPeriod?.start_time ?? "00:00",
+        endTime: moveOv.target_end_time ?? newPeriod?.end_time ?? "00:00",
+        periodIndex: moveOv.target_period_index ?? null,
         cancelled: false,
         isOverride: true,
         override: moveOv,
@@ -301,17 +308,18 @@ export function resolveDayCourses(
 
   // 5. 新增 add override（构造临时 Course 对象）
   for (const ov of addOverrides) {
-    const newPeriod = findPeriod(ov.new_period_index);
+    const newPeriod = findPeriod(ov.target_period_index);
     const tempCourse: Course = {
       id: `override-${ov.id}`,
       semester_id: ov.semester_id,
-      subject_name: ov.note || "临时课程",
-      day_of_week: ov.new_day_of_week ?? dayOfWeek,
-      period_index: ov.new_period_index,
-      start_time: ov.new_start_time,
-      end_time: ov.new_end_time,
+      template_id: null,
+      subject: ov.note || "临时课程",
+      day_of_week: dayOfWeek,
+      period_index: ov.target_period_index,
+      start_time: ov.target_start_time,
+      end_time: ov.target_end_time,
       week_pattern: "all",
-      location: null,
+      room: null,
       teacher: null,
       color: null,
       flow_id: null,
@@ -321,9 +329,9 @@ export function resolveDayCourses(
     };
     result.push({
       course: tempCourse,
-      startTime: ov.new_start_time ?? newPeriod?.start_time ?? "00:00",
-      endTime: ov.new_end_time ?? newPeriod?.end_time ?? "00:00",
-      periodIndex: ov.new_period_index ?? null,
+      startTime: ov.target_start_time ?? newPeriod?.start_time ?? "00:00",
+      endTime: ov.target_end_time ?? newPeriod?.end_time ?? "00:00",
+      periodIndex: ov.target_period_index ?? null,
       cancelled: false,
       isOverride: true,
       override: ov,

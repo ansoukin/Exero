@@ -7,45 +7,54 @@ import {
   classPeriodCommands,
   courseCommands,
   overrideCommands,
+  weeklyTemplateCommands,
   type Semester,
   type ClassPeriod,
   type Course,
   type ScheduleOverride,
-  type OverrideType,
+  type WeeklyTemplate,
 } from "@/lib/tauri";
 import { useTimelineStore } from "@/stores/timeline";
 import { TimelineToolbar } from "./timeline/TimelineToolbar";
 import { WeekView } from "./timeline/WeekView";
-import { DayView } from "./timeline/DayView";
 import { MonthView } from "./timeline/MonthView";
+import { YearView } from "./timeline/YearView";
+import { DayView } from "./timeline/DayView";
 import type { DropTarget } from "./timeline/TimelineDndContext";
 import { CourseFormDialog } from "./timeline/CourseFormDialog";
 import { CourseActionMenu, type CourseActionMenuPosition } from "./timeline/CourseActionMenu";
 import { OverrideDialog } from "./timeline/OverrideDialog";
+import { WeeklyTemplateDialog } from "./timeline/WeeklyTemplateDialog";
 import { todayIso } from "./timeline/utils";
 import type { LongPressPosition } from "./timeline/useLongPress";
 
 /**
- * 时间轴页面（SPEC 3.5 页面 2）
+ * 时间轴页面（SPEC V2 3.5 页面 2）
  *
- * 三视图：日 / 周 / 月
- * 拖拽模式：格点 / 自由
- * 长按 500ms 弹出操作菜单（触屏无右键）
+ * 三视图：周 / 月 / 年（三级递进）
+ * 周视图：整块拖动改位置 + 底边 resize 手柄改时长
+ * 长按 500ms / 右键弹出操作菜单（双通道）
  * 临时调课（不修改常规课表）
- * 多周课表（学期制）
+ * 学期制多周课表 + 周模板（普通周/特殊周）
  */
 export default function TimelinePage() {
   const view = useTimelineStore((s) => s.view);
   const activeSemesterId = useTimelineStore((s) => s.activeSemesterId);
   const setActiveSemester = useTimelineStore((s) => s.setActiveSemester);
+  const activeTemplateId = useTimelineStore((s) => s.activeTemplateId);
+  const setActiveTemplate = useTimelineStore((s) => s.setActiveTemplate);
 
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [periods, setPeriods] = useState<ClassPeriod[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+  const [templates, setTemplates] = useState<WeeklyTemplate[]>([]);
   const [semestersLoading, setSemestersLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 周模板管理对话框
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   // 对话框 / 菜单状态
   const [formOpen, setFormOpen] = useState(false);
@@ -57,7 +66,6 @@ export default function TimelinePage() {
   const [menuCourse, setMenuCourse] = useState<Course | null>(null);
 
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [overrideType, setOverrideType] = useState<OverrideType>("cancel");
   const [overrideCourse, setOverrideCourse] = useState<Course | null>(null);
 
   // 加载学期列表 + 激活学期
@@ -79,19 +87,21 @@ export default function TimelinePage() {
     }
   }, [activeSemesterId, setActiveSemester]);
 
-  // 加载学期相关数据（节次/课程/调课）
+  // 加载学期相关数据（节次/课程/调课/周模板）
   const loadSemesterData = useCallback(async (semesterId: string) => {
     setDataLoading(true);
     setError(null);
     try {
-      const [periodsData, coursesData, overridesData] = await Promise.all([
+      const [periodsData, coursesData, overridesData, templatesData] = await Promise.all([
         classPeriodCommands.list(semesterId),
         courseCommands.list(semesterId),
         overrideCommands.list(semesterId),
+        weeklyTemplateCommands.list(semesterId),
       ]);
       setPeriods(periodsData);
       setCourses(coursesData);
       setOverrides(overridesData);
+      setTemplates(templatesData);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -111,11 +121,12 @@ export default function TimelinePage() {
       setPeriods([]);
       setCourses([]);
       setOverrides([]);
+      setTemplates([]);
     }
   }, [activeSemesterId, loadSemesterData]);
 
   const activeSemester = semesters.find((s) => s.id === activeSemesterId);
-  const totalWeeks = activeSemester?.total_weeks ?? 1;
+  const totalWeeks = activeSemester?.week_count ?? 1;
 
   function handleRefresh() {
     loadSemesters();
@@ -182,21 +193,34 @@ export default function TimelinePage() {
     []
   );
 
-  // 菜单动作：临时取消当天
+  // 菜单动作：临时取消当天（二级菜单直接触发，直接创建 cancel override）
   const handleMenuCancelOccurrence = useCallback(
-    (course: Course) => {
-      setOverrideCourse(course);
-      setOverrideType("cancel");
-      setOverrideOpen(true);
+    async (course: Course) => {
+      if (!activeSemesterId) return;
+      if (!confirm(`确定取消「${course.subject}」当天课程？`)) return;
+      try {
+        await overrideCommands.create({
+          semester_id: activeSemesterId,
+          date: todayIso(),
+          course_id: course.id,
+          type: "cancel",
+          target_period_index: null,
+          target_start_time: null,
+          target_end_time: null,
+          note: null,
+        });
+        await loadSemesterData(activeSemesterId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     },
-    []
+    [activeSemesterId, loadSemesterData]
   );
 
-  // 菜单动作：临时调整当天
+  // 菜单动作：临时换时间（二级菜单触发，打开对话框）
   const handleMenuMoveOccurrence = useCallback(
     (course: Course) => {
       setOverrideCourse(course);
-      setOverrideType("move");
       setOverrideOpen(true);
     },
     []
@@ -205,7 +229,7 @@ export default function TimelinePage() {
   // 菜单动作：永久删除
   const handleMenuDelete = useCallback(
     async (course: Course) => {
-      if (!confirm(`确定永久删除「${course.subject_name}」？此操作不可撤销。`)) return;
+      if (!confirm(`确定永久删除「${course.subject}」？此操作不可撤销。`)) return;
       try {
         await courseCommands.delete(course.id);
         if (activeSemesterId) await loadSemesterData(activeSemesterId);
@@ -266,6 +290,23 @@ export default function TimelinePage() {
     [activeSemesterId, loadSemesterData]
   );
 
+  /**
+   * 自由模式 resize：调整课程结束时间
+   */
+  const handleResizeCourse = useCallback(
+    async (course: Course, newEndTime: string) => {
+      try {
+        await courseCommands.update(course.id, {
+          end_time: newEndTime,
+        });
+        if (activeSemesterId) await loadSemesterData(activeSemesterId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [activeSemesterId, loadSemesterData]
+  );
+
   function renderView() {
     if (!activeSemester) {
       return (
@@ -288,9 +329,9 @@ export default function TimelinePage() {
     }
 
     switch (view) {
-      case "week":
+      case "day":
         return (
-          <WeekView
+          <DayView
             semesterId={activeSemester.id}
             semesterStart={activeSemester.start_date}
             courses={courses}
@@ -300,11 +341,12 @@ export default function TimelinePage() {
             onCourseLongPress={handleCourseLongPress}
             onCellClick={handleCellClick}
             onMoveCourse={handleMoveCourse}
+            onResizeCourse={handleResizeCourse}
           />
         );
-      case "day":
+      case "week":
         return (
-          <DayView
+          <WeekView
             semesterId={activeSemester.id}
             semesterStart={activeSemester.start_date}
             courses={courses}
@@ -322,9 +364,18 @@ export default function TimelinePage() {
             semesterStart={activeSemester.start_date}
             totalWeeks={totalWeeks}
             courses={courses}
+            periods={periods}
             overrides={overrides}
             onCourseClick={handleCourseClick}
             onCourseLongPress={handleCourseLongPress}
+          />
+        );
+      case "year":
+        return (
+          <YearView
+            semesterStart={activeSemester.start_date}
+            semesterEnd={activeSemester.end_date}
+            courses={courses}
           />
         );
       default:
@@ -341,7 +392,7 @@ export default function TimelinePage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">时间轴</h1>
             <p className="text-xs text-muted-foreground">
-              日 / 周 / 月三视图 · 拖拽编辑 · 多周课表
+              日 / 周 / 月 / 年四视图 · 拖拽编辑 · 多周课表
             </p>
           </div>
         </div>
@@ -361,11 +412,14 @@ export default function TimelinePage() {
         </div>
       )}
 
-      {/* 工具栏（视图/模式/学期/周次切换） */}
+      {/* 工具栏（视图/学期/周模板/周次切换） */}
       <TimelineToolbar
         semesters={semesters}
         semestersLoading={semestersLoading}
         totalWeeks={totalWeeks}
+        templates={templates}
+        onSemesterChange={(id) => loadSemesterData(id)}
+        onOpenTemplateDialog={() => setTemplateDialogOpen(true)}
       />
 
       {/* 视图主体 */}
@@ -406,8 +460,18 @@ export default function TimelinePage() {
         semesterId={activeSemesterId ?? ""}
         periods={periods}
         defaultDate={todayIso()}
-        type={overrideType}
         onSaved={handleOverrideSaved}
+      />
+
+      {/* 周模板管理对话框（SPEC V2：普通周/特殊周切换） */}
+      <WeeklyTemplateDialog
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        semesterId={activeSemesterId ?? ""}
+        templates={templates}
+        activeTemplateId={activeTemplateId}
+        onSelect={setActiveTemplate}
+        onSaved={() => activeSemesterId && loadSemesterData(activeSemesterId)}
       />
     </div>
   );
