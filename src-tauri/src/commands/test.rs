@@ -56,6 +56,8 @@ pub async fn e2e_test(state: State<'_, Arc<AppState>>) -> Result<serde_json::Val
         parent_id: None,
         fault_strategy: Some(FaultStrategy::Stop),
         note: Some("E2E 测试动作".to_string()),
+        position_x: 100.0,
+        position_y: 100.0,
     };
     repo.set_actions(&flow.id, &[action])?;
     tracing::info!("[E2E] 添加 SetVariable 动作");

@@ -1,31 +1,68 @@
+/**
+ * 性能优化页面（SPEC 3.6 页面 4）
+ *
+ * Phase 4 实现：
+ * - 硬件监控（CPU/内存/温度占位待 LHB 集成）
+ * - 进程列表 Top 20（按 CPU/内存排序）
+ * - 进程优化操作（优先级调整 + 结束进程确认弹窗）
+ * - 一键优化（结束黑名单 + 降级高 CPU + 清理内存）
+ *
+ * 硬件状态由本组件统一轮询（2 秒一次），传给 HardwareMonitor 展示。
+ * ProcessList 自管理轮询（3 秒一次），OptimizePanel 由用户触发。
+ */
+
+import { useCallback, useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
+import { HardwareMonitor } from "@/pages/performance/HardwareMonitor";
+import { ProcessList } from "@/pages/performance/ProcessList";
+import { OptimizePanel } from "@/pages/performance/OptimizePanel";
+import {
+  performanceCommands,
+  type HardwareStatus,
+} from "@/lib/tauri";
 
-/**
- * 性能优化页面（SPEC 3.5 页面 4）
- *
- * Phase 2 仅占位骨架，Phase 4 实现：
- * - 硬件监控（CPU/内存/温度，参考 LibreHardwareMonitorLib）
- * - Top 20 进程列表
- * - 进程优化操作（优先级调整 / 结束进程）
- * - 一键优化
- */
 export default function PerformancePage() {
+  const [hardware, setHardware] = useState<HardwareStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadHardware = useCallback(async () => {
+    try {
+      const data = await performanceCommands.getHardwareStatus();
+      setHardware(data);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 硬件状态轮询：2 秒一次
+  // 注意 sysinfo 首次 refresh 后 CPU 使用率为 0，第二次起才准确，前端首次轮询可能显示 0%
+  useEffect(() => {
+    loadHardware();
+    const timer = setInterval(loadHardware, 2000);
+    return () => clearInterval(timer);
+  }, [loadHardware]);
+
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+    <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6 scrollbar-fluent">
+      {/* 标题 */}
       <div className="flex items-center gap-3">
         <Gauge className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-semibold tracking-tight">性能优化</h1>
       </div>
-      <Card className="flex flex-1 flex-col items-center justify-center border-dashed text-center">
-        <p className="text-base font-medium text-muted-foreground">
-          Phase 4 实现
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          硬件监控 · 进程列表 · 一键优化
-        </p>
-      </Card>
+
+      {/* 一键优化 */}
+      <OptimizePanel />
+
+      {/* 硬件监控 */}
+      <HardwareMonitor hardware={hardware} loading={loading} error={error} />
+
+      {/* 进程列表 */}
+      <ProcessList />
     </div>
   );
 }

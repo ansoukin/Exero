@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// 动作类型枚举
 ///
-/// 对应 SPEC 中定义的 6 类共 12+ 种动作。
+/// 对应 SPEC 中定义的 6 类共 20 种动作。
 /// 新增动作类型时在此扩展，并在 actions 模块中实现执行器。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "variant")]

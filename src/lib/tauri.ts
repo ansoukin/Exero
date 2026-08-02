@@ -182,10 +182,27 @@ export const flowCommands = {
 };
 
 // ---- 动作 ----
+
+/** 动作节点（镜像 Action） */
+export interface Action {
+  id: string;
+  flow_id: string;
+  action_type: { kind: ActionTypeKind; variant: unknown | null };
+  params: Record<string, unknown>;
+  order: number;
+  parent_id: string | null;
+  fault_strategy: FaultStrategy | null;
+  note: string | null;
+  /** 画布横坐标（Phase 4 可视化编辑器节点位置） */
+  position_x: number;
+  /** 画布纵坐标（Phase 4 可视化编辑器节点位置） */
+  position_y: number;
+}
+
 export const actionCommands = {
   list: (flowId: string) =>
-    invoke<unknown[]>("list_actions", { flowId }),
-  set: (flowId: string, actions: unknown[]) =>
+    invoke<Action[]>("list_actions", { flowId }),
+  set: (flowId: string, actions: Action[]) =>
     invoke<void>("set_actions", { flowId, actions }),
 };
 
@@ -436,3 +453,113 @@ export const overrideCommands = {
   deleteByDate: (semesterId: string, date: string) =>
     invoke<void>("delete_overrides_by_date", { semesterId, date }),
 };
+
+// ============================================================
+// 性能优化（镜像 models/performance.rs，snake_case 序列化）
+// ============================================================
+
+/** 进程优先级（镜像 ProcessPriority，#[serde(rename_all = "snake_case")]） */
+export type ProcessPriority =
+  | "high"
+  | "above_normal"
+  | "normal"
+  | "below_normal"
+  | "idle";
+
+/** 进程排序维度（镜像 ProcessSortBy） */
+export type ProcessSortBy = "cpu" | "memory";
+
+/** CPU 状态 */
+export interface CpuStatus {
+  name: string;
+  overall_usage: number;
+  core_usages: number[];
+  core_count: number;
+}
+
+/** 内存状态 */
+export interface MemoryStatus {
+  total_bytes: number;
+  used_bytes: number;
+  available_bytes: number;
+}
+
+/** 温度读数 */
+export interface TemperatureReading {
+  component: string;
+  temperature: number | null;
+  note: string;
+}
+
+/** 硬件状态总览 */
+export interface HardwareStatus {
+  cpu: CpuStatus;
+  memory: MemoryStatus;
+  temperatures: TemperatureReading[];
+}
+
+/** 进程信息 */
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpu_usage: number;
+  memory_bytes: number;
+  priority: ProcessPriority;
+  command: string | null;
+}
+
+/** 一键优化结果 */
+export interface OptimizeResult {
+  killed_processes: string[];
+  demoted_processes: string[];
+  memory_freed_bytes: number;
+  errors: string[];
+}
+
+export const performanceCommands = {
+  /** 获取硬件监控状态（CPU/内存/温度占位） */
+  getHardwareStatus: () => invoke<HardwareStatus>("get_hardware_status"),
+  /** 获取进程列表（Top N，按指定维度排序） */
+  listProcesses: (sortBy?: ProcessSortBy, limit?: number) =>
+    invoke<ProcessInfo[]>("list_processes", {
+      sortBy: sortBy ?? null,
+      limit: limit ?? null,
+    }),
+  /** 调整进程优先级 */
+  setProcessPriority: (pid: number, priority: ProcessPriority) =>
+    invoke<void>("set_process_priority", { pid, priority }),
+  /** 结束进程 */
+  killProcess: (pid: number) => invoke<void>("kill_process", { pid }),
+  /** 一键优化（结束黑名单 + 降级高 CPU + 清理内存） */
+  oneClickOptimize: () => invoke<OptimizeResult>("one_click_optimize"),
+  /** 获取优化黑名单（用户配置 + 默认硬编码） */
+  getBlacklist: () => invoke<string[]>("get_optimize_blacklist"),
+  /** 设置优化黑名单（覆盖用户配置部分） */
+  setBlacklist: (blacklist: string[]) =>
+    invoke<void>("set_optimize_blacklist", { blacklist }),
+};
+
+/** 优先级中文显示名（镜像 Rust display_name） */
+export function priorityLabel(p: ProcessPriority): string {
+  switch (p) {
+    case "high":
+      return "高";
+    case "above_normal":
+      return "高于正常";
+    case "normal":
+      return "正常";
+    case "below_normal":
+      return "低于正常";
+    case "idle":
+      return "低";
+  }
+}
+
+/** 全部优先级档位（用于下拉选项） */
+export const ALL_PRIORITIES: ProcessPriority[] = [
+  "high",
+  "above_normal",
+  "normal",
+  "below_normal",
+  "idle",
+];

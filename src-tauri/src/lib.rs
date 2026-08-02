@@ -106,6 +106,14 @@ pub fn run() {
             commands::courses::delete_overrides_by_date,
             // 测试命令
             commands::test::e2e_test,
+            // 性能优化命令
+            commands::performance::get_hardware_status,
+            commands::performance::list_processes,
+            commands::performance::set_process_priority,
+            commands::performance::kill_process,
+            commands::performance::one_click_optimize,
+            commands::performance::get_optimize_blacklist,
+            commands::performance::set_optimize_blacklist,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");

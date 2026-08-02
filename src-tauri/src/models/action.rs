@@ -27,6 +27,12 @@ pub struct Action {
     pub fault_strategy: Option<FaultStrategy>,
     /// 备注
     pub note: Option<String>,
+    /// 画布横坐标（Phase 4 可视化编辑器，React Flow 节点位置）
+    #[serde(default)]
+    pub position_x: f64,
+    /// 画布纵坐标（Phase 4 可视化编辑器，React Flow 节点位置）
+    #[serde(default)]
+    pub position_y: f64,
 }
 
 impl Action {
@@ -40,6 +46,8 @@ impl Action {
             parent_id: None,
             fault_strategy: None,
             note: None,
+            position_x: 0.0,
+            position_y: 0.0,
         }
     }
 }

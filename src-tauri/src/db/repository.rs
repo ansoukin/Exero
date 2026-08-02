@@ -178,7 +178,7 @@ impl<'a> Repository<'a> {
     pub fn list_actions(&self, flow_id: &str) -> Result<Vec<Action>> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, flow_id, action_type, params, \"order\", parent_id, fault_strategy, note
+                "SELECT id, flow_id, action_type, params, \"order\", parent_id, fault_strategy, note, position_x, position_y
                  FROM actions
                  WHERE flow_id = ?1
                  ORDER BY \"order\" ASC",
@@ -200,8 +200,8 @@ impl<'a> Repository<'a> {
             for action in actions {
                 tx.execute(
                     "INSERT INTO actions
-                     (id, flow_id, action_type, params, \"order\", parent_id, fault_strategy, note)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                     (id, flow_id, action_type, params, \"order\", parent_id, fault_strategy, note, position_x, position_y)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                     params![
                         action.id,
                         action.flow_id,
@@ -214,6 +214,8 @@ impl<'a> Repository<'a> {
                             .map(|s| serde_json::to_string(&s).ok())
                             .flatten(),
                         action.note,
+                        action.position_x,
+                        action.position_y,
                     ],
                 )?;
             }
@@ -1049,6 +1051,8 @@ fn row_to_action(row: &rusqlite::Row<'_>) -> rusqlite::Result<Action> {
         fault_strategy: strategy_str
             .and_then(|s| serde_json::from_str(&s).ok()),
         note: row.get(7)?,
+        position_x: row.get(8)?,
+        position_y: row.get(9)?,
     })
 }
 

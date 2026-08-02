@@ -6,7 +6,7 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
 [![Version](https://img.shields.io/badge/Version-0.4.0--alpha.1-orange.svg)]()
-[![Phase](https://img.shields.io/badge/Phase-3%20Complete-brightgreen.svg)]()
+[![Phase](https://img.shields.io/badge/Phase-4%20Complete-brightgreen.svg)]()
 
 个人自动化助手 — 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
 
@@ -14,11 +14,32 @@
 
 ## 当前状态
 
+**Phase 4 已完成** — 可视化编辑器 + 性能优化页：
+
+- V005 迁移：actions 表加 position_x/position_y 字段（节点画布坐标持久化）
+- React Flow (@xyflow/react) 集成 + 三栏布局（节点库 / 画布 / 属性面板）
+- 卡片式节点 + 贝塞尔曲线连线，6 类 20 种 ActionType 全量支持
+- 自定义节点组件（ActionNodeView）：图标 + 标题 + 参数摘要 + 端口
+- 控制流多端口：IfElse（then/else 双输出）、Loop（body 输出）
+- actions ↔ nodes/edges 双向转换（graphTransform.ts），与 chain.rs 执行引擎对齐
+- 20 种属性表单（6 类分批实现）+ 公共字段（容错策略 / 备注）
+- 单击选中 → 右侧属性面板实时编辑（SPEC 308 行交互规范）
+- 4 Tab 切换：指令列表 / 执行日志 / 自动化设置 / Lua 脚本市场（占位）
+- 指令卡片网格（图标 / 名称 / 触发器数 / 状态开关 / 运行按钮 / 删除按钮）
+- 执行日志三级筛选（全部 / 成功 / 失败）+ 展开查看错误详情
+- 自动化设置（默认音量 / Lua 超时 / 日志保留 / 并发模式）
+- 性能优化页（SPEC 3.6 页面4）：
+  - 硬件监控：CPU 使用率（总体 + 各核心）/ 内存（已用/可用/总量）/ 温度（占位待 LHB 集成）
+  - 进程列表：Top 20（按 CPU/内存排序），支持优先级调整与结束进程
+  - 一键优化：结束黑名单进程 + 降级高 CPU 进程 + EmptyWorkingSet 释放内存
+  - 黑名单配置（settings 表持久化，用户配置覆盖默认）
+  - 后端 sysinfo crate + Windows API（SetPriorityClass / TerminateProcess / EmptyWorkingSet）
+
 **Phase 3 已完成** — 时间轴页面：
 
 - V003/V004 迁移：4 张新表（semesters / class_periods / courses / schedule_overrides）+ 示例学期与课表
 - models/semester.rs + models/course.rs + commands/courses.rs（18 个 Tauri 命令）
-- 时间轴三视图（日 / 周 / 月）+ 格点/自由双模式
+- 时间轴四视图（日 / 周 / 月 / 年）+ 格点/自由双模式
 - @dnd-kit 拖拽编辑（Pointer + Touch + Keyboard 三传感器，30Hz 触屏）
 - 长按 500ms 操作菜单（编辑 / 复制 / 临时取消 / 临时调整 / 删除）
 - 临时调课（cancel / move，不修改常规课表）
