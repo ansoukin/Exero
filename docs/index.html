@@ -915,7 +915,7 @@
   <div class="hero-content">
     <div class="hero-chip">
       <span class="hero-chip-dot"></span>
-      Phase 3 已完成 · 0.4.0-alpha.1
+      Phase 4 已完成 · 0.4.0-alpha.1
     </div>
     <h1 class="hero-title">
       <span class="hero-title-gradient">Exero</span>
@@ -942,7 +942,7 @@
       <img src="https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white" alt="Tauri">
       <img src="https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white" alt="Rust">
       <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white" alt="React">
-      <img src="https://img.shields.io/badge/Phase-3%20Complete-brightgreen.svg" alt="Phase">
+      <img src="https://img.shields.io/badge/Phase-4%20Complete-brightgreen.svg" alt="Phase">
     </div>
   </div>
 </section>
@@ -1141,17 +1141,17 @@ return { success = true, count = count }</code></pre>
           <div class="roadmap-desc">日/周/月三视图、拖拽编辑、长按菜单、临时调课、多周课表</div>
         </div>
       </div>
-      <div class="roadmap-item current reveal">
+      <div class="roadmap-item done reveal">
         <div class="roadmap-num">04</div>
         <div class="roadmap-info">
-          <div class="roadmap-name">可视化编辑器 <span class="roadmap-tag">待开发</span></div>
-          <div class="roadmap-desc">React Flow 集成、三栏布局、卡片式节点、贝塞尔曲线连线、节点属性编辑</div>
+          <div class="roadmap-name">可视化编辑器 + 性能优化页 <span class="roadmap-tag">已完成</span></div>
+          <div class="roadmap-desc">React Flow 三栏编辑器、20 种动作节点、属性表单、CPU/内存监控、进程管理、一键优化</div>
         </div>
       </div>
-      <div class="roadmap-item pending reveal">
+      <div class="roadmap-item current reveal">
         <div class="roadmap-num">05</div>
         <div class="roadmap-info">
-          <div class="roadmap-name">Lua 脚本集成</div>
+          <div class="roadmap-name">Lua 脚本集成 <span class="roadmap-tag">待开发</span></div>
           <div class="roadmap-desc">mlua 引擎集成、严格沙箱、变量系统、脚本管理页、市场直连 GitHub</div>
         </div>
       </div>
@@ -1197,7 +1197,7 @@ return { success = true, count = count }</code></pre>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>当前进度如何？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）与 Phase 3（时间轴页面）均已完成。时间轴三视图、拖拽编辑、长按菜单、临时调课、学期制多周课表已联调通过。下一步进入 Phase 4（可视化编辑器）。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
+        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）、Phase 3（时间轴页面）与 Phase 4（可视化编辑器 + 性能优化页）均已完成。可视化积木编辑器、CPU/内存硬件监控、进程管理、一键优化已联调通过。下一步进入 Phase 5（Lua 脚本集成）。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
       </div>
     </div>
   </div>
@@ -1216,8 +1216,24 @@ return { success = true, count = count }</code></pre>
       <div class="cl-item">
         <div class="cl-header">
           <span class="cl-version current">0.4.0-alpha.1</span>
-          <span class="cl-date">2026-07-22</span>
+          <span class="cl-date">2026-08-02</span>
           <span class="cl-tag now">当前</span>
+        </div>
+        <div class="cl-title">Phase 4 完成：可视化编辑器 + 性能优化页</div>
+        <ul class="cl-list">
+          <li>V005 迁移：actions 表加 position_x/position_y 字段</li>
+          <li>React Flow 三栏编辑器（节点库 / 画布 / 属性面板）</li>
+          <li>6 类 20 种 ActionType 全量节点 + 20 种属性表单</li>
+          <li>控制流多端口：IfElse（then/else）、Loop（body）</li>
+          <li>性能优化页：CPU/内存监控 + 进程列表 + 一键优化</li>
+          <li>sysinfo crate + Windows API（SetPriorityClass/TerminateProcess）</li>
+          <li>首页 SystemStatus 改为真实硬件数据（2 秒轮询）</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-alpha.1</span>
+          <span class="cl-date">2026-07-22</span>
         </div>
         <div class="cl-title">Phase 3 完成：时间轴页面</div>
         <ul class="cl-list">
@@ -1266,9 +1282,9 @@ return { success = true, count = count }</code></pre>
           <span class="cl-version pending">0.4.0-beta.1</span>
           <span class="cl-date">未来</span>
         </div>
-        <div class="cl-title">Phase 4-6：完整功能</div>
+        <div class="cl-title">Phase 5-6：完整功能</div>
         <ul class="cl-list">
-          <li>可视化编辑器 · Lua 脚本集成与市场</li>
+          <li>Lua 脚本集成与市场</li>
           <li>系统集成、主题系统、NSIS 打包</li>
         </ul>
       </div>
