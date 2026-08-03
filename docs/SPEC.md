@@ -665,6 +665,7 @@ Exero/
 - 导入导出功能
 - Splash Screen
 - **课表初始化引导向导**（详见 [11.2 节](#112-课表初始化引导向导phase-6)：首次启动检测 + 4 步向导 + 演示模式 + 空状态设计）
+- **URL 短域名别名配置**（详见 [11.3 节](#113-url-短域名别名配置phase-6)：设置页可配置短域名映射表，OpenUrl 动作自动解析别名）
 - 整体测试与收尾
 
 ---
@@ -789,6 +790,54 @@ Exero/
 - V004 在数据库初始化时执行（创建表 + 插入示例数据）
 - 首次启动检测逻辑：`onboarding_completed` 标记不存在时，若 `semesters` 表已有 V004 数据 → 视为演示数据，仍弹引导向导（欢迎页"加载示例数据"按钮直接标记完成）
 - 引导向导"开始配置"路径不依赖 V004 数据，用户可完全自定义
+
+### 11.3 URL 短域名别名配置（Phase 6）
+
+OpenUrl 动作的 URL 自动补全增强功能。用户可在设置页配置短域名别名映射表，OpenUrl 动作执行时自动解析别名并重写为完整 URL。
+
+#### 功能背景
+
+Phase 5 已实现基础 URL scheme 自动补全（`baidu.com` -> `https://baidu.com`），但仍需用户输入完整域名。Phase 6 增强为支持短别名：
+- 用户配置 `baidu` -> `https://www.baidu.com`
+- OpenUrl 动作输入 `baidu` -> 自动重写为 `https://www.baidu.com`
+- 降低小白用户输入成本
+
+#### 配置存储
+
+- 设置键：`url.aliases`
+- 值格式：JSON 数组，每项 `{ alias: string, target: string }`
+- 默认值：`[]`（空数组，仅 scheme 补全生效）
+- 持久化到 `settings` 表
+
+#### 默认别名（首次启用时预置）
+
+| 别名 | 目标 |
+|---|---|
+| `baidu` | `https://www.baidu.com` |
+| `google` | `https://www.google.com` |
+| `github` | `https://github.com` |
+| `bing` | `https://www.bing.com` |
+
+用户可自由增删改，空别名或空目标自动忽略。
+
+#### 解析优先级
+
+OpenUrl 动作执行时，URL 解析顺序：
+1. **别名匹配**：输入完全等于某别名 -> 直接替换为目标 URL（跳过后续步骤）
+2. **scheme 补全**：输入无 `://` -> 补全 `https://`
+3. **原样使用**：输入已含 scheme -> 保持不变
+
+#### 设置页 UI
+
+- 位置：设置页 -> 通用 -> URL 短域名别名
+- 组件：可编辑列表（别名 + 目标 URL 两列）+ 添加/删除按钮 + 重置为默认
+- 实时保存：修改后立即写入 settings，无需额外保存按钮
+
+#### 与 Phase 5 的关系
+
+- Phase 5 的 `normalize_url` 函数已预留扩展点（注释标记 Phase 6）
+- Phase 6 实现：从 settings 读取 `url.aliases`，在 `normalize_url` 内先做别名查找
+- 向后兼容：未配置别名时行为与 Phase 5 一致
 
 ---
 

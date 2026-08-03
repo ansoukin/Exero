@@ -127,17 +127,18 @@ impl ActionExecutor for OpenUrlExecutor {
 
     fn execute(&self, params: &Value, ctx: &mut ExecutionContext) -> Result<ActionResult> {
         let p: OpenUrlParams = serde_json::from_value(params.clone())?;
-        let url = ctx.interpolate(&p.url);
+        let raw_url = ctx.interpolate(&p.url);
+        // 自动补全 URL scheme：baidu.com -> https://baidu.com
+        // 仅在无 scheme 时补全，已有 http:// / https:// / ftp:// 等保持原样
+        let url = normalize_url(&raw_url);
 
-        tracing::info!("打开网页: {}", url);
+        tracing::info!("打开网页: {} (原始: {})", url, raw_url);
 
         // 验证 URL 格式
         let parsed = url::Url::parse(&url)
             .map_err(|e| AppError::InvalidArgument(format!("URL 格式错误: {}", e)))?;
 
-        // 使用 opener 打开默认浏览器
-        // 注意：这里通过 app_handle 调用 opener 插件，
-        // 但执行器无法直接访问 app_handle，所以降级到 std
+        // 使用 open::that 调用默认浏览器
         open::that(parsed.as_str()).map_err(|e| {
             AppError::ActionExecution(format!("打开网页失败 {}: {}", url, e))
         })?;
@@ -190,4 +191,30 @@ impl ActionExecutor for OpenFileExecutor {
             Ok(ActionResult::success(format!("已打开文件: {}", path)))
         }
     }
+}
+
+/// URL scheme 自动补全
+///
+/// 检测输入是否包含 scheme（如 `http://` / `https://` / `ftp://`），
+/// 若无则自动补全为 `https://`。支持以下场景：
+///
+/// - `baidu.com` -> `https://baidu.com`
+/// - `www.google.com` -> `https://www.google.com`
+/// - `http://example.com` -> 保持不变
+/// - `localhost:3000` -> `https://localhost:3000`
+/// - `192.168.1.1:8080` -> `https://192.168.1.1:8080`
+///
+/// Phase 6 扩展点：未来可从 settings 读取常用域名映射表，
+/// 如 `baidu -> https://www.baidu.com`（短域名别名）。
+fn normalize_url(raw: &str) -> String {
+    let trimmed = raw.trim();
+
+    // 已包含 scheme（:// 分隔符），保持原样
+    if trimmed.contains("://") {
+        return trimmed.to_string();
+    }
+
+    // 无 scheme，自动补全 https://
+    // 注意：不补全 http://，因为现代 Web 应默认使用 HTTPS
+    format!("https://{}", trimmed)
 }

@@ -12,7 +12,10 @@ use crate::models::common::ActionType;
 
 /// 调节音量执行器
 ///
-/// 基于 Windows Core Audio API (winmm) 调节主音量。
+/// 基于 Windows Core Audio API (WASAPI IAudioEndpointVolume) 调节系统主音量。
+///
+/// Phase 5 修复：原实现使用 waveOutSetVolume（winmm 旧 API），只影响 waveOut 设备音量，
+/// 不影响系统主音量。改用 IAudioEndpointVolume 可正确控制系统主音量与静音状态。
 pub struct SetVolumeExecutor;
 
 impl ActionExecutor for SetVolumeExecutor {
@@ -25,36 +28,21 @@ impl ActionExecutor for SetVolumeExecutor {
 
         #[cfg(windows)]
         {
-            use windows_sys::Win32::Media::Audio::{
-                waveOutGetVolume, waveOutSetVolume, WAVE_MAPPER,
-            };
-
             tracing::info!("调节音量: volume={:?} mute={}", p.volume, p.mute);
 
             if p.mute {
-                // 静音：将音量设为 0
-                unsafe {
-                    waveOutSetVolume(WAVE_MAPPER as _, 0);
-                }
+                set_system_mute(true)?;
                 Ok(ActionResult::success("已静音"))
             } else if let Some(volume) = p.volume {
                 let volume = volume.min(100);
-                // waveOutSetVolume 接收 16 位立体声音量（左右声道）
-                // 将 0-100 映射到 0x0000-0xFFFF
-                let v = ((volume as u32) * 0xFFFF / 100) & 0xFFFF;
-                let stereo = v | (v << 16); // 左右声道相同
-                unsafe {
-                    waveOutSetVolume(WAVE_MAPPER as _, stereo);
-                }
+                // 设置音量时同步取消静音状态，否则系统音量虽变但任务栏图标仍显示静音
+                set_system_mute(false)?;
+                set_system_volume(volume)?;
                 Ok(ActionResult::success(format!("音量已设置为 {}", volume)))
             } else {
-                // 既没有 volume 也没有 mute，查询当前音量
-                let mut current: u32 = 0;
-                unsafe {
-                    waveOutGetVolume(WAVE_MAPPER as _, &mut current);
-                }
-                let left = current & 0xFFFF;
-                let vol = left * 100 / 0xFFFF;
+                // 既没有 volume 也没有 mute，取消静音并查询当前音量
+                set_system_mute(false)?;
+                let vol = get_system_volume()?;
                 Ok(ActionResult::success_with_output(
                     format!("当前音量: {}", vol),
                     serde_json::json!({ "volume": vol }),
@@ -64,12 +52,93 @@ impl ActionExecutor for SetVolumeExecutor {
 
         #[cfg(not(windows))]
         {
+            let _ = p;
             Err(AppError::ActionExecution(
                 "调节音量仅在 Windows 上支持".into(),
             ))
         }
     }
 }
+
+/// WASAPI 系统音量控制（Phase 5 修复）
+///
+/// 使用 IAudioEndpointVolume 接口控制系统主音量，替代旧版 waveOutSetVolume。
+/// 每次调用都会初始化 COM（幂等，已初始化时返回 S_FALSE 被忽略）。
+#[cfg(windows)]
+mod win_audio {
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+    use windows::Win32::Media::Audio::{
+        eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
+    };
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED,
+    };
+
+    use crate::error::{AppError, Result};
+
+    /// 设置系统静音状态
+    pub fn set_mute(mute: bool) -> Result<()> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let result = (|| {
+                let enumerator: IMMDeviceEnumerator =
+                    CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+                let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+                let endpoint_volume: IAudioEndpointVolume =
+                    device.Activate(CLSCTX_ALL, None)?;
+                endpoint_volume.SetMute(mute, std::ptr::null())
+            })();
+            CoUninitialize();
+            result.map_err(|e| {
+                AppError::ActionExecution(format!("设置系统静音失败: {}", e))
+            })
+        }
+    }
+
+    /// 设置系统主音量（0-100）
+    pub fn set_volume(volume: u32) -> Result<()> {
+        let scalar = (volume.min(100) as f32) / 100.0;
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let result = (|| {
+                let enumerator: IMMDeviceEnumerator =
+                    CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+                let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+                let endpoint_volume: IAudioEndpointVolume =
+                    device.Activate(CLSCTX_ALL, None)?;
+                endpoint_volume.SetMasterVolumeLevelScalar(scalar, std::ptr::null())
+            })();
+            CoUninitialize();
+            result.map_err(|e| {
+                AppError::ActionExecution(format!("设置系统音量失败: {}", e))
+            })
+        }
+    }
+
+    /// 查询当前系统主音量（0-100）
+    pub fn get_volume() -> Result<u32> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let result = (|| {
+                let enumerator: IMMDeviceEnumerator =
+                    CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+                let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+                let endpoint_volume: IAudioEndpointVolume =
+                    device.Activate(CLSCTX_ALL, None)?;
+                endpoint_volume.GetMasterVolumeLevelScalar()
+            })();
+            CoUninitialize();
+            result
+                .map(|scalar| (scalar * 100.0).round() as u32)
+                .map_err(|e| {
+                    AppError::ActionExecution(format!("查询系统音量失败: {}", e))
+                })
+        }
+    }
+}
+
+#[cfg(windows)]
+use win_audio::{get_volume as get_system_volume, set_mute as set_system_mute, set_volume as set_system_volume};
 
 /// 播放声音执行器
 ///

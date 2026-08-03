@@ -105,8 +105,8 @@ impl ChainEngine {
             }
         }
 
-        // 更新 Flow 级别日志（先删除再插入，简化逻辑）
-        repo.insert_log(&flow_log)?;
+        // 更新 Flow 级别日志（start 时已 insert，此处 update 最终状态）
+        repo.update_log(&flow_log)?;
 
         Ok(flow_log)
     }
@@ -143,7 +143,7 @@ impl ChainEngine {
         match result {
             Ok(action_result) => {
                 log.succeed();
-                repo.insert_log(&log)?;
+                repo.update_log(&log)?;
                 tracing::debug!(
                     "动作执行成功: id={} type={:?} msg={}",
                     action.id,
@@ -155,7 +155,7 @@ impl ChainEngine {
             Err(e) => {
                 let err_msg = e.to_string();
                 log.fail(&err_msg);
-                repo.insert_log(&log)?;
+                repo.update_log(&log)?;
 
                 let strategy = action.fault_strategy.unwrap_or(default_strategy);
                 self.handle_fault(&strategy, &err_msg, ctx)?;

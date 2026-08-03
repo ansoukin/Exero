@@ -31,7 +31,9 @@ impl ActionExecutor for ShowToastExecutor {
 
         tracing::info!("发送 Toast 通知: {} - {}", title, body);
 
-        // 调用 tauri-plugin-notification 发送原生 Toast
+        // 调用 tauri-plugin-notification 发送原生 Windows Toast
+        // 注意：dev 模式下 Windows 会以 PowerShell 名字/图标显示（Tauri v2 已知限制），
+        // 安装后（NSIS 安装包）自动注册 AUMID，Toast 正常显示应用名/图标。
         let mut builder = ctx.app_handle.notification().builder().title(&title).body(&body);
 
         if let Some(icon_path) = &p.icon {

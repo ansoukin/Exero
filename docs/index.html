@@ -915,7 +915,7 @@
   <div class="hero-content">
     <div class="hero-chip">
       <span class="hero-chip-dot"></span>
-      Phase 4 已完成 · 0.4.0-alpha.1
+      Phase 5 已完成 · 0.4.0-alpha.1
     </div>
     <h1 class="hero-title">
       <span class="hero-title-gradient">Exero</span>
@@ -942,7 +942,7 @@
       <img src="https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white" alt="Tauri">
       <img src="https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white" alt="Rust">
       <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white" alt="React">
-      <img src="https://img.shields.io/badge/Phase-4%20Complete-brightgreen.svg" alt="Phase">
+      <img src="https://img.shields.io/badge/Phase-5%20Complete-brightgreen.svg" alt="Phase">
     </div>
   </div>
 </section>
@@ -994,7 +994,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC131" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         </div>
         <h3>Lua 脚本扩展</h3>
-        <p>内置 mlua 引擎（Lua 5.4），严格沙箱隔离，支持脚本市场直连 GitHub 仓库浏览与安装。</p>
+        <p>内置 mlua 引擎（LuaJIT），严格沙箱隔离，支持脚本市场直连 GitHub 仓库浏览与安装。</p>
       </div>
 
       <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
@@ -1148,18 +1148,18 @@ return { success = true, count = count }</code></pre>
           <div class="roadmap-desc">React Flow 三栏编辑器、20 种动作节点、属性表单、CPU/内存监控、进程管理、一键优化</div>
         </div>
       </div>
-      <div class="roadmap-item current reveal">
+      <div class="roadmap-item done reveal">
         <div class="roadmap-num">05</div>
         <div class="roadmap-info">
-          <div class="roadmap-name">Lua 脚本集成 <span class="roadmap-tag">待开发</span></div>
-          <div class="roadmap-desc">mlua 引擎集成、严格沙箱、变量系统、脚本管理页、市场直连 GitHub</div>
+          <div class="roadmap-name">Lua 脚本集成 <span class="roadmap-tag">已完成</span></div>
+          <div class="roadmap-desc">mlua 引擎（LuaJIT）、严格沙箱、变量系统、脚本市场直连 GitHub、动态参数表单</div>
         </div>
       </div>
-      <div class="roadmap-item pending reveal">
+      <div class="roadmap-item current reveal">
         <div class="roadmap-num">06</div>
         <div class="roadmap-info">
-          <div class="roadmap-name">系统集成 + 主题 + 收尾</div>
-          <div class="roadmap-desc">托盘/自启/Toast、主题系统、动画、NSIS 打包、更新检查器、导入导出</div>
+          <div class="roadmap-name">系统集成 + 主题 + 收尾 <span class="roadmap-tag">待开发</span></div>
+          <div class="roadmap-desc">托盘/自启/Toast、主题系统、动画、NSIS 打包、更新检查器、导入导出、课表初始化向导、URL 短域名别名</div>
         </div>
       </div>
     </div>
@@ -1197,7 +1197,7 @@ return { success = true, count = count }</code></pre>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>当前进度如何？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）、Phase 3（时间轴页面）与 Phase 4（可视化编辑器 + 性能优化页）均已完成。可视化积木编辑器、CPU/内存硬件监控、进程管理、一键优化已联调通过。下一步进入 Phase 5（Lua 脚本集成）。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
+        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）、Phase 3（时间轴页面）、Phase 4（可视化编辑器 + 性能优化页）与 Phase 5（Lua 脚本集成）均已完成。LuaJIT 引擎、严格沙箱、变量系统、脚本市场直连 GitHub、动态参数表单已联调通过。下一步进入 Phase 6（系统集成 + 主题 + 收尾）。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
       </div>
     </div>
   </div>
@@ -1216,8 +1216,32 @@ return { success = true, count = count }</code></pre>
       <div class="cl-item">
         <div class="cl-header">
           <span class="cl-version current">0.4.0-alpha.1</span>
-          <span class="cl-date">2026-08-02</span>
+          <span class="cl-date">2026-08-03</span>
           <span class="cl-tag now">当前</span>
+        </div>
+        <div class="cl-title">Phase 5 完成：Lua 脚本集成</div>
+        <ul class="cl-list">
+          <li>mlua 引擎从 Lua 5.4 切换到 LuaJIT（vendored 源码编译）</li>
+          <li>严格沙箱（默认禁用 os.execute/io.popen/loadfile/require）+ 可选宽松沙箱（settings 持久化）</li>
+          <li>变量系统：Arc&lt;RwLock&lt;HashMap&gt;&gt; 实现 Lua 与 ExecutionContext 变量读写（局部/全局）</li>
+          <li>exero 安全库注入：log / notify / get_var / set_var / set_result</li>
+          <li>128MB 内存限制 + 指令计数 hook 超时检测（默认 10 秒）</li>
+          <li>V006 迁移：lua_scripts 表持久化已安装脚本元数据 + SHA256 内容哈希</li>
+          <li>Lua 脚本市场：GitHub Contents API 主源 + ghproxy 镜像后备 + 离线模式</li>
+          <li>6 个 Tauri 命令（list_installed/get_detail/list_market/install/uninstall/update）</li>
+          <li>动态参数表单：根据 manifest params_schema 生成 string/number/boolean/select</li>
+          <li>3 个示例脚本：hello-world / counter / system-info</li>
+          <li>P0 修复：WASAPI IAudioEndpointVolume 替代 waveOutSetVolume（音量+静音同步）</li>
+          <li>P0 修复：NotificationToast 应用内通知监听组件（右下角卡片 + 4 级颜色）</li>
+          <li>P0 修复：execution_logs 主键冲突（update_log 替代重复 insert）</li>
+          <li>P1 增强：URL scheme 自动补全（baidu.com -&gt; https://baidu.com）</li>
+          <li>P1 增强：模拟按键弹窗捕捉模式（KeyCaptureOverlay 按键组合识别）</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-alpha.1</span>
+          <span class="cl-date">2026-08-02</span>
         </div>
         <div class="cl-title">Phase 4 完成：可视化编辑器 + 性能优化页</div>
         <ul class="cl-list">
@@ -1282,10 +1306,16 @@ return { success = true, count = count }</code></pre>
           <span class="cl-version pending">0.4.0-beta.1</span>
           <span class="cl-date">未来</span>
         </div>
-        <div class="cl-title">Phase 5-6：完整功能</div>
+        <div class="cl-title">Phase 6：系统集成 + 主题 + 收尾</div>
         <ul class="cl-list">
-          <li>Lua 脚本集成与市场</li>
-          <li>系统集成、主题系统、NSIS 打包</li>
+          <li>系统集成（托盘 / 自启 / Toast）</li>
+          <li>主题系统（深浅模式 + 8 色主题 + Mica 可选）</li>
+          <li>动画系统 + Splash Screen</li>
+          <li>NSIS 打包 + 更新检查器</li>
+          <li>导入导出功能（.exero 格式）</li>
+          <li>课表初始化引导向导（4 步 + 演示模式）</li>
+          <li>URL 短域名别名配置（设置页可编辑映射表）</li>
+          <li>关于页 + 帮助页 + 整体测试收尾</li>
         </ul>
       </div>
     </div>

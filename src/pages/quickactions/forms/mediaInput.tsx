@@ -6,6 +6,9 @@
  * - SimulateKey：模拟按键
  */
 
+import { useEffect, useState } from "react";
+import { Keyboard } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -117,19 +120,189 @@ function PlaySoundForm({ params, onChange }: ActionFormProps) {
 // ============================================================
 // SimulateKey：模拟按键
 // ============================================================
+
+/** 键盘按键名称映射（KeyEvent.code/key -> 后端 parse_key_sequence 识别的名称） */
+const KEY_DISPLAY_NAMES: Record<string, string> = {
+  // 修饰键
+  Control: "Ctrl",
+  ControlLeft: "Ctrl",
+  ControlRight: "Ctrl",
+  Alt: "Alt",
+  AltLeft: "Alt",
+  AltRight: "Alt",
+  Shift: "Shift",
+  ShiftLeft: "Shift",
+  ShiftRight: "Shift",
+  Meta: "Win",
+  MetaLeft: "Win",
+  MetaRight: "Win",
+  // 功能键
+  Enter: "Enter",
+  NumpadEnter: "Enter",
+  Escape: "Esc",
+  Tab: "Tab",
+  Space: "Space",
+  Backspace: "Backspace",
+  Delete: "Delete",
+  Insert: "Insert",
+  Home: "Home",
+  End: "End",
+  PageUp: "PageUp",
+  PageDown: "PageDown",
+  ArrowUp: "Up",
+  ArrowDown: "Down",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+  // F1-F12
+  F1: "F1", F2: "F2", F3: "F3", F4: "F4", F5: "F5", F6: "F6",
+  F7: "F7", F8: "F8", F9: "F9", F10: "F10", F11: "F11", F12: "F12",
+};
+
+/** 将键盘事件转换为后端可识别的按键名称 */
+function keyEventToKeyName(e: KeyboardEvent): string | null {
+  // 修饰键优先（按 code 识别左右 Ctrl/Alt/Shift/Meta）
+  if (KEY_DISPLAY_NAMES[e.code]) {
+    return KEY_DISPLAY_NAMES[e.code];
+  }
+  // 单字符键
+  if (e.key.length === 1) {
+    return e.key.toUpperCase();
+  }
+  // 其他命名键
+  if (KEY_DISPLAY_NAMES[e.key]) {
+    return KEY_DISPLAY_NAMES[e.key];
+  }
+  return null;
+}
+
+/** 按键捕捉弹窗 */
+function KeyCaptureOverlay({
+  onCapture,
+  onCancel,
+}: {
+  onCapture: (keys: string) => void;
+  onCancel: () => void;
+}) {
+  const [pressedKeys, setPressedKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Escape 取消
+      if (e.key === "Escape") {
+        onCancel();
+        return;
+      }
+
+      const keyName = keyEventToKeyName(e);
+      if (!keyName) return;
+
+      setPressedKeys((prev) => {
+        // 避免重复添加（按住不放）
+        if (prev.includes(keyName)) return prev;
+        return [...prev, keyName];
+      });
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // 修饰键全部释放时，结束捕捉
+      const isModifier = ["Control", "Alt", "Shift", "Meta"].includes(e.key);
+      const allModifiersReleased =
+        !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+
+      if (isModifier && allModifiersReleased && pressedKeys.length > 0) {
+        // 组合键已完成（如 Ctrl+Shift）
+        onCapture(pressedKeys.join("+"));
+        return;
+      }
+
+      // 非修饰键释放且已有按键按下，结束捕捉
+      if (!isModifier && pressedKeys.length > 0) {
+        onCapture(pressedKeys.join("+"));
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyUp, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", handleKeyUp, true);
+    };
+  }, [pressedKeys, onCapture, onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="mx-4 max-w-md rounded-lg border bg-card p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center">
+          <div className="mb-3 text-sm font-medium text-card-foreground">
+            按下按键组合
+          </div>
+          <div className="mb-4 text-xs text-muted-foreground">
+            按下并释放任意按键组合，按 Esc 取消
+          </div>
+          <div className="flex min-h-[3rem] items-center justify-center rounded-md border border-dashed bg-background p-3">
+            {pressedKeys.length > 0 ? (
+              <span className="font-mono text-sm font-medium text-foreground">
+                {pressedKeys.join(" + ")}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                等待按键...
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onCancel}
+            className="mt-4 text-xs text-muted-foreground hover:text-foreground"
+          >
+            取消（Esc）
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SimulateKeyForm({ params, onChange }: ActionFormProps) {
+  const [capturing, setCapturing] = useState(false);
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <Label className="text-xs">按键序列 *</Label>
-        <Input
-          value={(params.keys as string) || ""}
-          onChange={(e) => onChange(updateField(params, "keys", strValue(e)))}
-          placeholder="Ctrl+C / Win+D / Alt+Tab"
-          className="h-8 text-xs font-mono"
-        />
+        <div className="flex gap-2">
+          <Input
+            value={(params.keys as string) || ""}
+            onChange={(e) => onChange(updateField(params, "keys", e.target.value))}
+            placeholder="Ctrl+C / Win+D / Alt+Tab"
+            className="h-8 flex-1 text-xs font-mono"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCapturing(true)}
+            className="h-8 gap-1 text-xs"
+          >
+            <Keyboard className="h-3.5 w-3.5" />
+            捕捉
+          </Button>
+        </div>
         <p className="text-[10px] text-muted-foreground">
-          组合键用 + 连接，多组用空格分隔
+          点击"捕捉"按钮后按下按键组合，系统将自动识别并填入；也可手动输入，组合键用 + 连接
         </p>
       </div>
       <div className="space-y-1.5">
@@ -145,6 +318,15 @@ function SimulateKeyForm({ params, onChange }: ActionFormProps) {
           className="h-8 text-xs"
         />
       </div>
+      {capturing && (
+        <KeyCaptureOverlay
+          onCapture={(keys) => {
+            onChange(updateField(params, "keys", keys));
+            setCapturing(false);
+          }}
+          onCancel={() => setCapturing(false)}
+        />
+      )}
     </div>
   );
 }

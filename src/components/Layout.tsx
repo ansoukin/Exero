@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/Sidebar";
+import { NotificationToast } from "@/components/NotificationToast";
 import { useAppStore } from "@/stores/app";
 import HomePage from "@/pages/Home";
 import TimelinePage from "@/pages/Timeline";
@@ -40,6 +41,8 @@ export function Layout() {
           {renderPage()}
         </div>
       </main>
+      {/* 应用内通知 Toast（监听后端 notification:in-app 事件） */}
+      <NotificationToast />
     </div>
   );
 }

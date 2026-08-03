@@ -327,6 +327,29 @@ impl<'a> Repository<'a> {
         })
     }
 
+    /// 更新执行日志（状态/结束时间/耗时/错误信息）
+    ///
+    /// 用于执行完成或失败后更新已有记录。
+    /// Phase 5 修复：原 chain.rs 在 start 时 insert、结束时再次 insert 导致主键冲突。
+    pub fn update_log(&self, log: &ExecutionLog) -> Result<()> {
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "UPDATE execution_logs
+                 SET status = ?1, finished_at = ?2, duration_ms = ?3, error = ?4, context = ?5
+                 WHERE id = ?6",
+                params![
+                    serde_json::to_string(&log.status)?,
+                    log.finished_at.map(|t| t.to_rfc3339()),
+                    log.duration_ms.map(|d| d as i64),
+                    log.error,
+                    log.context,
+                    log.id,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
     /// 查询执行日志
     pub fn list_logs(&self, filter: &LogFilter) -> Result<Vec<ExecutionLog>> {
         self.db.with_conn(|conn| {

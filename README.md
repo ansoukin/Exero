@@ -6,15 +6,37 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
 [![Version](https://img.shields.io/badge/Version-0.4.0--alpha.1-orange.svg)]()
-[![Phase](https://img.shields.io/badge/Phase-4%20Complete-brightgreen.svg)]()
+[![Phase](https://img.shields.io/badge/Phase-5%20Complete-brightgreen.svg)]()
 
-个人自动化助手 — 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
+个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
 
 通过"快捷指令 + 可视化积木"理念，将时间触发、系统事件、手动操作等多种触发方式与 20 种动作类型组合，实现日常场景的自动化。
 
 ## 当前状态
 
-**Phase 4 已完成** — 可视化编辑器 + 性能优化页：
+**Phase 5 已完成** - Lua 集成：
+
+- mlua crate 从 Lua 5.4 切换到 LuaJIT（vendored 从源码编译）
+- 严格沙箱机制（默认禁用 os.execute / io.popen / loadfile / require 等危险 API）+ 可选宽松沙箱（settings 持久化）
+- 变量系统：Arc<RwLock<HashMap>> 实现 Lua 脚本与 ExecutionContext 之间的变量读写，支持局部变量和全局变量
+- exero 库注入：log / notify / get_var / set_var / set_result
+- 128MB 内存限制 + 指令计数 hook 超时检测（默认 10 秒）
+- V006 迁移：lua_scripts 表持久化已安装脚本元数据（script_id / name / author / version / permissions / params_schema / content_hash）
+- Lua 脚本市场（对接 GitHub 仓库 scripts/ 目录）：
+  - GitHub Contents API 主源 + ghproxy 镜像后备 + 离线模式
+  - 6 个 Tauri 命令（list_installed / get_detail / list_market / install / uninstall / update）
+  - SHA256 内容哈希用于更新检测
+- 前端 LuaMarketTab：市场列表 + 已安装列表 + 离线提示 + 详情 Dialog + 安装/卸载/更新
+- LuaScriptForm 升级：script_id 从已安装列表选择 + 根据 manifest params_schema 动态生成参数表单（string / number / boolean / select）
+- 3 个示例脚本：hello-world（基础 API）/ counter（变量系统）/ system-info（os 库）
+- P0 修复：应用内通知监听组件（NotificationToast，右下角卡片 + 4 级颜色 + 5 秒自动消失）
+- P0 修复：音量 API 从 waveOutSetVolume 切换到 WASAPI IAudioEndpointVolume（正确控制系统主音量）
+- P0 修复：execution_logs 主键冲突（repository 新增 update_log，chain.rs 改用 update 替代重复 insert）
+- P1 修复：URL 自动补全 scheme（baidu.com -> https://baidu.com）
+- P1 修复：音量设置时同步取消静音状态
+- P1 增强：模拟按键弹窗捕捉模式（KeyCaptureOverlay 全屏遮罩 + 按键组合识别）
+
+**Phase 4 已完成** - 可视化编辑器 + 性能优化页：
 
 - V005 迁移：actions 表加 position_x/position_y 字段（节点画布坐标持久化）
 - React Flow (@xyflow/react) 集成 + 三栏布局（节点库 / 画布 / 属性面板）
@@ -68,7 +90,7 @@
 
 ## 技术栈
 
-**后端**：Rust（edition 2021）、Tauri v2、SQLite（rusqlite + refinery）、tokio、tracing、mlua（Lua 5.4）
+**后端**：Rust（edition 2021）、Tauri v2、SQLite（rusqlite + refinery）、tokio、tracing、mlua（LuaJIT）
 
 **前端**（Phase 2 起）：React 18、TypeScript、Vite、Tailwind CSS、shadcn/ui、React Flow
 
