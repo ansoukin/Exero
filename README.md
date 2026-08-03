@@ -6,13 +6,36 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
 [![Version](https://img.shields.io/badge/Version-0.4.0--alpha.1-orange.svg)]()
-[![Phase](https://img.shields.io/badge/Phase-5%20Complete-brightgreen.svg)]()
+[![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
 
 通过"快捷指令 + 可视化积木"理念，将时间触发、系统事件、手动操作等多种触发方式与 20 种动作类型组合，实现日常场景的自动化。
 
 ## 当前状态
+
+**Phase 6 全部完成（V0.4.0 Alpha1 最终交付）** - 系统集成 + 主题 + 收尾：
+
+**Phase 6b 收尾**：
+
+- NSIS 打包配置完善（installMode=currentUser，LZMA 压缩，中英文双语，LICENSE + CHANGELOG.md 随包分发）
+- 更新检查器（SPEC 第七章）：GitHub Release latest API + force-update.json 强制更新检测 + ghproxy 镜像后备 + 离线回退本地 CHANGELOG.md
+- 关于页：应用基本信息 + 15 项技术栈 + MIT 许可（含娱乐性 24 小时删除声明）+ GitHub 仓库链接 + 更新历史（云端优先）
+- 帮助页：V0.4.0 占位嘲讽/自嘲文案（功能说明 / FAQ / 错误代码 / 概念词典待后续补充）
+- 导入导出功能（SPEC 5.5）：.exero 文件格式（zip 包含 meta.json + data.json + scripts/*.lua），4 范围可选（flows / courses / settings / scripts / all），2 模式（merge / replace），事务性数据库操作
+- URL 短域名别名配置（SPEC 11.3）：设置页可编辑映射表，OpenUrl 动作自动解析别名（优先级：别名匹配 > scheme 补全 > 原样使用），默认别名 baidu/google/github/bing
+- 设置页 5 分区完整（外观 / 通用 / 更新 / 关于 / 帮助）
+- 8 个新 Tauri 命令（get_app_info / check_for_updates / get_changelog / get_changelog_path / export_data / import_data / get_url_aliases / set_url_aliases / reset_url_aliases）
+
+**Phase 6a 核心体验**：
+
+- 系统集成（SPEC 4.1）：系统托盘（显示主窗口 / 退出菜单 + 左键单击显示）+ 开机自启（tauri-plugin-autostart）+ Toast 通知（tauri-plugin-notification）
+- 关闭主窗口行为（SPEC 4.2）：弹窗询问 / 最小化到托盘 / 退出，记住选择，设置页可重置
+- 主题系统（SPEC 3.5 分区 1）：深浅模式（跟随系统 / 浅色 / 深色）+ 8 色 Win11 主题色板 + Mica 背景开关
+- 动画系统：200ms 过渡 + 触控目标 ≥ 48px + Win11 Fluent Design
+- Splash Screen：400×250 无边框窗口 + 1.5 秒后切换主窗口
+- 课表初始化引导向导（SPEC 11.2）：首次启动检测 + 欢迎页（开始配置 / 跳过 / 加载示例数据）+ 4 步向导（学期 / 节次 / 课程 / 确认）+ 演示模式 + 空状态设计
+- 演示模式：主窗口标题栏标识 + 设置页"退出演示模式"入口
 
 **Phase 5 已完成** - Lua 集成：
 
@@ -118,26 +141,31 @@ Exero/
 ├── src-tauri/               # Rust 后端
 │   ├── src/
 │   │   ├── db/              # 数据库层（connection / migrations / repository）
-│   │   ├── models/          # 数据模型（flow / action / trigger / log / setting）
-│   │   ├── actions/         # 20 种动作执行器
+│   │   ├── models/          # 数据模型（flow / action / trigger / log / setting / semester / course / lua / url_alias）
+│   │   ├── actions/         # 20 种动作执行器（含 OpenUrl 别名解析）
 │   │   ├── triggers/        # 触发器（cron / system_event / manual / scheduler）
 │   │   ├── executor/        # 动作链执行引擎 ChainEngine
-│   │   ├── commands/        # Tauri 命令暴露层
+│   │   ├── commands/        # Tauri 命令暴露层（16 模块）
 │   │   ├── state.rs         # 应用全局状态
 │   │   └── error.rs         # 错误类型
-│   ├── migrations/          # SQL 迁移脚本
+│   ├── migrations/          # SQL 迁移脚本（V001-V006）
+│   ├── capabilities/        # Tauri v2 权限配置
 │   └── Cargo.toml
 ├── src/                     # React 前端
-│   ├── components/          # 复用组件（Layout / Sidebar / ui）
-│   ├── pages/               # 5 大页面 + home 子模块
-│   ├── stores/              # Zustand stores
-│   ├── lib/                 # 工具库（tauri 封装 / utils）
+│   ├── components/          # 复用组件（Layout / Sidebar / TitleBar / ui / OnboardingWizard）
+│   ├── pages/               # 5 大页面 + settings 子模块（5 分区）
+│   ├── stores/              # Zustand stores（theme / onboarding / app）
+│   ├── lib/                 # 工具库（tauri 封装 / utils / theme）
 │   ├── App.tsx
 │   └── main.tsx
+├── scripts/                # Lua 脚本市场（hello-world / counter / system-info）
 ├── docs/
-│   └── SPEC.md              # 设计规格文档
-├── package.json
-└── .gitignore
+│   ├── SPEC.md             # 设计规格文档
+│   └── index.html          # GitHub Pages 落地页
+├── CHANGELOG.md            # 更新历史
+├── LICENSE                 # MIT + 娱乐性 24 小时删除声明
+├── README.md
+└── package.json
 ```
 
 ## 设计文档

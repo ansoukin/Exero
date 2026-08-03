@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { CalendarDays, AlertCircle, Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { CalendarDays, AlertCircle, Loader2, CalendarPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
   type WeeklyTemplate,
 } from "@/lib/tauri";
 import { useTimelineStore } from "@/stores/timeline";
+import { useOnboardingStore } from "@/stores/onboarding";
 import { TimelineToolbar } from "./timeline/TimelineToolbar";
 import { WeekView } from "./timeline/WeekView";
 import { MonthView } from "./timeline/MonthView";
@@ -43,6 +44,9 @@ export default function TimelinePage() {
   const setActiveSemester = useTimelineStore((s) => s.setActiveSemester);
   const activeTemplateId = useTimelineStore((s) => s.activeTemplateId);
   const setActiveTemplate = useTimelineStore((s) => s.setActiveTemplate);
+  const openOnboarding = useOnboardingStore((s) => s.open);
+  const onboardingOpen = useOnboardingStore((s) => s.isOpen);
+  const prevOnboardingOpen = useRef(false);
 
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [periods, setPeriods] = useState<ClassPeriod[]>([]);
@@ -112,6 +116,14 @@ export default function TimelinePage() {
   useEffect(() => {
     loadSemesters();
   }, [loadSemesters]);
+
+  // 向导从打开→关闭时刷新学期列表（完成/跳过/加载演示后立即同步空状态）
+  useEffect(() => {
+    if (prevOnboardingOpen.current && !onboardingOpen) {
+      loadSemesters();
+    }
+    prevOnboardingOpen.current = onboardingOpen;
+  }, [onboardingOpen, loadSemesters]);
 
   useEffect(() => {
     if (activeSemesterId) {
@@ -310,11 +322,29 @@ export default function TimelinePage() {
   function renderView() {
     if (!activeSemester) {
       return (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-          <CalendarDays className="h-12 w-12 opacity-30" />
-          <p className="text-sm">
-            {semestersLoading ? "加载学期中..." : "暂无学期，请先创建学期"}
-          </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center text-muted-foreground">
+          {/* 空状态（SPEC 11.2：日历图标 + 虚线边框占位） */}
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/30">
+            <CalendarDays className="h-10 w-10 opacity-40" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-medium text-foreground">
+              {semestersLoading ? "加载学期中..." : "还没有学期数据"}
+            </p>
+            <p className="text-sm">
+              创建学期后即可开始排课，或加载示例数据体验
+            </p>
+          </div>
+          {!semestersLoading && (
+            <Button
+              onClick={() => openOnboarding(1)}
+              className="mt-2 gap-2"
+              size="lg"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              创建学期
+            </Button>
+          )}
         </div>
       );
     }

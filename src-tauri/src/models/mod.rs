@@ -13,6 +13,8 @@ pub mod course;
 pub mod weekly_template;
 pub mod performance;
 pub mod lua;
+pub mod theme;
+pub mod url_alias;
 
 pub use flow::*;
 pub use action::*;
@@ -25,3 +27,5 @@ pub use course::*;
 pub use weekly_template::*;
 pub use performance::*;
 pub use lua::*;
+pub use theme::*;
+pub use url_alias::{UrlAlias, resolve_url, URL_ALIASES_KEY};

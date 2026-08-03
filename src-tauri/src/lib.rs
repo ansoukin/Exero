@@ -14,9 +14,13 @@ pub mod commands;
 pub mod state;
 
 use std::sync::Arc;
+use std::time::Duration;
 
-use tauri::Manager;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 
+use crate::db::Repository;
 use crate::state::AppState;
 
 /// 应用启动入口
@@ -39,13 +43,127 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             tracing::info!("执行 setup 回调");
             // 初始化应用状态
             let state = AppState::new(app.handle())?;
             app.manage(Arc::new(state));
             tracing::info!("应用状态已初始化");
+
+            // 系统托盘创建（Phase 6a · SPEC 4.1）
+            // 菜单：显示主窗口 / 退出
+            let show_item = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let mut tray_builder = TrayIconBuilder::new()
+                .tooltip("Exero")
+                .menu(&menu)
+                .on_menu_event(|app, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(main) = app.get_webview_window("main") {
+                                let _ = main.show();
+                                let _ = main.set_focus();
+                                tracing::info!("托盘菜单：显示主窗口");
+                            }
+                        }
+                        "quit" => {
+                            tracing::info!("托盘菜单：退出应用");
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    // 单击托盘图标显示主窗口
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(main) = app.get_webview_window("main") {
+                            let _ = main.show();
+                            let _ = main.set_focus();
+                        }
+                    }
+                });
+
+            // 设置托盘图标（复用窗口默认图标）
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+
+            tray_builder.build(app)?;
+            tracing::info!("系统托盘已创建");
+
+            // Splash → main 窗口切换（Phase 6a · SPEC 3.4）
+            // 有 splash 窗口时延迟 1.5 秒关闭 splash 显示 main（让用户看到进度条动画）
+            // 无 splash 窗口时直接显示 main
+            let main_window = app.get_webview_window("main");
+            let splash_window = app.get_webview_window("splash");
+            match (main_window, splash_window) {
+                (Some(main), Some(splash)) => {
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(Duration::from_millis(1500)).await;
+                        let _ = splash.close();
+                        let _ = main.show();
+                        let _ = main.set_focus();
+                        tracing::info!("Splash 关闭，主窗口已显示");
+                    });
+                }
+                (Some(main), None) => {
+                    let _ = main.show();
+                    tracing::info!("无 splash 窗口，直接显示主窗口");
+                }
+                _ => {
+                    tracing::warn!("未找到 main 窗口，无法显示");
+                }
+            }
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // 关闭行为拦截（Phase 6a · SPEC 4.2）
+            // 仅拦截 main 窗口的关闭事件
+            if window.label() != "main" {
+                return;
+            }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                let state = app.state::<Arc<AppState>>();
+                let repo = Repository::new(&state.db);
+
+                // 读取关闭行为设置，默认 "ask"
+                let behavior = repo
+                    .get_setting("general.close_behavior")
+                    .ok()
+                    .flatten()
+                    .map(|s| s.value)
+                    .unwrap_or_else(|| "ask".to_string());
+
+                match behavior.as_str() {
+                    "minimize" => {
+                        // 直接隐藏到托盘
+                        let _ = window.hide();
+                        api.prevent_close();
+                        tracing::info!("主窗口已隐藏到托盘（close_behavior=minimize）");
+                    }
+                    "exit" => {
+                        // 不拦截，正常关闭
+                        tracing::info!("主窗口正常关闭（close_behavior=exit）");
+                    }
+                    _ => {
+                        // ask 模式：emit 事件给前端显示弹窗
+                        let _ = app.emit("window:close-requested", ());
+                        api.prevent_close();
+                        tracing::info!("已请求前端显示关闭行为弹窗（close_behavior=ask）");
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // 数据库相关命令
@@ -121,6 +239,30 @@ pub fn run() {
             commands::lua::install_script,
             commands::lua::uninstall_script,
             commands::lua::update_script,
+            // 主题命令（Phase 6a）
+            commands::theme::get_theme_config,
+            commands::theme::set_theme_config,
+            // 系统集成命令（Phase 6a）
+            commands::system::exit_app,
+            commands::system::hide_main_window,
+            // 课表初始化向导命令（Phase 6a · SPEC 11.2）
+            commands::onboarding::get_onboarding_status,
+            commands::onboarding::complete_onboarding,
+            commands::onboarding::load_demo_data,
+            commands::onboarding::skip_onboarding,
+            commands::onboarding::reset_schedule_data,
+            // 更新检查与应用信息命令（Phase 6b · SPEC 3.5 分区 3 / 第七章）
+            commands::update::get_app_info,
+            commands::update::check_for_updates,
+            commands::update::get_changelog,
+            commands::update::get_changelog_path,
+            // 导入导出命令（Phase 6b · SPEC 5.5）
+            commands::io::export_data,
+            commands::io::import_data,
+            // URL 短域名别名命令（Phase 6b · SPEC 11.3）
+            commands::url_alias::get_url_aliases,
+            commands::url_alias::set_url_aliases,
+            commands::url_alias::reset_url_aliases,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");

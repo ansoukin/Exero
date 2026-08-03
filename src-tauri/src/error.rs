@@ -121,6 +121,16 @@ impl From<reqwest::Error> for AppError {
     }
 }
 
+/// 手动将 `zip::result::ZipError` 转换为 `AppError::Other(String)`
+///
+/// Phase 6b：导入导出功能使用 zip 库压缩/解压 .exero 文件。
+/// 采用 String 包装策略（与 reqwest::Error 一致）。
+impl From<zip::result::ZipError> for AppError {
+    fn from(err: zip::result::ZipError) -> Self {
+        AppError::Other(format!("ZIP 压缩错误: {}", err))
+    }
+}
+
 /// 为 Tauri 命令提供序列化支持
 impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

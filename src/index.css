@@ -89,6 +89,52 @@
     --sidebar-foreground: 210 40% 98%;
     --sidebar-accent: 206 100% 48%;
   }
+
+  /* ============================================================
+   * 主题色映射（Phase 6a · SPEC 3.2）
+   * 通过 data-theme 属性切换 --primary / --ring / --sidebar-accent
+   * 引用 --win-{color} 变量（自动适配浅色/深色两套色值）
+   * ============================================================ */
+  [data-theme="blue"] {
+    --primary: var(--win-blue);
+    --ring: var(--win-blue);
+    --sidebar-accent: var(--win-blue);
+  }
+  [data-theme="green"] {
+    --primary: var(--win-green);
+    --ring: var(--win-green);
+    --sidebar-accent: var(--win-green);
+  }
+  [data-theme="orange"] {
+    --primary: var(--win-orange);
+    --ring: var(--win-orange);
+    --sidebar-accent: var(--win-orange);
+  }
+  [data-theme="purple"] {
+    --primary: var(--win-purple);
+    --ring: var(--win-purple);
+    --sidebar-accent: var(--win-purple);
+  }
+  [data-theme="red"] {
+    --primary: var(--win-red);
+    --ring: var(--win-red);
+    --sidebar-accent: var(--win-red);
+  }
+  [data-theme="cyan"] {
+    --primary: var(--win-cyan);
+    --ring: var(--win-cyan);
+    --sidebar-accent: var(--win-cyan);
+  }
+  [data-theme="pink"] {
+    --primary: var(--win-pink);
+    --ring: var(--win-pink);
+    --sidebar-accent: var(--win-pink);
+  }
+  [data-theme="yellow"] {
+    --primary: var(--win-yellow);
+    --ring: var(--win-yellow);
+    --sidebar-accent: var(--win-yellow);
+  }
 }
 
 @layer base {
@@ -132,5 +178,38 @@
   }
   .scrollbar-fluent::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* ============================================================
+   * Splash 彩虹进度条（Phase 6a · SPEC 3.4）
+   * indeterminate 动画，循环左右滑动 + 宽度变化
+   * 30Hz 兼容：transform/opacity 合成层属性
+   * ============================================================ */
+  .rainbow-progress {
+    background: linear-gradient(
+      90deg,
+      #ff0000,
+      #ff7f00,
+      #ffff00,
+      #00ff00,
+      #0000ff,
+      #4b0082,
+      #9400d3,
+      #ff0000
+    );
+    background-size: 200% 100%;
+    animation: rainbow-slide 1.8s ease-in-out infinite;
+  }
+
+  @keyframes rainbow-slide {
+    0% {
+      transform: translateX(-100%) scaleX(0.8);
+    }
+    50% {
+      transform: translateX(150%) scaleX(1.2);
+    }
+    100% {
+      transform: translateX(-100%) scaleX(0.8);
+    }
   }
 }

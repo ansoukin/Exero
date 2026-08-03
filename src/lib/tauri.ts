@@ -151,10 +151,13 @@ export const SettingKeys = {
   updateCheckFrequency: "update.check_frequency",
   updateAutoUpdate: "update.auto_update",
   updateChannel: "update.channel",
+  updateLastCheckTime: "update.last_check_time",
+  updateLastStatus: "update.last_status",
   automationLuaTimeoutSecs: "automation.lua_timeout_secs",
   automationLogRetention: "automation.log_retention",
   automationConcurrencyMode: "automation.concurrency_mode",
   automationDefaultVolume: "automation.default_volume",
+  urlAliases: "url.aliases",
 } as const;
 
 // ============================================================
@@ -631,4 +634,236 @@ export const luaCommands = {
   /** 更新脚本（重新下载 + 覆盖） */
   update: (scriptId: string) =>
     invoke<InstalledScript>("update_script", { scriptId }),
+};
+
+// ============================================================
+// 主题（Phase 6a · SPEC 3.2）
+// ============================================================
+
+/** 主题模式（镜像 ThemeMode，serde rename_all = "lowercase"） */
+export type ThemeMode = "light" | "dark" | "system";
+
+/** 主题色（镜像 ThemeColor，serde rename_all = "lowercase"） */
+export type ThemeColor =
+  | "blue"
+  | "green"
+  | "orange"
+  | "purple"
+  | "red"
+  | "cyan"
+  | "pink"
+  | "yellow";
+
+/** 主题配置（镜像 ThemeConfig） */
+export interface ThemeConfig {
+  mode: ThemeMode;
+  color: ThemeColor;
+  mica_enabled: boolean;
+}
+
+export const themeCommands = {
+  /** 读取主题配置（缺失项回退默认 system/blue/false） */
+  getConfig: () => invoke<ThemeConfig>("get_theme_config"),
+  /** 保存主题配置并立即应用（含 Mica 窗口效果） */
+  setConfig: (config: ThemeConfig) =>
+    invoke<ThemeConfig>("set_theme_config", { config }),
+};
+
+// ============================================================
+// 系统集成（Phase 6a · SPEC 4.1）
+// ============================================================
+
+export const systemCommands = {
+  /** 退出应用 */
+  exitApp: () => invoke<void>("exit_app"),
+  /** 隐藏主窗口到托盘 */
+  hideMainWindow: () => invoke<void>("hide_main_window"),
+};
+
+// ============================================================
+// 课表初始化向导（Phase 6a · SPEC 11.2）
+// ============================================================
+
+/** 向导状态（首次启动检测用，镜像 OnboardingStatus） */
+export interface OnboardingStatus {
+  onboarding_completed: boolean;
+  has_semesters: boolean;
+  demo_mode: boolean;
+}
+
+/** 向导学期配置（步骤 1，镜像 OnboardingSemester） */
+export interface OnboardingSemester {
+  name: string;
+  start_date: string;
+  end_date: string;
+  week_count: number;
+  is_active: boolean;
+}
+
+/** 向导节次配置（步骤 2，镜像 OnboardingPeriod） */
+export interface OnboardingPeriod {
+  period_index: number;
+  start_time: string;
+  end_time: string;
+  name: string | null;
+}
+
+/** 向导课程配置（步骤 3，镜像 OnboardingCourse） */
+export interface OnboardingCourse {
+  subject: string;
+  day_of_week: number;
+  period_index: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  room: string | null;
+  teacher: string | null;
+  /** 周次模式 "all"/"odd"/"even"（null 视为 "all"） */
+  week_pattern: string | null;
+}
+
+/** 完整向导数据（步骤 4 提交，镜像 OnboardingData） */
+export interface OnboardingData {
+  semester: OnboardingSemester;
+  periods: OnboardingPeriod[];
+  courses: OnboardingCourse[];
+}
+
+export const onboardingCommands = {
+  /** 读取向导状态（首次启动检测：onboarding_completed=false 且 has_semesters=false 时触发） */
+  getStatus: () => invoke<OnboardingStatus>("get_onboarding_status"),
+  /** 完成向导（事务性写入学期+节次+课程+标记完成，任一失败回滚） */
+  complete: (data: OnboardingData) =>
+    invoke<void>("complete_onboarding", { data }),
+  /** 加载演示数据（V004 示例 + 标记 demo_mode=true） */
+  loadDemoData: () => invoke<void>("load_demo_data"),
+  /** 跳过向导（空课表，仅标记 onboarding_completed=true） */
+  skip: () => invoke<void>("skip_onboarding"),
+  /** 重置课表数据（清空 5 张表 + 清除标记，前端重新触发向导） */
+  resetScheduleData: () => invoke<void>("reset_schedule_data"),
+};
+
+// ============================================================
+// 更新检查与应用信息（Phase 6b · SPEC 3.5 分区 3 / 第七章）
+// ============================================================
+
+/** 技术栈条目 */
+export interface TechStackItem {
+  category: string;
+  name: string;
+  version: string;
+}
+
+/** 应用基本信息（镜像 AppInfo） */
+export interface AppInfo {
+  name: string;
+  version: string;
+  build_date: string;
+  repo_url: string;
+  license: string;
+  tech_stack: TechStackItem[];
+}
+
+/** 更新检查结果 */
+export interface UpdateStatus {
+  current_version: string;
+  latest_version: string | null;
+  update_available: boolean;
+  published_at: string | null;
+  release_url: string | null;
+  force_update_minimum: string | null;
+  force_update_required: boolean;
+  checked_at: string;
+  error: string | null;
+}
+
+/** 更新历史条目 */
+export interface ChangelogEntry {
+  version: string;
+  published_at: string;
+  body: string;
+  html_url: string;
+}
+
+export const updateCommands = {
+  /** 获取应用基本信息（关于页） */
+  getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  /** 检查更新（GitHub Release latest + force-update.json） */
+  checkForUpdates: () => invoke<UpdateStatus>("check_for_updates"),
+  /** 获取更新历史（GitHub Releases 优先，失败回退本地 CHANGELOG.md） */
+  getChangelog: () => invoke<ChangelogEntry[]>("get_changelog"),
+  /** 获取本地 CHANGELOG.md 路径 */
+  getChangelogPath: () => invoke<string>("get_changelog_path"),
+};
+
+// ============================================================
+// 导入导出（Phase 6b · SPEC 5.5）
+// ============================================================
+
+/** 导入导出范围 */
+export type ExportScope = "flows" | "courses" | "settings" | "scripts" | "all";
+
+/** 导入模式 */
+export type ImportMode = "merge" | "replace";
+
+/** 导出结果 */
+export interface ExportResult {
+  file_path: string;
+  file_size: number;
+  scope: string[];
+  counts: {
+    flows: number;
+    actions: number;
+    triggers: number;
+    semesters: number;
+    class_periods: number;
+    weekly_templates: number;
+    courses: number;
+    schedule_overrides: number;
+    settings: number;
+    lua_scripts: number;
+  };
+}
+
+/** 导入结果 */
+export interface ImportResult {
+  flows: number;
+  actions: number;
+  triggers: number;
+  semesters: number;
+  class_periods: number;
+  weekly_templates: number;
+  courses: number;
+  schedule_overrides: number;
+  settings: number;
+  lua_scripts: number;
+  script_files: number;
+}
+
+export const ioCommands = {
+  /** 导出数据到 .exero 文件 */
+  exportData: (filePath: string, scope: ExportScope[]) =>
+    invoke<ExportResult>("export_data", { filePath, scope }),
+  /** 从 .exero 文件导入数据 */
+  importData: (filePath: string, scope: ExportScope[], mode: ImportMode) =>
+    invoke<ImportResult>("import_data", { filePath, scope, mode }),
+};
+
+// ============================================================
+// URL 短域名别名（Phase 6b · SPEC 11.3）
+// ============================================================
+
+/** URL 别名条目 */
+export interface UrlAlias {
+  alias: string;
+  target: string;
+}
+
+export const urlAliasCommands = {
+  /** 获取别名列表 */
+  list: () => invoke<UrlAlias[]>("get_url_aliases"),
+  /** 保存别名列表（自动过滤空项） */
+  set: (aliases: UrlAlias[]) =>
+    invoke<void>("set_url_aliases", { aliases }),
+  /** 重置为默认别名（baidu/google/github/bing） */
+  reset: () => invoke<UrlAlias[]>("reset_url_aliases"),
 };

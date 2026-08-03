@@ -31,10 +31,10 @@ const NAV_ITEMS: NavItem[] = [
  * 侧边栏组件
  *
  * SPEC 3.3：
- * - 顶部 Logo 区：占位 "D" 字母（未来正式版前替换为正式 Logo）
- * - 中部导航项：5 项（首页 / 时间轴 / 快捷指令 / 性能优化 / 设置）
- * - 底部控制区：仅折叠/展开按钮（主题切换在设置页）
- * - 可折叠，参考 1Panel 设计
+ * - 顶部 Logo 区：高 48px，纯 Logo + 应用名（可拖拽）
+ * - 中部导航项：5 项
+ * - 底部：折叠/展开按钮
+ * 窗口三按钮在主内容区顶部右上角（Windows 习惯），不在 Sidebar 内。
  *
  * SPEC 3.1：触控目标 ≥ 48px，200ms 动画过渡
  */
@@ -51,25 +51,19 @@ export function Sidebar() {
         collapsed ? "w-16" : "w-60"
       )}
     >
-      {/* 顶部 Logo 区 */}
+      {/* 顶部 Logo 区（纯 Logo + 应用名）
+          系统标题栏模式下无需 data-tauri-drag-region */}
       <div
         className={cn(
-          "flex h-16 items-center border-b",
-          collapsed ? "justify-center px-0" : "px-6"
+          "flex h-12 shrink-0 items-center border-b",
+          collapsed ? "justify-center px-0" : "px-3"
         )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-2 font-semibold",
-            collapsed && "gap-0"
-          )}
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
+        <div className={cn("flex items-center gap-2 font-semibold", collapsed && "mx-auto")}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
             E
           </div>
-          {!collapsed && (
-            <span className="text-base tracking-tight">Exero</span>
-          )}
+          {!collapsed && <span className="text-sm tracking-tight">Exero</span>}
         </div>
       </div>
 

@@ -12,6 +12,12 @@
 //! - `courses`：学期 / 节次 / 课程 / 临时调课
 //! - `performance`：性能优化（硬件监控 / 进程管理 / 一键优化）
 //! - `lua`：Lua 脚本市场（浏览 / 安装 / 更新 / 卸载）
+//! - `theme`：主题配置（读写 / Mica 应用）
+//! - `system`：系统集成（退出 / 隐藏窗口）
+//! - `onboarding`：课表初始化向导（状态/提交/演示/跳过/重置）
+//! - `update`：更新检查 + 应用信息 + 更新历史（Phase 6b）
+//! - `io`：导入导出 .exero（Phase 6b · SPEC 5.5）
+//! - `url_alias`：URL 短域名别名管理（Phase 6b · SPEC 11.3）
 //! - `test`：端到端测试
 
 pub mod db;
@@ -23,4 +29,10 @@ pub mod settings;
 pub mod courses;
 pub mod performance;
 pub mod lua;
+pub mod theme;
+pub mod system;
+pub mod onboarding;
+pub mod update;
+pub mod io;
+pub mod url_alias;
 pub mod test;

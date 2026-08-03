@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 use sysinfo::{Pid, ProcessesToUpdate, Signal, System};
+use tauri::Manager;
 
 use crate::actions::{ActionExecutor, ActionResult, ExecutionContext};
 use crate::error::{AppError, Result};
@@ -128,9 +129,12 @@ impl ActionExecutor for OpenUrlExecutor {
     fn execute(&self, params: &Value, ctx: &mut ExecutionContext) -> Result<ActionResult> {
         let p: OpenUrlParams = serde_json::from_value(params.clone())?;
         let raw_url = ctx.interpolate(&p.url);
-        // 自动补全 URL scheme：baidu.com -> https://baidu.com
-        // 仅在无 scheme 时补全，已有 http:// / https:// / ftp:// 等保持原样
-        let url = normalize_url(&raw_url);
+
+        // Phase 6b · SPEC 11.3：URL 别名解析（从 settings 表 url.aliases 加载）
+        // 解析优先级：别名匹配 -> scheme 补全 -> 原样使用
+        let aliases = crate::models::UrlAlias::load(&ctx.app_handle.state::<std::sync::Arc<crate::state::AppState>>().db)
+            .unwrap_or_default();
+        let url = crate::models::resolve_url(&raw_url, &aliases);
 
         tracing::info!("打开网页: {} (原始: {})", url, raw_url);
 
@@ -191,30 +195,4 @@ impl ActionExecutor for OpenFileExecutor {
             Ok(ActionResult::success(format!("已打开文件: {}", path)))
         }
     }
-}
-
-/// URL scheme 自动补全
-///
-/// 检测输入是否包含 scheme（如 `http://` / `https://` / `ftp://`），
-/// 若无则自动补全为 `https://`。支持以下场景：
-///
-/// - `baidu.com` -> `https://baidu.com`
-/// - `www.google.com` -> `https://www.google.com`
-/// - `http://example.com` -> 保持不变
-/// - `localhost:3000` -> `https://localhost:3000`
-/// - `192.168.1.1:8080` -> `https://192.168.1.1:8080`
-///
-/// Phase 6 扩展点：未来可从 settings 读取常用域名映射表，
-/// 如 `baidu -> https://www.baidu.com`（短域名别名）。
-fn normalize_url(raw: &str) -> String {
-    let trimmed = raw.trim();
-
-    // 已包含 scheme（:// 分隔符），保持原样
-    if trimmed.contains("://") {
-        return trimmed.to_string();
-    }
-
-    // 无 scheme，自动补全 https://
-    // 注意：不补全 http://，因为现代 Web 应默认使用 HTTPS
-    format!("https://{}", trimmed)
 }

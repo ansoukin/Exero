@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Exero",
         "width": 1280,
         "height": 800,
@@ -21,7 +22,21 @@
         "fullscreen": false,
         "decorations": true,
         "devtools": true,
-        "center": true
+        "center": true,
+        "visible": false
+      },
+      {
+        "label": "splash",
+        "title": "Exero",
+        "width": 400,
+        "height": 250,
+        "resizable": false,
+        "fullscreen": false,
+        "decorations": false,
+        "center": true,
+        "visible": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {
@@ -37,6 +52,20 @@
     "publisher": "Exero",
     "category": "Utility",
     "shortDescription": "个人自动化助手",
-    "longDescription": "Exero - 基于 Tauri + Rust 的 Windows 桌面自动化管理工具"
+    "longDescription": "Exero - 基于 Tauri + Rust 的 Windows 桌面自动化管理工具",
+    "copyright": "MIT License © 2026 Exero",
+    "resources": [
+      "../CHANGELOG.md",
+      "../LICENSE"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    }
   }
 }
