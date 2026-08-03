@@ -79,6 +79,8 @@ pub mod defaults {
     pub const UPDATE_CHANNEL: &str = "stable";
     /// 默认 Lua 脚本超时（秒）
     pub const AUTOMATION_LUA_TIMEOUT_SECS: u32 = 10;
+    /// Lua 沙箱模式：strict（默认严格）/ relaxed（宽松，危险 API 可用）
+    pub const LUA_SANDBOX_MODE: &str = "strict";
     /// 执行日志保留条数
     pub const AUTOMATION_LOG_RETENTION: u32 = 100;
     /// 多指令并发模式：parallel/serial

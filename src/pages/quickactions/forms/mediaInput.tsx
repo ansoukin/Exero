@@ -92,7 +92,7 @@ function PlaySoundForm({ params, onChange }: ActionFormProps) {
           type="number"
           min={0}
           max={100}
-          value={params.volume ?? ""}
+          value={typeof params.volume === "number" ? params.volume : ""}
           onChange={(e) => {
             const v = e.target.value === "" ? null : numValue(e);
             onChange(updateField(params, "volume", v));

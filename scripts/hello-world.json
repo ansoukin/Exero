@@ -1,0 +1,18 @@
+{
+    "id": "hello-world",
+    "name": "Hello World",
+    "author": "Exero",
+    "version": "1.0.0",
+    "description": "最简入门示例：演示 args 参数读取、exero.log/notify/set_result 三大基础 API。",
+    "permissions": [],
+    "params": [
+        {
+            "name": "name",
+            "label": "称呼",
+            "type": "string",
+            "default": "World",
+            "options": [],
+            "required": false
+        }
+    ]
+}

@@ -77,6 +77,16 @@ impl ChainEngine {
             self.global_variables.clone(),
         );
 
+        // 从 settings 读取 Lua 沙箱模式注入上下文（默认严格）
+        // settings 值为 "strict" / "relaxed"，缺失或异常时回退 strict
+        let lua_sandbox_strict = repo
+            .get_setting("lua.sandbox_mode")
+            .ok()
+            .flatten()
+            .map(|s| s.value != "relaxed")
+            .unwrap_or(true);
+        ctx.lua_sandbox_strict = lua_sandbox_strict;
+
         // 创建 Flow 级别执行日志
         let mut flow_log = ExecutionLog::start(flow_id.to_string(), None);
         repo.insert_log(&flow_log)?;

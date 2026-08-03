@@ -24,7 +24,7 @@ import {
 import type { Course, ClassPeriod } from "@/lib/tauri";
 import { CourseBlock } from "./CourseBlock";
 import { WEEKDAY_SHORT } from "./utils";
-import { suppressNextClick, markDragStart, markDragEnd } from "./clickSuppression";
+import { markDragStart, markDragEnd } from "./clickSuppression";
 
 // ============================================================
 // 性能优化常量

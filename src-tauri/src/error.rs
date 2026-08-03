@@ -110,6 +110,17 @@ impl From<mlua::Error> for AppError {
     }
 }
 
+/// 手动将 `reqwest::Error` 转换为 `AppError::Other(String)`
+///
+/// Phase 5：Lua 脚本市场需要 HTTP 请求 GitHub API。
+/// 采用 String 包装策略（与 tauri::Error / mlua::Error 一致），
+/// 避免 `#[from]` 可能引入的 Send+Sync 约束问题。
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        AppError::Other(format!("HTTP 请求错误: {}", err))
+    }
+}
+
 /// 为 Tauri 命令提供序列化支持
 impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

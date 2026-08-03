@@ -1,22 +1,25 @@
 //! Lua 脚本类动作执行器
 //!
-//! 基于 mlua (Lua 5.4) 提供 Lua 脚本执行能力。
+//! 基于 mlua (LuaJIT) 提供 Lua 脚本执行能力。
 //!
 //! ## 安全模型
 //!
 //! - 默认严格沙箱：禁用 `os.execute` / `io.popen` / `loadfile` / `require` 等危险 API
 //! - 可选宽松沙箱：用户在设置中开启，允许上述 API（自负风险）
-//! - 注入受限的 `exero` 库：仅允许读取变量、写日志、发送通知
+//! - 注入受限的 `exero` 库：变量读写、写日志、发送通知、设置返回值
 //!
 //! ## 脚本加载
 //!
-//! Phase 1：从本地 `<exe>/scripts/<script_id>.lua` 加载脚本（市场未实现）
-//! Phase 5：对接 GitHub 脚本市场
+//! Phase 5：从 `<安装目录>/data/scripts/<script_id>.lua` 加载本地已安装脚本
+//! 脚本市场对接见 commands::lua
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use mlua::{Lua, LuaSerdeExt, Value as LuaValue, VmState};
+use parking_lot::RwLock;
 use serde_json::Value;
 use tauri::Emitter;
 
@@ -39,9 +42,10 @@ impl ActionExecutor for LuaScriptExecutor {
         let started = Instant::now();
 
         tracing::info!(
-            "执行 Lua 脚本: id={} timeout={}s",
+            "执行 Lua 脚本: id={} timeout={}s sandbox={}",
             p.script_id,
-            timeout_secs
+            timeout_secs,
+            if ctx.lua_sandbox_strict { "strict" } else { "relaxed" }
         );
 
         // 1. 加载脚本内容
@@ -55,61 +59,74 @@ impl ActionExecutor for LuaScriptExecutor {
         }
         let script_content = std::fs::read_to_string(&script_path)?;
 
-        // 2. 创建沙箱 Lua 状态
+        // 2. 创建 LuaJIT 状态
         let lua = Lua::new();
-        // 限制 Lua 内存使用（128MB）与指令计数
+        // 限制 Lua 内存使用（128MB）
         lua.set_memory_limit(128 * 1024 * 1024)?;
 
-        // 3. 应用沙箱（默认严格）
-        apply_sandbox(&lua, /* strict */ true)?;
+        // 3. 应用沙箱（严格/宽松由 ctx.lua_sandbox_strict 决定，源自 settings）
+        apply_sandbox(&lua, ctx.lua_sandbox_strict)?;
 
-        // 4. 注入 args 与 ctx 变量
+        // 4. 创建 Lua 可写的局部变量空间（Arc<RwLock> 共享给 exero.get_var/set_var 闭包）
+        //    执行前从 ctx.variables 初始化，执行后合并回 ctx.variables
+        let lua_locals: Arc<RwLock<HashMap<String, Value>>> =
+            Arc::new(RwLock::new(ctx.variables.clone()));
+
+        // 5. 注入 args 变量
         let globals = lua.globals();
         let args_lua = lua.to_value(&p.args)?;
         globals.set("args", args_lua)?;
 
-        // 注入 ctx 变量（局部 + 全局）
+        // 6. 注入只读 ctx 表（locals/globals 快照，供脚本直接访问 ctx.locals.xxx）
         let ctx_table = lua.create_table()?;
-        let locals = lua.create_table()?;
+        let locals_snapshot = lua.create_table()?;
         for (k, v) in &ctx.variables {
-            locals.set(k.as_str(), lua.to_value(v)?)?;
+            locals_snapshot.set(k.as_str(), lua.to_value(v)?)?;
         }
-        let globals_table = lua.create_table()?;
+        let globals_snapshot = lua.create_table()?;
         {
             let g = ctx.global_variables.read();
             for (k, v) in g.iter() {
-                globals_table.set(k.as_str(), lua.to_value(v)?)?;
+                globals_snapshot.set(k.as_str(), lua.to_value(v)?)?;
             }
         }
-        ctx_table.set("locals", locals)?;
-        ctx_table.set("globals", globals_table)?;
+        ctx_table.set("locals", locals_snapshot)?;
+        ctx_table.set("globals", globals_snapshot)?;
         globals.set("ctx", ctx_table)?;
 
-        // 5. 注入 exero 库（受限 API）
-        inject_exero_lib(&lua, ctx)?;
+        // 7. 注入 exero 库（受限 API + 变量读写）
+        inject_exero_lib(&lua, ctx, lua_locals.clone())?;
 
-        // 6. 设置指令计数 hook（用于超时检测）
+        // 8. 设置指令计数 hook（超时检测）
+        // 注：set_hook 返回 ()，无需 ? 传播错误
         let deadline = started + Duration::from_secs(timeout_secs as u64);
-        let _ = lua.set_hook(mlua::HookTriggers {
-            every_nth_instruction: Some(1000),
-            ..Default::default()
-        }, move |_lua, _dbg| {
-            if Instant::now() >= deadline {
-                Err(mlua::Error::RuntimeError(format!(
-                    "Lua 脚本执行超时（{} 秒）",
-                    timeout_secs
-                )))
-            } else {
-                Ok(VmState::Continue)
-            }
-        });
+        lua.set_hook(
+            mlua::HookTriggers {
+                every_nth_instruction: Some(1000),
+                ..Default::default()
+            },
+            move |_lua, _dbg| {
+                if Instant::now() >= deadline {
+                    Err(mlua::Error::RuntimeError(format!(
+                        "Lua 脚本执行超时（{} 秒）",
+                        timeout_secs
+                    )))
+                } else {
+                    Ok(VmState::Continue)
+                }
+            },
+        );
 
-        // 7. 执行脚本
+        // 9. 执行脚本
         let exec_result = lua.load(&script_content).set_name(&p.script_id).exec();
 
         match exec_result {
             Ok(_) => {
-                // 读取返回值（如有）
+                // 合并 Lua 修改的局部变量回 ctx
+                let merged = lua_locals.read().clone();
+                ctx.variables = merged;
+
+                // 读取返回值（通过 exero.set_result 设置的 __result）
                 let result_value: LuaValue = globals.get("__result").unwrap_or(LuaValue::Nil);
                 let output: Value = if result_value.is_nil() {
                     Value::Null
@@ -145,9 +162,9 @@ fn default_lua_timeout() -> u32 {
 
 /// 解析脚本 ID 到本地脚本文件路径
 ///
-/// Phase 1：从 `<exe>/scripts/<script_id>.lua` 加载
+/// Phase 5：从 `<安装目录>/data/scripts/<script_id>.lua` 加载
 fn resolve_script_path(script_id: &str) -> Result<PathBuf> {
-    // 防 path traversal：仅允许字母数字与连字符
+    // 防 path traversal：仅允许字母数字与连字符/下划线
     if !script_id
         .chars()
         .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
@@ -162,7 +179,10 @@ fn resolve_script_path(script_id: &str) -> Result<PathBuf> {
         .parent()
         .ok_or_else(|| AppError::Other("无法获取可执行文件目录".into()))?
         .to_path_buf();
-    Ok(exe_dir.join("scripts").join(format!("{}.lua", script_id)))
+    Ok(exe_dir
+        .join("data")
+        .join("scripts")
+        .join(format!("{}.lua", script_id)))
 }
 
 /// 应用沙箱到 Lua 状态
@@ -175,7 +195,6 @@ fn apply_sandbox(lua: &Lua, strict: bool) -> Result<()> {
     if strict {
         // 严格沙箱：移除或替换危险 API
         let os: mlua::Table = globals.get("os")?;
-        // 移除危险函数
         os.set("execute", mlua::Value::Nil)?;
         os.set("exit", mlua::Value::Nil)?;
         os.set("remove", mlua::Value::Nil)?;
@@ -210,10 +229,18 @@ fn apply_sandbox(lua: &Lua, strict: bool) -> Result<()> {
 /// 提供：
 /// - `exero.log(msg)` — 写日志
 /// - `exero.notify(level, title, body)` — 发送应用内通知
-/// - `exero.get_var(name)` — 读取变量
-/// - `exero.set_var(name, value, global?)` — 设置变量
+/// - `exero.get_var(name, global?)` — 读取变量（默认局部，global=true 读全局）
+/// - `exero.set_var(name, value, global?)` — 设置变量（默认局部）
 /// - `exero.set_result(value)` — 设置脚本返回值
-fn inject_exero_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
+///
+/// 变量读写通过共享 `Arc<RwLock<HashMap>>` 实现：
+/// - 局部变量：lua_locals（执行后合并回 ctx.variables）
+/// - 全局变量：ctx.global_variables（直接写入跨动作链共享池）
+fn inject_exero_lib(
+    lua: &Lua,
+    ctx: &mut ExecutionContext,
+    lua_locals: Arc<RwLock<HashMap<String, Value>>>,
+) -> Result<()> {
     let exero = lua.create_table()?;
 
     // exero.log(msg)
@@ -224,7 +251,6 @@ fn inject_exero_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
     exero.set("log", log_fn)?;
 
     // exero.notify(level, title, body)
-    // 注意：闭包不能持有 &mut ctx，但我们可以通过 AppHandle 发送事件
     let app_handle = ctx.app_handle.clone();
     let flow_id = ctx.flow_id.clone();
     let notify_fn = lua.create_function(move |_, (level, title, body): (String, String, String)| {
@@ -242,6 +268,39 @@ fn inject_exero_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
     })?;
     exero.set("notify", notify_fn)?;
 
+    // exero.get_var(name, global?) -> value
+    let locals_for_get = lua_locals.clone();
+    let globals_for_get = ctx.global_variables.clone();
+    let get_var_fn = lua.create_function(move |lua, (name, global): (String, Option<bool>)| {
+        let global = global.unwrap_or(false);
+        let json_value = if global {
+            let g = globals_for_get.read();
+            g.get(&name).cloned().unwrap_or(Value::Null)
+        } else {
+            let l = locals_for_get.read();
+            l.get(&name).cloned().unwrap_or(Value::Null)
+        };
+        let lua_value = lua.to_value(&json_value)?;
+        Ok(lua_value)
+    })?;
+    exero.set("get_var", get_var_fn)?;
+
+    // exero.set_var(name, value, global?)
+    let locals_for_set = lua_locals.clone();
+    let globals_for_set = ctx.global_variables.clone();
+    let set_var_fn =
+        lua.create_function(move |lua, (name, value, global): (String, LuaValue, Option<bool>)| {
+            let global = global.unwrap_or(false);
+            let json_value: Value = lua.from_value(value).unwrap_or(Value::Null);
+            if global {
+                globals_for_set.write().insert(name, json_value);
+            } else {
+                locals_for_set.write().insert(name, json_value);
+            }
+            Ok(())
+        })?;
+    exero.set("set_var", set_var_fn)?;
+
     // exero.set_result(value)
     let globals = lua.globals();
     let set_result_fn = lua.create_function(move |_, value: LuaValue| {
@@ -252,10 +311,6 @@ fn inject_exero_lib(lua: &Lua, ctx: &mut ExecutionContext) -> Result<()> {
 
     // 注入到全局
     lua.globals().set("exero", exero)?;
-
-    // 注入 get_var / set_var（需要访问 ctx 的变量，但闭包无法捕获 &mut ctx）
-    // 简化方案：通过 Lua 全局变量 ctx 暴露，由用户在 Lua 中直接访问 ctx.locals / ctx.globals
-    // 真正的 set_var 需要 Phase 5 完善为 Lua hook 机制
 
     Ok(())
 }
@@ -268,6 +323,8 @@ mod tests {
     fn test_resolve_script_path_safe() {
         let path = resolve_script_path("hello-world").unwrap();
         assert!(path.to_string_lossy().ends_with("hello-world.lua"));
+        assert!(path.to_string_lossy().contains("data"));
+        assert!(path.to_string_lossy().contains("scripts"));
     }
 
     #[test]

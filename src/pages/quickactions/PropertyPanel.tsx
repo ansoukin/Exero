@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Trash2, Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getNodeMeta } from "@/lib/nodeCatalog";
+import { getCategoryColor, getNodeMeta } from "@/lib/nodeCatalog";
 import type { ActionNodeData } from "@/pages/quickactions/graphTransform";
 import { ActionFormRegistry } from "@/pages/quickactions/forms";
 
@@ -56,7 +55,7 @@ export function PropertyPanel({
       {/* 头部：节点类型信息 */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         {Icon && (
-          <div className={`flex h-7 w-7 items-center justify-center rounded ${meta?.color}`}>
+          <div className={`flex h-7 w-7 items-center justify-center rounded ${meta ? getCategoryColor(meta.category) : ""}`}>
             <Icon className="h-4 w-4" />
           </div>
         )}

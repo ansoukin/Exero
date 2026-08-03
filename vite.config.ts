@@ -5,7 +5,7 @@ import path from "node:path";
 // Tauri 推荐配置：固定端口 1420，避免监听 src-tauri 目录变化
 const host = process.env.TAURI_DEV_HOST;
 
-export default defineConfig(async () => ({
+export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -30,7 +30,7 @@ export default defineConfig(async () => ({
   build: {
     outDir: "dist",
     target: ["es2021", "chrome100", "safari13"],
-    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    minify: !process.env.TAURI_DEBUG ? ("esbuild" as const) : false,
     sourcemap: !!process.env.TAURI_DEBUG,
   },
 }));

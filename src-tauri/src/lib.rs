@@ -114,6 +114,13 @@ pub fn run() {
             commands::performance::one_click_optimize,
             commands::performance::get_optimize_blacklist,
             commands::performance::set_optimize_blacklist,
+            // Lua 脚本市场命令
+            commands::lua::list_installed_scripts,
+            commands::lua::get_script_detail,
+            commands::lua::list_market_scripts,
+            commands::lua::install_script,
+            commands::lua::uninstall_script,
+            commands::lua::update_script,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");

@@ -11,6 +11,7 @@
 //! - `settings`：设置读写
 //! - `courses`：学期 / 节次 / 课程 / 临时调课
 //! - `performance`：性能优化（硬件监控 / 进程管理 / 一键优化）
+//! - `lua`：Lua 脚本市场（浏览 / 安装 / 更新 / 卸载）
 //! - `test`：端到端测试
 
 pub mod db;
@@ -21,4 +22,5 @@ pub mod execution;
 pub mod settings;
 pub mod courses;
 pub mod performance;
+pub mod lua;
 pub mod test;

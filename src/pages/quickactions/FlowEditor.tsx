@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -22,15 +22,12 @@ import {
 
 import "@xyflow/react/dist/style.css";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Loader2, AlertCircle, Play } from "lucide-react";
 import {
   actionCommands,
   executionCommands,
   flowCommands,
-  triggerCommands,
-  type Action,
   type ActionTypeKind,
   type AutomationFlow,
 } from "@/lib/tauri";
@@ -73,8 +70,8 @@ export function FlowEditor({ flowId, onExit }: FlowEditorProps) {
 
 function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
   const [flow, setFlow] = useState<AutomationFlow | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<ActionNodeData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [nodes, setNodes] = useNodesState<Node<ActionNodeData>>([]);
+  const [edges, setEdges] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
@@ -207,7 +204,7 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
   // 节点变更（拖动位置等）
   const handleNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
+      setNodes((nds) => applyNodeChanges(changes, nds) as Node<ActionNodeData>[]);
       // 位置变更标记 dirty
       if (changes.some((c) => c.type === "position" && c.dragging === false)) {
         setDirty(true);

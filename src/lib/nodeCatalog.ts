@@ -395,3 +395,8 @@ export function getNodeMeta(kind: ActionTypeKind): NodeMeta | undefined {
 export function getNodesByCategory(category: NodeCategory): NodeMeta[] {
   return NODE_REGISTRY.filter((m) => m.category === category);
 }
+
+/** 获取节点所属类别的主题色 class（用于图标着色） */
+export function getCategoryColor(category: NodeCategory): string {
+  return NODE_CATEGORIES.find((c) => c.id === category)?.color ?? "";
+}

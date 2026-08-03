@@ -42,8 +42,6 @@ const MIN_BLOCK_HEIGHT = 32;
 /** 响应式尺寸阈值：高度 >= 64px 用 full 模式，40-64px 用 compact，< 40px 用 mini */
 const FULL_MODE_THRESHOLD = 64;
 const COMPACT_MODE_THRESHOLD = 40;
-/** 节次线对齐吸附阈值（分钟）：预览块顶部距节次起点在此范围内自动对齐 */
-const PERIOD_SNAP_THRESHOLD_MIN = 10;
 
 // ============================================================
 // 主组件
@@ -95,7 +93,6 @@ export function DayView({
   const currentWeek = useTimelineStore((s) => s.currentWeek);
   const selectedDate = useTimelineStore((s) => s.selectedDate);
   const setSelectedDate = useTimelineStore((s) => s.setSelectedDate);
-  const setCurrentWeek = useTimelineStore((s) => s.setCurrentWeek);
 
   // 日视图显示选中日期；未选中则默认今天所在周的第 1 天
   const dates = useMemo(
@@ -368,7 +365,7 @@ function DayTimeline({
             })}
 
             {/* 课程块（V2.1：纯垂直排列，占满整列宽度，冲突课程显示警告） */}
-            {layout.items.map((item, i) => {
+            {layout.items.map((item) => {
               const isResizingThis = resizing?.course.id === item.dc.course.id;
               const liveHeight = isResizingThis
                 ? Math.max(item.height + resizing!.deltaY, MIN_BLOCK_HEIGHT)
@@ -584,7 +581,7 @@ function DraggableDayCourse({
       sizeMode={sizeMode}
       onClick={onClick}
       onLongPress={onLongPress}
-      dragAttributes={dragAttributes}
+      dragAttributes={dragAttributes as unknown as Record<string, unknown>}
       dragListeners={dragListeners}
       isDragging={isDragging}
       setNodeRef={setNodeRef}

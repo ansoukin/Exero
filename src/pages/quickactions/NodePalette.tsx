@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   NODE_CATEGORIES,
   NODE_REGISTRY,
+  getCategoryColor,
   getNodesByCategory,
   type NodeMeta,
 } from "@/lib/nodeCatalog";
@@ -127,7 +128,7 @@ function PaletteItem({
       )}
       title={`添加 ${meta.label} 节点`}
     >
-      <Icon className={cn("h-4 w-4 shrink-0", meta.color)} />
+      <Icon className={cn("h-4 w-4 shrink-0", getCategoryColor(meta.category))} />
       <span className="truncate">{meta.label}</span>
     </button>
   );

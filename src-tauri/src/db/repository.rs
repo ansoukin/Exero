@@ -15,7 +15,7 @@ use crate::models::{
     CreateFlowRequest, CreateOverrideRequest, CreateSemesterRequest, CreateWeeklyTemplateRequest,
     ExecutionLog, LogFilter, OverrideType, ScheduleOverride, Semester, Setting, Trigger,
     UpdateCourseRequest, UpdateFlowRequest, UpdateSemesterRequest, UpdateWeeklyTemplateRequest,
-    WeeklyTemplate,
+    WeeklyTemplate, InstalledScript, ScriptManifest, ScriptParam,
 };
 
 /// 仓库：提供所有实体的 CRUD 操作
@@ -1009,6 +1009,113 @@ impl<'a> Repository<'a> {
             Ok(())
         })
     }
+
+    // ============ Lua 脚本 CRUD ============
+
+    /// 列出所有已安装脚本
+    pub fn list_installed_scripts(&self) -> Result<Vec<InstalledScript>> {
+        self.db.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT script_id, name, author, version, description, permissions, params_schema,
+                        installed_at, updated_at, source_url, content_hash
+                 FROM lua_scripts
+                 ORDER BY installed_at ASC",
+            )?;
+            let scripts = stmt
+                .query_map([], row_to_installed_script)?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(scripts)
+        })
+    }
+
+    /// 获取单个已安装脚本
+    pub fn get_installed_script(&self, script_id: &str) -> Result<Option<InstalledScript>> {
+        self.db.with_conn(|conn| {
+            let script = conn
+                .query_row(
+                    "SELECT script_id, name, author, version, description, permissions, params_schema,
+                            installed_at, updated_at, source_url, content_hash
+                     FROM lua_scripts
+                     WHERE script_id = ?1",
+                    params![script_id],
+                    row_to_installed_script,
+                )
+                .optional()?;
+            Ok(script)
+        })
+    }
+
+    /// 插入已安装脚本（安装时调用）
+    pub fn insert_installed_script(
+        &self,
+        manifest: &ScriptManifest,
+        source_url: &str,
+        content_hash: &str,
+    ) -> Result<()> {
+        let permissions_json = serde_json::to_string(&manifest.permissions)?;
+        let params_json = serde_json::to_string(&manifest.params)?;
+        let now = Utc::now().to_rfc3339();
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO lua_scripts
+                    (script_id, name, author, version, description, permissions, params_schema,
+                     installed_at, updated_at, source_url, content_hash)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8, ?9, ?10)",
+                params![
+                    manifest.id,
+                    manifest.name,
+                    manifest.author,
+                    manifest.version,
+                    manifest.description,
+                    permissions_json,
+                    params_json,
+                    now,
+                    source_url,
+                    content_hash,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// 更新已安装脚本（市场更新时调用）
+    pub fn update_installed_script(
+        &self,
+        manifest: &ScriptManifest,
+        content_hash: &str,
+    ) -> Result<()> {
+        let permissions_json = serde_json::to_string(&manifest.permissions)?;
+        let params_json = serde_json::to_string(&manifest.params)?;
+        let now = Utc::now().to_rfc3339();
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "UPDATE lua_scripts
+                 SET name = ?2, author = ?3, version = ?4, description = ?5,
+                     permissions = ?6, params_schema = ?7, updated_at = ?8, content_hash = ?9
+                 WHERE script_id = ?1",
+                params![
+                    manifest.id,
+                    manifest.name,
+                    manifest.author,
+                    manifest.version,
+                    manifest.description,
+                    permissions_json,
+                    params_json,
+                    now,
+                    content_hash,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// 删除已安装脚本记录
+    pub fn delete_installed_script(&self, script_id: &str) -> Result<()> {
+        self.db.with_conn(|conn| {
+            conn.execute("DELETE FROM lua_scripts WHERE script_id = ?1", params![script_id])?;
+            Ok(())
+        })
+    }
 }
 
 // ============ Row 映射函数 ============
@@ -1192,5 +1299,33 @@ fn row_to_override(row: &rusqlite::Row<'_>) -> rusqlite::Result<ScheduleOverride
         created_at: DateTime::parse_from_rfc3339(&created_str)
             .map(|dt| dt.with_timezone(&Utc))
             .unwrap_or_else(|_| Utc::now()),
+    })
+}
+
+fn row_to_installed_script(row: &rusqlite::Row<'_>) -> rusqlite::Result<InstalledScript> {
+    let permissions_str: String = row.get(5)?;
+    let params_str: String = row.get(6)?;
+    let installed_str: String = row.get(7)?;
+    let updated_str: String = row.get(8)?;
+
+    let permissions: Vec<String> = serde_json::from_str(&permissions_str).unwrap_or_default();
+    let params_schema: Vec<ScriptParam> = serde_json::from_str(&params_str).unwrap_or_default();
+
+    Ok(InstalledScript {
+        script_id: row.get(0)?,
+        name: row.get(1)?,
+        author: row.get(2)?,
+        version: row.get(3)?,
+        description: row.get(4)?,
+        permissions,
+        params_schema,
+        installed_at: DateTime::parse_from_rfc3339(&installed_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now()),
+        updated_at: DateTime::parse_from_rfc3339(&updated_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now()),
+        source_url: row.get(9)?,
+        content_hash: row.get(10)?,
     })
 }

@@ -49,6 +49,9 @@ pub struct ExecutionContext {
     pub continue_requested: bool,
     /// 是否请求停止整个动作链
     pub stop_requested: bool,
+    /// Lua 沙箱是否严格模式（true=严格禁用危险 API，false=宽松）
+    /// 由 ChainEngine 在创建上下文时从 settings 读取注入
+    pub lua_sandbox_strict: bool,
 }
 
 impl ExecutionContext {
@@ -62,6 +65,7 @@ impl ExecutionContext {
             break_requested: false,
             continue_requested: false,
             stop_requested: false,
+            lua_sandbox_strict: true,
         }
     }
 

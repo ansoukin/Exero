@@ -36,7 +36,7 @@ function hashColor(subjectName: string): string {
 type DndListeners = {
   onPointerDown?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
-  onPointerMove?: (e: PointerEvent) => void;
+  onPointerMove?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
   [key: string]: unknown;
 };
@@ -75,7 +75,7 @@ interface CourseBlockProps {
   /** 是否为自由模式（显示 resize 手柄可调时长） */
   freeMode?: boolean;
   /** resize 手柄 ref 注入（自由模式调整时长） */
-  setResizeHandleRef?: (el: HTMLElement | null) => void;
+  setResizeHandleRef?: (el: HTMLDivElement | null) => void;
   /** resize 手柄监听器（dnd-kit 提供） */
   resizeListeners?: DndListeners;
   className?: string;
@@ -166,15 +166,15 @@ export function CourseBlock({
         },
         onPointerUp: (e: React.PointerEvent) => {
           dragListeners?.onPointerUp?.(e);
-          longPress.onPointerUp(e);
+          longPress.onPointerUp();
         },
         onPointerLeave: (e: React.PointerEvent) => {
           dragListeners?.onPointerUp?.(e);
-          longPress.onPointerLeave(e);
+          longPress.onPointerLeave();
         },
         onPointerCancel: (e: React.PointerEvent) => {
           dragListeners?.onPointerCancel?.(e);
-          longPress.onPointerCancel(e);
+          longPress.onPointerCancel();
         },
       };
 

@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { cn } from "@/lib/utils";
-import { getNodeMeta } from "@/lib/nodeCatalog";
+import { getCategoryColor, getNodeMeta } from "@/lib/nodeCatalog";
 import type { ActionNodeData } from "@/pages/quickactions/graphTransform";
 
 /**
@@ -48,7 +48,7 @@ function ActionNodeViewImpl({ data, selected }: NodeProps) {
           <div
             className={cn(
               "flex h-6 w-6 shrink-0 items-center justify-center rounded",
-              meta?.color,
+              meta ? getCategoryColor(meta.category) : "",
             )}
           >
             <Icon className="h-3.5 w-3.5" />

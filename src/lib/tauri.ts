@@ -563,3 +563,72 @@ export const ALL_PRIORITIES: ProcessPriority[] = [
   "below_normal",
   "idle",
 ];
+
+// ============ Lua 脚本市场 ============
+
+/** Lua 脚本参数定义（manifest 中的单个参数，用于动态生成表单） */
+export interface ScriptParam {
+  /** 参数名（Lua 脚本通过 args.xxx 访问） */
+  name: string;
+  /** 显示标签 */
+  label: string;
+  /** 参数类型 */
+  type: "string" | "number" | "boolean" | "select";
+  /** 默认值 */
+  default: unknown;
+  /** select 类型的可选项 */
+  options: string[];
+  /** 是否必填 */
+  required: boolean;
+}
+
+/** 已安装脚本（数据库记录，字段 snake_case 对齐 Rust Serialize） */
+export interface InstalledScript {
+  script_id: string;
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  permissions: string[];
+  params_schema: ScriptParam[];
+  installed_at: string;
+  updated_at: string;
+  source_url: string;
+  content_hash: string;
+}
+
+/** 市场脚本（GitHub 列表项，含安装状态） */
+export interface MarketScript {
+  id: string;
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  permissions: string[];
+  params: ScriptParam[];
+  /** 是否已安装 */
+  installed: boolean;
+  /** 已安装版本（若已安装） */
+  installed_version: string | null;
+  /** 是否有更新 */
+  update_available: boolean;
+}
+
+export const luaCommands = {
+  /** 列出所有已安装脚本 */
+  listInstalled: () => invoke<InstalledScript[]>("list_installed_scripts"),
+  /** 获取单个已安装脚本详情 */
+  getDetail: (scriptId: string) =>
+    invoke<InstalledScript | null>("get_script_detail", { scriptId }),
+  /** 列出市场可用脚本（网络失败进入离线模式，仅返回已安装） */
+  listMarket: () => invoke<MarketScript[]>("list_market_scripts"),
+  /** 安装脚本（下载 .lua + .json，写入本地与数据库） */
+  install: (scriptId: string) =>
+    invoke<InstalledScript>("install_script", { scriptId }),
+  /** 卸载脚本（删数据库 + 删本地文件） */
+  uninstall: (scriptId: string) =>
+    invoke<void>("uninstall_script", { scriptId }),
+  /** 更新脚本（重新下载 + 覆盖） */
+  update: (scriptId: string) =>
+    invoke<InstalledScript>("update_script", { scriptId }),
+};

@@ -12,6 +12,7 @@ pub mod semester;
 pub mod course;
 pub mod weekly_template;
 pub mod performance;
+pub mod lua;
 
 pub use flow::*;
 pub use action::*;
@@ -23,3 +24,4 @@ pub use semester::*;
 pub use course::*;
 pub use weekly_template::*;
 pub use performance::*;
+pub use lua::*;

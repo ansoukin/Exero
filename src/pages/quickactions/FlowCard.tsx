@@ -65,7 +65,8 @@ export function FlowCard({ flow, onEdit, onChanged }: FlowCardProps) {
 
   // 图标解析：flow.icon 存储 lucide 图标名（如 "Zap"），未设置时回退 Zap
   const IconCmp =
-    (flow.icon && (Icons as Record<string, Icons.LucideIcon>)[flow.icon]) ||
+    (flow.icon &&
+      (Icons as unknown as Record<string, Icons.LucideIcon>)[flow.icon]) ||
     Zap;
 
   async function handleToggleEnabled() {
