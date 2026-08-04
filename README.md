@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Alpha1-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta1-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,7 +14,7 @@
 
 ## 当前状态
 
-**Phase 6 全部完成（V0.4.0 Alpha1 最终交付）** - 系统集成 + 主题 + 收尾：
+**V0.4.0 Beta1** - UI 优化与日志清空增强：
 
 **Phase 6b 收尾**：
 

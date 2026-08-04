@@ -45,7 +45,7 @@ export function CloseBehaviorDialog() {
       value_type: "string",
     };
     try {
-      await settingCommands.setSetting(setting);
+      await settingCommands.set(setting);
     } catch (e) {
       console.error("[close-behavior] 保存关闭行为失败:", e);
     }

@@ -1215,9 +1215,31 @@ return { success = true, count = count }</code></pre>
     <div class="changelog reveal">
       <div class="cl-item">
         <div class="cl-header">
-          <span class="cl-version current">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-08-03</span>
+          <span class="cl-version current">0.4.0-Beta1</span>
+          <span class="cl-date">2026-08-04</span>
           <span class="cl-tag now">当前</span>
+        </div>
+        <div class="cl-title">UI 优化与日志清空增强（首个 Beta 版本）</div>
+        <ul class="cl-list">
+          <li>关于页更新历史支持 GitHub 风格 Markdown 渲染（react-markdown + remark-gfm，含粗体/列表/表格/代码块/引用等）</li>
+          <li>关于页技术栈和 License 分区默认折叠（点击展开）</li>
+          <li>快捷指令编辑属性面板支持自动折叠（默认折叠，点击节点自动展开，可手动切换）</li>
+          <li>左上角 Logo 文字改为 EXERO（Segoe UI 粗体）</li>
+          <li>执行日志新增清空按钮（Trash2 图标）+ 刷新按钮图标（RefreshCw）</li>
+          <li>清空日志支持弹窗选择时间范围（全部 / 1小时 / 24小时 / 7天 / 30天）</li>
+          <li>修复清空日志按时间范围不生效问题（SQL 比较方向修正）</li>
+          <li>修复日志空状态错位问题 + 按钮图标和描述动画</li>
+          <li>清理多处冗余技术性描述文案</li>
+          <li>性能优化：Layout 页面组件懒加载（React.lazy + Suspense）</li>
+          <li>性能优化：AboutSection changelog 内存缓存（10分钟TTL）</li>
+          <li>性能优化：UpdateSection 4次串行IPC改为并行</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-Alpha1</span>
+          <span class="cl-date">2026-08-03</span>
+          <span class="cl-tag done">已完成</span>
         </div>
         <div class="cl-title">Phase 6 全部完成：系统集成 + 主题 + 收尾（最终交付）</div>
         <ul class="cl-list">

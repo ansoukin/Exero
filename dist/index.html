@@ -1,5 +1,51 @@
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Dominate</title></head>
-<body>E2E Test Placeholder</body>
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Exero - 基于 Tauri v2 + Rust 的 Windows 桌面自动化助手。快捷指令 + 可视化积木，20 种动作类型自由组合。" />
+    <meta name="theme-color" content="#0078D4" />
+    <title>Exero</title>
+    <!-- 防止首帧白屏闪烁：React/CSS 加载前根据系统偏好预设背景色 + .dark 类 -->
+    <style>
+      body { margin: 0; background: #ffffff; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #0a0a0f; }
+      }
+    </style>
+    <script>
+      (function () {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (prefersDark) document.documentElement.classList.add("dark");
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-BmGe1mVM.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Gc9qkO0w.css">
+  </head>
+  <body>
+    <div id="root">
+      <!-- 预渲染 loading 占位：JS 未加载/未挂载时显示，React 挂载后自动替换 -->
+      <div id="boot-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;background:#ffffff;font-family:system-ui,-apple-system,sans-serif;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <h1 style="margin:0;font-size:48px;font-weight:700;letter-spacing:-0.02em;color:#0078D4;">Exero</h1>
+          <p style="margin:0;font-size:14px;color:#6b7280;">个人自动化助手</p>
+        </div>
+        <div style="width:192px;height:4px;border-radius:9999px;background:#e5e7eb;overflow:hidden;">
+          <div style="width:50%;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f87171,#fbbf24,#34d399,#60a5fa,#a78bfa);animation:boot-progress 1.5s ease-in-out infinite;"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes boot-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        @media (prefers-color-scheme: dark) {
+          #boot-splash { background: #0a0a0f !important; }
+          #boot-splash h1 { color: #4cc2ff !important; }
+          #boot-splash p { color: #9ca3af !important; }
+          #boot-splash > div:last-child { background: #1f2937 !important; }
+        }
+      </style>
+    </div>
+  </body>
 </html>
