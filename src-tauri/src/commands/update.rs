@@ -2,11 +2,11 @@
 //!
 //! 功能：
 //! - 检查 GitHub Release latest，对比当前版本判断是否需要更新
-//! - 强制更新检测（SPEC 7.2：force-update.json 包含最低版本号）
+//! - 强制更新检测（SPEC 7.2 / 13.6：GitHub Release body 包含 `[强制更新]` 标记 + tag 高于当前版本）
 //! - 应用基本信息（版本号、构建日期、技术栈、仓库链接）
 //! - 更新历史（GitHub Release Notes 优先，失败回退本地 CHANGELOG.md）
 //!
-//! 网络策略（SPEC 7.4）：github.com 主 → ghproxy 镜像后备 → 离线（仅本地 CHANGELOG）
+//! 网络策略（SPEC 7.4）：github.com 主 -> ghproxy 镜像后备 -> 离线（仅本地 CHANGELOG）
 
 use std::sync::Arc;
 
@@ -16,18 +16,19 @@ use tauri::State;
 use crate::error::{AppError, Result};
 use crate::state::AppState;
 
-/// GitHub 仓库所有者
-const GITHUB_OWNER: &str = "ansoukin";
-/// GitHub 仓库名
-const GITHUB_REPO: &str = "Exero";
-/// GitHub Release latest API
+/// GitHub Release latest API（主源）
 const RELEASE_API: &str = "https://api.github.com/repos/ansoukin/Exero/releases/latest";
-/// force-update.json 远端地址（raw.githubusercontent.com）
-const FORCE_UPDATE_URL: &str =
-    "https://raw.githubusercontent.com/ansoukin/Exero/main/force-update.json";
-/// ghproxy 镜像前缀
+/// GitHub Releases 列表 API（主源，最近 10 条）
+const RELEASES_LIST_API: &str =
+    "https://api.github.com/repos/ansoukin/Exero/releases?per_page=10";
+/// ghproxy 镜像前缀（SPEC 7.4 网络后备）
 const GHPROXY_BASE: &str = "https://ghproxy.com";
-/// 本地 CHANGELOG.md（前端通过 tauri-plugin-fs 读取，这里仅返回路径）
+/// 强制更新标记（SPEC 7.2 / 13.6.1）
+const FORCE_UPDATE_MARKER: &str = "[强制更新]";
+/// 推荐更新标记（SPEC 7.2 / 13.6.2）
+const RECOMMEND_UPDATE_MARKER: &str = "[推荐更新]";
+/// 最低版本标记前缀（SPEC 7.2 / 13.6.3，完整格式 `[最低版本 x.y.z]`）
+const MINIMUM_VERSION_MARKER_PREFIX: &str = "[最低版本 ";
 
 /// 应用基本信息（SPEC 3.5 分区 4 关于页）
 #[derive(Debug, Clone, Serialize)]
@@ -67,13 +68,6 @@ struct GithubRelease {
     html_url: String,
 }
 
-/// 强制更新配置（SPEC 7.2）
-#[derive(Debug, Deserialize)]
-struct ForceUpdateConfig {
-    /// 最低允许版本号（语义化版本，如 "0.4.0-alpha.1"）
-    minimum_version: String,
-}
-
 /// 更新检查结果
 #[derive(Debug, Clone, Serialize)]
 pub struct UpdateStatus {
@@ -87,10 +81,15 @@ pub struct UpdateStatus {
     pub published_at: Option<String>,
     /// Release HTML 页面链接
     pub release_url: Option<String>,
-    /// 强制更新最低版本（None 表示无强制更新）
-    pub force_update_minimum: Option<String>,
-    /// 当前版本是否低于强制更新最低版本
+    /// 是否需要强制更新（SPEC 7.2 A：Release body 含 `[强制更新]` 标记且 tag 高于当前版本）
     pub force_update_required: bool,
+    /// 是否为推荐更新（SPEC 7.2 B：Release body 含 `[推荐更新]` 标记且 tag 高于当前版本）
+    pub recommend_update: bool,
+    /// 最低版本要求（SPEC 7.2 C：Release body 含 `[最低版本 x.y.z]` 标记时的 x.y.z）
+    /// 当当前版本 < x.y.z 时，minimum_version_required = true
+    pub minimum_version: Option<String>,
+    /// 当前版本是否低于最低版本要求（触发强制更新行为）
+    pub minimum_version_required: bool,
     /// 检查时间（ISO 8601）
     pub checked_at: String,
     /// 错误信息（网络失败等）
@@ -201,10 +200,16 @@ pub async fn get_app_info() -> Result<AppInfo> {
     })
 }
 
-/// 检查更新（SPEC 7.1 / 7.2 / 7.4）
+/// 检查更新（SPEC 7.1 / 7.2 / 7.4 / 13.6）
 ///
 /// 网络失败时返回 UpdateStatus 带 error 字段，不抛错（允许前端展示离线状态）。
 /// 同时持久化最近检查时间到 settings 表（键：update.last_check_time）。
+///
+/// 三级更新级别解析（SPEC 7.2，标记互斥）：
+/// A. 强制更新 `[强制更新]`：tag 高于当前版本 -> force_update_required = true
+/// B. 推荐更新 `[推荐更新]`：tag 高于当前版本 -> recommend_update = true
+/// C. 最低版本 `[最低版本 x.y.z]`：当前版本 < x.y.z -> minimum_version_required = true（同 A 行为）
+/// D. 普通更新（无标记）：默认行为
 #[tauri::command]
 pub async fn check_for_updates(
     state: State<'_, Arc<AppState>>,
@@ -212,17 +217,30 @@ pub async fn check_for_updates(
     let current_version = env!("CARGO_PKG_VERSION").to_string();
     let checked_at = chrono::Utc::now().to_rfc3339();
 
-    // 并发拉取 Release 信息 + force-update.json
-    let (release_result, force_result) = tokio::join!(
-        fetch_latest_release(),
-        fetch_force_update_config()
-    );
-
-    let release = release_result?;
-    let force_config = force_result.unwrap_or_else(|e| {
-        tracing::warn!("强制更新配置获取失败（忽略，视为无强制更新）: {}", e);
-        None
-    });
+    let release = match fetch_latest_release().await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("GitHub Release 拉取失败（含 ghproxy 后备）: {}", e);
+            // 网络完全失败，返回带 error 的状态
+            let status = UpdateStatus {
+                current_version: current_version.clone(),
+                latest_version: None,
+                update_available: false,
+                published_at: None,
+                release_url: None,
+                force_update_required: false,
+                recommend_update: false,
+                minimum_version: None,
+                minimum_version_required: false,
+                checked_at: checked_at.clone(),
+                error: Some(format!("更新检查失败: {}", e)),
+            };
+            if let Err(e) = persist_latest_version(&state, &status) {
+                tracing::warn!("持久化最新版本信息失败: {}", e);
+            }
+            return Ok(status);
+        }
+    };
 
     let latest_version = release
         .as_ref()
@@ -231,10 +249,26 @@ pub async fn check_for_updates(
         Some(v) => version_gt(v, &current_version),
         None => false,
     };
-    let force_update_required = match &force_config {
-        Some(c) => version_lt(&current_version, &c.minimum_version),
-        None => false,
-    };
+
+    // 三级更新级别解析（SPEC 7.2 / 13.6，标记互斥）
+    let body = release
+        .as_ref()
+        .and_then(|r| r.body.as_deref())
+        .unwrap_or("");
+
+    // A. 强制更新：body 含 `[强制更新]` 标记且 tag 高于当前版本
+    let force_update_required = body.contains(FORCE_UPDATE_MARKER) && update_available;
+
+    // B. 推荐更新：body 含 `[推荐更新]` 标记且 tag 高于当前版本
+    let recommend_update = body.contains(RECOMMEND_UPDATE_MARKER) && update_available;
+
+    // C. 最低版本：body 含 `[最低版本 x.y.z]` 标记，解析 x.y.z 并比较
+    let (minimum_version, minimum_version_required) = parse_minimum_version_marker(body)
+        .map(|min_ver| {
+            let required = version_lt(&current_version, &min_ver);
+            (Some(min_ver), required)
+        })
+        .unwrap_or((None, false));
 
     let status = UpdateStatus {
         current_version: current_version.clone(),
@@ -242,8 +276,10 @@ pub async fn check_for_updates(
         update_available,
         published_at: release.as_ref().map(|r| r.published_at.clone()),
         release_url: release.as_ref().map(|r| r.html_url.clone()),
-        force_update_minimum: force_config.map(|c| c.minimum_version),
         force_update_required,
+        recommend_update,
+        minimum_version,
+        minimum_version_required,
         checked_at,
         error: None,
     };
@@ -296,14 +332,32 @@ pub async fn get_changelog_path() -> Result<String> {
 
 // ============ 内部辅助函数 ============
 
-/// 拉取 GitHub Release latest
+/// 拉取 GitHub Release latest（SPEC 7.4：主源 -> ghproxy 后备）
 async fn fetch_latest_release() -> Result<Option<GithubRelease>> {
     let client = reqwest::Client::builder()
         .user_agent("Exero-App")
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
 
-    let resp = client.get(RELEASE_API).send().await?;
+    // 主源：api.github.com
+    match fetch_release_from(&client, RELEASE_API).await {
+        Ok(result) => return Ok(result),
+        Err(e) => tracing::warn!("GitHub Release 主源失败，尝试 ghproxy 后备: {}", e),
+    }
+
+    // 备源：ghproxy 镜像
+    let mirror = format!("{}/{}", GHPROXY_BASE, RELEASE_API);
+    fetch_release_from(&client, &mirror)
+        .await
+        .map_err(|e| AppError::Other(format!("GitHub Release 拉取失败（含 ghproxy 后备）: {}", e)))
+}
+
+/// 从指定 URL 拉取单个 Release（返回 None 表示 404 无 Release）
+async fn fetch_release_from(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Option<GithubRelease>> {
+    let resp = client.get(url).send().await?;
     if resp.status() == reqwest::StatusCode::NOT_FOUND {
         // 还没有任何 Release
         return Ok(None);
@@ -318,18 +372,32 @@ async fn fetch_latest_release() -> Result<Option<GithubRelease>> {
     Ok(Some(release))
 }
 
-/// 拉取 GitHub Releases 列表（最近 10 条）
+/// 拉取 GitHub Releases 列表（最近 10 条，SPEC 7.4：主源 -> ghproxy 后备）
 async fn fetch_releases_list() -> Result<Vec<ChangelogEntry>> {
-    let api_url = format!(
-        "https://api.github.com/repos/{}/{}/releases?per_page=10",
-        GITHUB_OWNER, GITHUB_REPO
-    );
     let client = reqwest::Client::builder()
         .user_agent("Exero-App")
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
 
-    let resp = client.get(&api_url).send().await?;
+    // 主源：api.github.com
+    match fetch_releases_from(&client, RELEASES_LIST_API).await {
+        Ok(entries) => return Ok(entries),
+        Err(e) => tracing::warn!("GitHub Releases 列表主源失败，尝试 ghproxy 后备: {}", e),
+    }
+
+    // 备源：ghproxy 镜像
+    let mirror = format!("{}/{}", GHPROXY_BASE, RELEASES_LIST_API);
+    fetch_releases_from(&client, &mirror)
+        .await
+        .map_err(|e| AppError::Other(format!("GitHub Releases 列表拉取失败（含 ghproxy 后备）: {}", e)))
+}
+
+/// 从指定 URL 拉取 Releases 列表
+async fn fetch_releases_from(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<ChangelogEntry>> {
+    let resp = client.get(url).send().await?;
     if !resp.status().is_success() {
         return Err(AppError::Other(format!(
             "GitHub Releases API 返回 {}",
@@ -346,47 +414,6 @@ async fn fetch_releases_list() -> Result<Vec<ChangelogEntry>> {
             html_url: r.html_url,
         })
         .collect())
-}
-
-/// 拉取 force-update.json（SPEC 7.2）
-///
-/// 主源失败时尝试 ghproxy 镜像，仍失败则返回 None（视为无强制更新）。
-async fn fetch_force_update_config() -> Result<Option<ForceUpdateConfig>> {
-    let client = reqwest::Client::builder()
-        .user_agent("Exero-App")
-        .timeout(std::time::Duration::from_secs(10))
-        .build()?;
-
-    // 主源：raw.githubusercontent.com
-    match client.get(FORCE_UPDATE_URL).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let cfg: ForceUpdateConfig = resp.json().await?;
-            return Ok(Some(cfg));
-        }
-        Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {
-            // 远端未配置 force-update.json，视为无强制更新
-            return Ok(None);
-        }
-        _ => {}
-    }
-
-    // 备源：ghproxy 镜像
-    let mirror = format!("{}/{}", GHPROXY_BASE, FORCE_UPDATE_URL);
-    match client.get(&mirror).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let cfg: ForceUpdateConfig = resp.json().await?;
-            Ok(Some(cfg))
-        }
-        Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => Ok(None),
-        Ok(resp) => Err(AppError::Other(format!(
-            "ghproxy force-update 返回 {}",
-            resp.status()
-        ))),
-        Err(e) => Err(AppError::Other(format!(
-            "ghproxy force-update 请求失败: {}",
-            e
-        ))),
-    }
 }
 
 /// 读取本地 CHANGELOG.md（网络失败时的回退）
@@ -443,10 +470,98 @@ fn persist_latest_version(
     )?)
 }
 
-/// 语义化版本比较：a > b
+// ============ 版本号比较（SPEC 13.10 自定义 SemVer） ============
+//
+// 格式：`VMajor.Minor.Patch-StageN`（V/v 前缀可选）
+// 比较规则：
+// 1. 第一级：比较语义化版本号（Major.Minor.Patch），从左到右逐段比较数字
+// 2. 第二级：语义化版本号相同时，比较阶段（Alpha < Beta < Stable）
+//    - 同阶段内数字大的大（Alpha2 > Alpha1）
+//    - Stable 无数字后缀，视为最高阶段
+//
+// 完整示例：
+//   0.4.0-Alpha1 < 0.4.0-Alpha2 < 0.4.0-Beta1 < 0.4.0-Beta2 < 0.4.0-Stable
+//   0.4.0-Stable < 0.4.1-Stable
+//   0.4.2-Beta3 < 0.4.3-Alpha1（不同 Minor，直接比较 0.4.2 < 0.4.3）
+
+/// 解析后的版本号
+#[derive(Debug, PartialEq, Eq)]
+struct ParsedVersion {
+    major: u32,
+    minor: u32,
+    patch: u32,
+    /// 阶段：Alpha=0, Beta=1, Stable=2
+    stage_order: u8,
+    /// 阶段数字（Alpha1=1, Alpha2=2...，Stable 视为 u32::MAX）
+    stage_num: u32,
+}
+
+/// 解析版本号字符串（SPEC 13.10）
 ///
-/// 仅比较 `主版本.次版本.修订号-预发布标识`，
-/// 不严格遵循 semver 规范（简化为字符串分块比较），满足本项目使用场景。
+/// 支持格式：`0.4.0-Alpha1` / `V0.4.0-Beta2` / `v0.4.0-Stable` / `0.4.0`
+/// 大小写不敏感（SPEC 13.10：tag_name 比较时大小写不敏感）
+fn parse_version(v: &str) -> Option<ParsedVersion> {
+    let v = v.trim().trim_start_matches(|c| c == 'v' || c == 'V');
+
+    // 分离语义化版本号和阶段标识
+    let (core, stage_str) = match v.split_once('-') {
+        Some((c, s)) => (c, s),
+        None => (v, "Stable"), // 无阶段标识视为 Stable
+    };
+
+    // 解析 Major.Minor.Patch
+    let parts: Vec<u32> = core.split('.').filter_map(|s| s.parse().ok()).collect();
+    if parts.len() < 3 {
+        return None;
+    }
+    let major = parts[0];
+    let minor = parts[1];
+    let patch = parts[2];
+
+    // 解析阶段（大小写不敏感）
+    let stage_lower = stage_str.to_lowercase();
+    let (stage_order, stage_num) = if stage_lower.starts_with("alpha") {
+        let num: u32 = stage_lower[5..].parse().unwrap_or(0);
+        (0u8, num)
+    } else if stage_lower.starts_with("beta") {
+        let num: u32 = stage_lower[4..].parse().unwrap_or(0);
+        (1u8, num)
+    } else if stage_lower == "stable" {
+        (2u8, u32::MAX) // Stable 视为最高数字
+    } else {
+        return None;
+    };
+
+    Some(ParsedVersion {
+        major,
+        minor,
+        patch,
+        stage_order,
+        stage_num,
+    })
+}
+
+/// 版本比较核心（SPEC 13.10）
+fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_version(a), parse_version(b)) {
+        (Some(pa), Some(pb)) => {
+            // 第一级：比较语义化版本号
+            pa.major
+                .cmp(&pb.major)
+                .then(pa.minor.cmp(&pb.minor))
+                .then(pa.patch.cmp(&pb.patch))
+                // 第二级：比较阶段
+                .then(pa.stage_order.cmp(&pb.stage_order))
+                .then(pa.stage_num.cmp(&pb.stage_num))
+        }
+        _ => {
+            // 解析失败时回退为字符串比较（容错）
+            a.cmp(b)
+        }
+    }
+}
+
+/// 语义化版本比较：a > b
 fn version_gt(a: &str, b: &str) -> bool {
     version_cmp(a, b) == std::cmp::Ordering::Greater
 }
@@ -456,32 +571,21 @@ fn version_lt(a: &str, b: &str) -> bool {
     version_cmp(a, b) == std::cmp::Ordering::Less
 }
 
-/// 版本比较核心
-fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
-    let pa = parse_version(a);
-    let pb = parse_version(b);
-    pa.cmp(&pb)
-}
+// ============ 更新级别标记解析（SPEC 7.2 / 13.6） ============
 
-/// 解析版本号为可比较元组 (major, minor, patch, pre_release)
-fn parse_version(v: &str) -> (u32, u32, u32, String) {
-    let v = v.trim().trim_start_matches('v');
-    let (core, pre) = match v.split_once('-') {
-        Some((c, p)) => (c, format!("-{}", p)),
-        None => (v, String::new()),
-    };
-    let parts: Vec<u32> = core
-        .split('.')
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    let major = parts.first().copied().unwrap_or(0);
-    let minor = parts.get(1).copied().unwrap_or(0);
-    let patch = parts.get(2).copied().unwrap_or(0);
-    // 预发布版本（如 alpha.1）应小于同号正式版：用负序字符串处理
-    let pre_key = if pre.is_empty() {
-        "\u{10FFFF}".to_string() // 正式版排在所有预发布之后
+/// 从 Release body 解析 `[最低版本 x.y.z]` 标记
+///
+/// 标记格式：`[最低版本 0.4.0]`（SPEC 13.6.3）
+/// 返回解析出的版本号字符串（仅 Major.Minor.Patch，无阶段标识）
+fn parse_minimum_version_marker(body: &str) -> Option<String> {
+    let prefix = MINIMUM_VERSION_MARKER_PREFIX;
+    let start = body.find(prefix)?;
+    let after_prefix = &body[start + prefix.len()..];
+    let end = after_prefix.find(']')?;
+    let version = after_prefix[..end].trim();
+    if version.is_empty() {
+        None
     } else {
-        pre
-    };
-    (major, minor, patch, pre_key)
+        Some(version.to_string())
+    }
 }

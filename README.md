@@ -19,7 +19,7 @@
 **Phase 6b 收尾**：
 
 - NSIS 打包配置完善（installMode=currentUser，LZMA 压缩，中英文双语，LICENSE + CHANGELOG.md 随包分发）
-- 更新检查器（SPEC 第七章）：GitHub Release latest API + force-update.json 强制更新检测 + ghproxy 镜像后备 + 离线回退本地 CHANGELOG.md
+- 更新检查器（SPEC 第七章）：GitHub Release latest API + 三级更新级别标记解析（`[强制更新]`/`[推荐更新]`/`[最低版本 x.y.z]`，SPEC 7.2/13.6）+ ghproxy 镜像后备 + 离线回退本地 CHANGELOG.md + SPEC 13.10 自定义 SemVer 版本号比较（Major.Minor.Patch-StageN）
 - 关于页：应用基本信息 + 15 项技术栈 + MIT 许可（含娱乐性 24 小时删除声明）+ GitHub 仓库链接 + 更新历史（云端优先）
 - 帮助页：V0.4.0 占位嘲讽/自嘲文案（功能说明 / FAQ / 错误代码 / 概念词典待后续补充）
 - 导入导出功能（SPEC 5.5）：.exero 文件格式（zip 包含 meta.json + data.json + scripts/*.lua），4 范围可选（flows / courses / settings / scripts / all），2 模式（merge / replace），事务性数据库操作

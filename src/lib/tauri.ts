@@ -770,8 +770,14 @@ export interface UpdateStatus {
   update_available: boolean;
   published_at: string | null;
   release_url: string | null;
-  force_update_minimum: string | null;
+  /** 强制更新（SPEC 7.2 A：Release body 含 `[强制更新]` 标记且 tag 高于当前版本） */
   force_update_required: boolean;
+  /** 推荐更新（SPEC 7.2 B：Release body 含 `[推荐更新]` 标记且 tag 高于当前版本） */
+  recommend_update: boolean;
+  /** 最低版本要求（SPEC 7.2 C：Release body 含 `[最低版本 x.y.z]` 标记时的 x.y.z） */
+  minimum_version: string | null;
+  /** 当前版本是否低于最低版本要求（触发强制更新行为） */
+  minimum_version_required: boolean;
   checked_at: string;
   error: string | null;
 }
