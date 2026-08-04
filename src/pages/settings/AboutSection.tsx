@@ -10,13 +10,38 @@
  */
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Github, ScrollText, Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {
+  ExternalLink,
+  Github,
+  ScrollText,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 import {
   updateCommands,
   type AppInfo,
   type ChangelogEntry,
 } from "@/lib/tauri";
+
+/** changelog 内存缓存（10 分钟 TTL，避免切分区时重复打 GitHub API） */
+const CHANGELOG_CACHE_TTL = 10 * 60 * 1000; // 10 分钟
+let changelogCache: { data: ChangelogEntry[]; timestamp: number } | null = null;
+
+/** 获取 changelog（带缓存） */
+async function fetchChangelogWithCache(): Promise<ChangelogEntry[]> {
+  const now = Date.now();
+  if (changelogCache && now - changelogCache.timestamp < CHANGELOG_CACHE_TTL) {
+    return changelogCache.data;
+  }
+  const data = await updateCommands.getChangelog();
+  changelogCache = { data, timestamp: now };
+  return data;
+}
 
 export function AboutSection() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -27,7 +52,7 @@ export function AboutSection() {
   useEffect(() => {
     Promise.all([
       updateCommands.getAppInfo(),
-      updateCommands.getChangelog(),
+      fetchChangelogWithCache(),
     ])
       .then(([appInfo, entries]) => {
         setInfo(appInfo);
@@ -89,8 +114,7 @@ export function AboutSection() {
       </section>
 
       {/* 技术栈 */}
-      <section className="flex flex-col gap-3">
-        <h3 className="text-base font-medium">技术栈</h3>
+      <CollapsibleSection title="技术栈" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
           {info.tech_stack.map((item) => (
             <div
@@ -109,11 +133,10 @@ export function AboutSection() {
             </div>
           ))}
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* MIT 许可 + 娱乐性声明 */}
-      <section className="flex flex-col gap-2">
-        <h3 className="text-base font-medium">License</h3>
+      <CollapsibleSection title="License" defaultOpen={false}>
         <div className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed">
           <p>
             本软件基于 <span className="font-medium">MIT License</span> 开源。
@@ -123,7 +146,7 @@ export function AboutSection() {
             24 小时内删除。请支持正版软件，尊重知识产权。
           </p>
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* 更新历史 */}
       <section className="flex flex-col gap-3">
@@ -131,9 +154,6 @@ export function AboutSection() {
           <ScrollText className="h-4 w-4" />
           <h3 className="text-base font-medium">更新历史</h3>
         </div>
-        <p className="text-sm text-muted-foreground">
-          数据源：GitHub Release Notes 优先，网络失败时回退本地 CHANGELOG.md
-        </p>
 
         {changelog.length === 0 ? (
           <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
@@ -170,9 +190,109 @@ export function AboutSection() {
                   </button>
                   {expanded && (
                     <div className="border-t px-4 py-3">
-                      <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-muted-foreground">
-                        {entry.body || "（无 Release Notes）"}
-                      </pre>
+                      <div className="text-sm leading-relaxed text-muted-foreground">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({ node, ...props }) => (
+                              <h1 className="mb-2 mt-3 text-base font-semibold text-foreground" {...props} />
+                            ),
+                            h2: ({ node, ...props }) => (
+                              <h2 className="mb-2 mt-3 text-base font-semibold text-foreground" {...props} />
+                            ),
+                            h3: ({ node, ...props }) => (
+                              <h3 className="mb-1.5 mt-2 text-sm font-semibold text-foreground" {...props} />
+                            ),
+                            h4: ({ node, ...props }) => (
+                              <h4 className="mb-1 mt-2 text-sm font-medium text-foreground" {...props} />
+                            ),
+                            h5: ({ node, ...props }) => (
+                              <h5 className="mb-1 mt-2 text-xs font-medium text-foreground" {...props} />
+                            ),
+                            h6: ({ node, ...props }) => (
+                              <h6 className="mb-1 mt-2 text-xs font-medium text-muted-foreground" {...props} />
+                            ),
+                            p: ({ node, ...props }) => <p className="mb-2 leading-relaxed" {...props} />,
+                            a: ({ node, ...props }) => (
+                              <a
+                                {...props}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              />
+                            ),
+                            ul: ({ node, ...props }) => (
+                              <ul className="mb-2 ml-5 list-disc space-y-0.5" {...props} />
+                            ),
+                            ol: ({ node, ...props }) => (
+                              <ol className="mb-2 ml-5 list-decimal space-y-0.5" {...props} />
+                            ),
+                            li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                            blockquote: ({ node, ...props }) => (
+                              <blockquote
+                                className="my-2 border-l-2 border-border pl-3 italic text-muted-foreground"
+                                {...props}
+                              />
+                            ),
+                            hr: ({ node, ...props }) => (
+                              <hr className="my-3 border-border" {...props} />
+                            ),
+                            strong: ({ node, ...props }) => (
+                              <strong className="font-semibold text-foreground" {...props} />
+                            ),
+                            em: ({ node, ...props }) => <em className="italic" {...props} />,
+                            del: ({ node, ...props }) => <del className="line-through" {...props} />,
+                            code: ({ node, className, children, ...props }) => {
+                              const isInline = !className?.includes("language-");
+                              return isInline ? (
+                                <code
+                                  className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground"
+                                  {...props}
+                                >
+                                  {children}
+                                </code>
+                              ) : (
+                                <code className="font-mono text-[0.85em]" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                            pre: ({ node, ...props }) => (
+                              <pre
+                                className="my-2 overflow-x-auto rounded-md bg-muted/60 p-3 font-mono text-xs"
+                                {...props}
+                              />
+                            ),
+                            table: ({ node, ...props }) => (
+                              <div className="my-2 overflow-x-auto">
+                                <table
+                                  className="w-full border-collapse text-xs"
+                                  {...props}
+                                />
+                              </div>
+                            ),
+                            thead: ({ node, ...props }) => <thead className="bg-muted/50" {...props} />,
+                            th: ({ node, ...props }) => (
+                              <th
+                                className="border border-border px-2 py-1 text-left font-medium"
+                                {...props}
+                              />
+                            ),
+                            td: ({ node, ...props }) => (
+                              <td className="border border-border px-2 py-1" {...props} />
+                            ),
+                            img: ({ node, alt, ...props }) => (
+                              <img
+                                alt={alt ?? ""}
+                                className="my-2 max-w-full rounded-md"
+                                {...props}
+                              />
+                            ),
+                          }}
+                        >
+                          {entry.body || "（无 Release Notes）"}
+                        </ReactMarkdown>
+                      </div>
                       {entry.html_url && (
                         <a
                           href={entry.html_url}
@@ -193,5 +313,35 @@ export function AboutSection() {
         )}
       </section>
     </div>
+  );
+}
+
+/** 可折叠分区：点击标题切换展开/收起，默认收起 */
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-left"
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <h3 className="text-base font-medium">{title}</h3>
+      </button>
+      {open && children}
+    </section>
   );
 }

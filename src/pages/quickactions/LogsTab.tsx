@@ -9,10 +9,19 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   executionCommands,
   flowCommands,
@@ -22,6 +31,33 @@ import {
 } from "@/lib/tauri";
 
 type Filter = "all" | "success" | "failed";
+
+/** 清空日志的时间范围选项 */
+type ClearRange = "all" | "1h" | "24h" | "7d" | "30d";
+
+const CLEAR_RANGES: { key: ClearRange; label: string }[] = [
+  { key: "all", label: "全部记录" },
+  { key: "1h", label: "最近 1 小时" },
+  { key: "24h", label: "最近 24 小时" },
+  { key: "7d", label: "最近 7 天" },
+  { key: "30d", label: "最近 30 天" },
+];
+
+/** 根据 range 计算时间起点（RFC3339），all 返回 undefined（清空全部）。
+ *  返回值为 now - range，SQL 会删除该时间点之后的记录（即最近时间段内的日志）。 */
+function computeBefore(range: ClearRange): string | undefined {
+  if (range === "all") return undefined;
+  const now = Date.now();
+  const ms =
+    range === "1h"
+      ? 3_600_000
+      : range === "24h"
+        ? 86_400_000
+        : range === "7d"
+          ? 7 * 86_400_000
+          : 30 * 86_400_000;
+  return new Date(now - ms).toISOString();
+}
 
 /**
  * 执行日志 Tab（SPEC 3.5 页面 3 第 2 Tab）
@@ -36,6 +72,28 @@ export function LogsTab() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // 清空日志弹窗状态
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearRange, setClearRange] = useState<ClearRange>("all");
+  const [clearing, setClearing] = useState(false);
+
+  /** 确认清空：按所选时间范围调用后端，返回删除条数 */
+  async function handleConfirmClear() {
+    setClearing(true);
+    setError(null);
+    try {
+      const before = computeBefore(clearRange);
+      await executionCommands.clearLogs(before);
+      setExpandedId(null);
+      setClearDialogOpen(false);
+      await loadLogs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setClearing(false);
+    }
+  }
 
   async function loadLogs() {
     setLoading(true);
@@ -85,10 +143,32 @@ export function LogsTab() {
             </button>
           ))}
         </div>
-        <Button variant="ghost" size="sm" onClick={loadLogs} className="gap-1">
-          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-          刷新
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadLogs}
+            className="gap-1 transition-transform duration-200 active:scale-95"
+          >
+            <RefreshCw
+              className={cn(
+                "h-3.5 w-3.5 transition-transform duration-500",
+                loading && "animate-spin",
+              )}
+            />
+            <span className="transition-colors duration-200">刷新</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setClearDialogOpen(true)}
+            disabled={logs.length === 0}
+            className="gap-1 text-destructive transition-transform duration-200 hover:text-destructive active:scale-95 disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
+            <span className="transition-colors duration-200">清空</span>
+          </Button>
+        </div>
       </div>
 
       {/* 错误提示 */}
@@ -103,20 +183,24 @@ export function LogsTab() {
       )}
 
       {/* 日志列表 */}
-      <div className="flex-1 overflow-y-auto scrollbar-fluent">
+      <div className="flex flex-1 items-center justify-center overflow-y-auto scrollbar-fluent">
         {loading ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
+          <div className="flex items-center text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            加载中...
+            <span className="text-sm">加载中...</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
-            <History className="mb-2 h-10 w-10 opacity-40" />
-            <p className="text-sm font-medium">暂无执行记录</p>
-            <p className="mt-1 text-xs">执行指令后此处显示结果</p>
+          <div className="flex w-full max-w-xs flex-col items-center justify-center text-center text-muted-foreground">
+            <History className="mb-3 h-12 w-12 animate-pulse opacity-30" />
+            <p className="text-sm font-medium transition-colors duration-300">
+              暂无执行记录
+            </p>
+            <p className="mt-1 text-xs transition-colors duration-300">
+              执行指令后此处显示结果
+            </p>
           </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="w-full divide-y">
             {filtered.map((log) => {
               const { Icon, className } = getStatusVisual(log.status);
               const flow = flows.get(log.flow_id);
@@ -180,6 +264,78 @@ export function LogsTab() {
           </ul>
         )}
       </div>
+
+      {/* 清空日志确认弹窗 */}
+      <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" />
+              清空执行日志
+            </DialogTitle>
+            <DialogDescription>
+              选择要清除的记录范围，该操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-1.5">
+            {CLEAR_RANGES.map((item) => {
+              const active = clearRange === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setClearRange(item.key)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                    active
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-input hover:bg-accent",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 items-center justify-center rounded-full border",
+                      active
+                        ? "border-primary"
+                        : "border-muted-foreground/40",
+                    )}
+                  >
+                    {active && (
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                    )}
+                  </span>
+                  <span className="flex-1">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setClearDialogOpen(false)}
+              disabled={clearing}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmClear}
+              disabled={clearing}
+              className="gap-1"
+            >
+              {clearing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              清除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

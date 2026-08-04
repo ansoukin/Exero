@@ -64,14 +64,14 @@ const CARDS: HelpCardData[] = [
 
 export function HelpSection() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {/* 头部说明 */}
       <section className="flex items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <HelpCircle className="h-6 w-6" />
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-semibold">帮助</h2>
+          <h2 className="text-xl font-semibold tracking-tight">帮助</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Exero V0.4.0 Alpha 阶段帮助内容占位，后续版本将补充完整文档
           </p>
@@ -121,9 +121,9 @@ export function HelpSection() {
       </section>
 
       {/* 联系方式 */}
-      <section className="flex flex-col gap-2">
+      <section className="flex flex-col gap-3">
         <h3 className="text-base font-medium">问题反馈</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           发现 BUG 或有功能建议？欢迎在 GitHub Issues 提交反馈。
         </p>
         <a

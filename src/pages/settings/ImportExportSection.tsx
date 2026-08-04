@@ -130,7 +130,7 @@ export function ImportExportSection() {
       <div>
         <h3 className="text-base font-medium">导入导出</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          将数据导出为 .exero 文件（zip 格式，含 JSON + Lua 脚本），用于 U 盘导入导出（家里 ↔ 学校配置同步）
+          导出为 .exero 备份文件，支持快捷指令、课表、设置和 Lua 脚本
         </p>
       </div>
 

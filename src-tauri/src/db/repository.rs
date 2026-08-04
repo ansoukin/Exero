@@ -406,10 +406,21 @@ impl<'a> Repository<'a> {
     }
 
     /// 清空执行日志
-    pub fn clear_logs(&self) -> Result<()> {
+    ///
+    /// - `before`：若指定，仅删除 `started_at >= before` 的日志（即该时间点之后的记录）；
+    ///   否则清空全部。
+    /// - 返回被删除的记录数。
+    pub fn clear_logs(&self, before: Option<DateTime<Utc>>) -> Result<usize> {
         self.db.with_conn(|conn| {
-            conn.execute("DELETE FROM execution_logs", [])?;
-            Ok(())
+            let deleted = if let Some(before) = before {
+                conn.execute(
+                    "DELETE FROM execution_logs WHERE datetime(started_at) >= datetime(?)",
+                    params![before.to_rfc3339()],
+                )?
+            } else {
+                conn.execute("DELETE FROM execution_logs", [])?
+            };
+            Ok(deleted)
         })
     }
 

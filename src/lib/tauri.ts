@@ -227,7 +227,13 @@ export const executionCommands = {
     invoke<unknown>("execute_action", { actionType, params }),
   listLogs: (filter?: LogFilter) =>
     invoke<ExecutionLog[]>("list_logs", { filter: filter ?? null }),
-  clearLogs: () => invoke<void>("clear_logs"),
+  /**
+   * 清空执行日志
+   * @param before 可选 RFC3339 时间字符串，删除该时间点及之后的日志；省略则清空全部
+   * @returns 被删除的记录数
+   */
+  clearLogs: (before?: string) =>
+    invoke<number>("clear_logs", { before: before ?? null }),
 };
 
 // ---- 设置 ----
@@ -793,12 +799,10 @@ export interface ChangelogEntry {
 export const updateCommands = {
   /** 获取应用基本信息（关于页） */
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
-  /** 检查更新（GitHub Release latest + force-update.json） */
+  /** 检查更新（GitHub Release latest + 三级更新级别标记解析，SPEC 7.2） */
   checkForUpdates: () => invoke<UpdateStatus>("check_for_updates"),
   /** 获取更新历史（GitHub Releases 优先，失败回退本地 CHANGELOG.md） */
   getChangelog: () => invoke<ChangelogEntry[]>("get_changelog"),
-  /** 获取本地 CHANGELOG.md 路径 */
-  getChangelogPath: () => invoke<string>("get_changelog_path"),
 };
 
 // ============================================================

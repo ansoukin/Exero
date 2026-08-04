@@ -74,43 +74,38 @@ export function UpdateSection() {
 
   // 加载设置
   useEffect(() => {
-    settingCommands
-      .get("update.auto_update")
-      .then((s) => {
-        if (s) setAutoUpdate(s.value === "true");
-      })
-      .catch((e) => console.error("[updates] 读取自动更新设置失败:", e));
-
-    settingCommands
-      .get("update.check_frequency")
-      .then((s) => {
-        if (s && ["startup", "each-startup", "daily", "manual"].includes(s.value)) {
-          setCheckFrequency(s.value as CheckFrequency);
+    // 并行加载所有设置（SPEC 优化：4 次串行 IPC -> 1 次 Promise.all）
+    Promise.all([
+      settingCommands.get("update.auto_update").catch((e) => {
+        console.error("[updates] 读取自动更新设置失败:", e);
+        return null;
+      }),
+      settingCommands.get("update.check_frequency").catch((e) => {
+        console.error("[updates] 读取检查频率失败:", e);
+        return null;
+      }),
+      settingCommands.get("update.last_status").catch((e) => {
+        console.error("[updates] 读取上次检查状态失败:", e);
+        return null;
+      }),
+      settingCommands.get("update.ignored_version").catch((e) => {
+        console.error("[updates] 读取忽略版本失败:", e);
+        return null;
+      }),
+    ]).then(([autoUpdateSetting, frequencySetting, statusSetting, ignoredSetting]) => {
+      if (autoUpdateSetting) setAutoUpdate(autoUpdateSetting.value === "true");
+      if (frequencySetting && ["startup", "each-startup", "daily", "manual"].includes(frequencySetting.value)) {
+        setCheckFrequency(frequencySetting.value as CheckFrequency);
+      }
+      if (statusSetting) {
+        try {
+          setStatus(JSON.parse(statusSetting.value) as UpdateStatus);
+        } catch {
+          // ignore parse error
         }
-      })
-      .catch((e) => console.error("[updates] 读取检查频率失败:", e));
-
-    // 加载最近检查状态
-    settingCommands
-      .get("update.last_status")
-      .then((s) => {
-        if (s) {
-          try {
-            setStatus(JSON.parse(s.value) as UpdateStatus);
-          } catch {
-            // ignore parse error
-          }
-        }
-      })
-      .catch((e) => console.error("[updates] 读取上次检查状态失败:", e));
-
-    // 加载推荐更新忽略版本（SPEC 13.6.2）
-    settingCommands
-      .get("update.ignored_version")
-      .then((s) => {
-        if (s) setIgnoredVersion(s.value);
-      })
-      .catch((e) => console.error("[updates] 读取忽略版本失败:", e));
+      }
+      if (ignoredSetting) setIgnoredVersion(ignoredSetting.value);
+    });
   }, []);
 
   const handleAutoUpdateChange = async (enabled: boolean) => {
@@ -180,7 +175,7 @@ export function UpdateSection() {
   if (isForceUpdate) {
     const isMinimumVersion = status?.minimum_version_required && status.minimum_version;
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
           <div className="flex-1">
@@ -257,17 +252,17 @@ export function UpdateSection() {
       </section>
 
       {/* 更新渠道 */}
-      <section className="flex flex-col gap-2">
+      <section className="flex flex-col gap-3">
         <div>
           <h3 className="text-base font-medium">更新渠道</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            仅支持 Stable 渠道（GitHub Release latest），Beta 渠道为待定项
+            当前为稳定版渠道，测试版渠道待开放
           </p>
         </div>
         <div className="inline-flex w-fit items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-1.5 text-sm">
           <CheckCircle2 className="h-4 w-4 text-primary" />
-          <span>Stable（默认）</span>
-          <span className="text-xs text-muted-foreground">Beta：待定</span>
+          <span>稳定版（默认）</span>
+          <span className="text-xs text-muted-foreground">测试版：待开放</span>
         </div>
       </section>
 
@@ -276,7 +271,7 @@ export function UpdateSection() {
         <div>
           <h3 className="text-base font-medium">手动检查</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            立即向 GitHub Release 发起检查请求
+            立即检查是否有新版本
           </p>
         </div>
 
@@ -364,7 +359,7 @@ export function UpdateSection() {
       {status?.recommend_update &&
         status.update_available &&
         status.latest_version !== ignoredVersion && (
-          <section className="flex flex-col gap-2">
+          <section className="flex flex-col gap-3">
             <div className="flex items-start gap-3 rounded-md border border-primary/40 bg-primary/5 p-4">
               <Bell className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div className="flex-1">
@@ -402,7 +397,7 @@ export function UpdateSection() {
 
       {/* C. 最低版本提示（未触发强制更新时，当前版本 >= 最低版本）*/}
       {status?.minimum_version && !status.minimum_version_required && (
-        <section className="flex flex-col gap-2">
+        <section className="flex flex-col gap-3">
           <div className="flex items-start gap-3 rounded-md border border-blue-500/30 bg-blue-500/5 p-4">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
             <div className="flex-1">
@@ -410,21 +405,17 @@ export function UpdateSection() {
                 最低版本要求：{status.minimum_version}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                最新 Release 标记了最低版本要求 {status.minimum_version}，当前版本{" "}
-                {status.current_version} 已满足要求，按普通更新处理
+                当前版本 {status.current_version} 已满足要求
               </p>
             </div>
           </div>
         </section>
       )}
 
-      {/* 更新级别说明（SPEC 7.2 三级 + 普通更新）*/}
-      <section className="flex flex-col gap-2">
+      {/* 更新级别说明 */}
+      <section className="flex flex-col gap-3">
         <div>
           <h3 className="text-base font-medium">更新级别</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            开发者通过 GitHub Release 描述文本中的标记控制更新级别（标记互斥，一个 Release 只能有一个）
-          </p>
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
@@ -433,7 +424,7 @@ export function UpdateSection() {
               <span className="font-medium text-destructive">强制更新</span>
               <code className="ml-2 rounded bg-muted px-1 py-0.5 text-xs">[强制更新]</code>
               <p className="mt-1 text-xs text-muted-foreground">
-                屏蔽应用其他功能，要求立即更新（重大 Bug 修复时推送）
+                必须更新才能继续使用
               </p>
             </div>
           </div>
@@ -443,7 +434,7 @@ export function UpdateSection() {
               <span className="font-medium text-primary">推荐更新</span>
               <code className="ml-2 rounded bg-muted px-1 py-0.5 text-xs">[推荐更新]</code>
               <p className="mt-1 text-xs text-muted-foreground">
-                启动时弹窗提示，可"稍后"或"忽略"记录版本（重要但不紧急的修复）
+                弹窗提示，可忽略
               </p>
             </div>
           </div>
@@ -453,7 +444,7 @@ export function UpdateSection() {
               <span className="font-medium text-amber-700 dark:text-amber-400">最低版本</span>
               <code className="ml-2 rounded bg-muted px-1 py-0.5 text-xs">[最低版本 x.y.z]</code>
               <p className="mt-1 text-xs text-muted-foreground">
-                当前版本 &lt; x.y.z 时强制更新（大版本迁移，如数据库不兼容）
+                低于该版本时强制更新
               </p>
             </div>
           </div>
@@ -462,9 +453,6 @@ export function UpdateSection() {
             <div>
               <span className="font-medium">普通更新</span>
               <span className="ml-2 text-xs text-muted-foreground">无标记</span>
-              <p className="mt-1 text-xs text-muted-foreground">
-                默认行为，后台检查，用户在设置页手动决定是否更新
-              </p>
             </div>
           </div>
         </div>

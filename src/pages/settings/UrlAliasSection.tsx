@@ -18,7 +18,6 @@ import { Plus, Trash2, RotateCcw, Loader2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { urlAliasCommands, type UrlAlias } from "@/lib/tauri";
-import { cn } from "@/lib/utils";
 
 export function UrlAliasSection() {
   const [aliases, setAliases] = useState<UrlAlias[]>([]);
@@ -155,9 +154,7 @@ export function UrlAliasSection() {
               size="icon"
               onClick={() => handleRemove(index)}
               disabled={saving}
-              className={cn(
-                "h-8 w-8 text-muted-foreground hover:text-destructive"
-              )}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
               title="删除"
             >
               <Trash2 className="h-3.5 w-3.5" />

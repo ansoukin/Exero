@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Settings2 } from "lucide-react";
+import { Trash2, Settings2, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,10 @@ interface PropertyPanelProps {
   onFaultStrategyChange: (nodeId: string, strategy: string | null) => void;
   /** 删除节点 */
   onDelete: (nodeId: string) => void;
+  /** 面板是否折叠 */
+  collapsed: boolean;
+  /** 切换折叠/展开 */
+  onToggleCollapse: () => void;
 }
 
 /**
@@ -40,9 +44,43 @@ export function PropertyPanel({
   onNoteChange,
   onFaultStrategyChange,
   onDelete,
+  collapsed,
+  onToggleCollapse,
 }: PropertyPanelProps) {
+  // 折叠状态：渲染为窄条
+  if (collapsed) {
+    return (
+      <aside className="flex w-10 shrink-0 flex-col items-center border-l bg-card py-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground"
+          onClick={onToggleCollapse}
+          title="展开属性面板"
+        >
+          <PanelRightOpen className="h-4 w-4" />
+        </Button>
+      </aside>
+    );
+  }
+
   if (!selectedNode) {
-    return <EmptyState />;
+    return (
+      <aside className="flex w-72 shrink-0 flex-col border-l bg-card">
+        <div className="flex items-center justify-end border-b px-2 py-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            onClick={onToggleCollapse}
+            title="折叠属性面板"
+          >
+            <PanelRightClose className="h-4 w-4" />
+          </Button>
+        </div>
+        <EmptyState />
+      </aside>
+    );
   }
 
   const { id, data } = selectedNode;
@@ -52,7 +90,7 @@ export function PropertyPanel({
 
   return (
     <aside className="flex w-72 shrink-0 flex-col border-l bg-card">
-      {/* 头部：节点类型信息 */}
+      {/* 头部：节点类型信息 + 折叠按钮 */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         {Icon && (
           <div className={`flex h-7 w-7 items-center justify-center rounded ${meta ? getCategoryColor(meta.category) : ""}`}>
@@ -71,6 +109,15 @@ export function PropertyPanel({
           title="删除节点"
         >
           <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground"
+          onClick={onToggleCollapse}
+          title="折叠属性面板"
+        >
+          <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>
 

@@ -34,7 +34,7 @@ export function TodayTasks({ flows, loading }: TodayTasksProps) {
           今日任务预览
         </CardTitle>
         <CardDescription>
-          已启用的快捷指令 · 按 Phase 3 时间轴排序
+          已启用的快捷指令
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">

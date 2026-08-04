@@ -63,7 +63,14 @@ export function Sidebar() {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
             E
           </div>
-          {!collapsed && <span className="text-sm tracking-tight">Exero</span>}
+          {!collapsed && (
+            <span
+              className="text-sm font-bold tracking-tight"
+              style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
+            >
+              EXERO
+            </span>
+          )}
         </div>
       </div>
 

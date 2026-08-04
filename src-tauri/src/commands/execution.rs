@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use tauri::State;
 
 use crate::db::Repository;
@@ -60,8 +61,22 @@ pub async fn list_logs(
 }
 
 /// 清空执行日志
+///
+/// - `before`：可选 RFC3339 时间字符串，删除该时间点及之后的日志；`None` 清空全部。
+/// - 返回被删除的记录数。
 #[tauri::command]
-pub async fn clear_logs(state: State<'_, Arc<AppState>>) -> Result<()> {
+pub async fn clear_logs(
+    state: State<'_, Arc<AppState>>,
+    before: Option<String>,
+) -> Result<usize> {
+    let before_dt = match before {
+        Some(s) => Some(
+            DateTime::parse_from_rfc3339(&s)
+                .map_err(|e| AppError::Other(format!("无效的时间格式: {}", e)))?
+                .with_timezone(&Utc),
+        ),
+        None => None,
+    };
     let repo = Repository::new(&state.db);
-    repo.clear_logs()
+    repo.clear_logs(before_dt)
 }

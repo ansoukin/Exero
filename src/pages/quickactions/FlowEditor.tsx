@@ -78,6 +78,8 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // 属性面板折叠状态（默认折叠，点击节点时自动展开）
+  const [panelCollapsed, setPanelCollapsed] = useState(true);
 
   // 加载 Flow + Actions
   const loadFlow = useCallback(async () => {
@@ -374,7 +376,10 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+            onNodeClick={(_, node) => {
+              setSelectedNodeId(node.id);
+              setPanelCollapsed(false);
+            }}
             onPaneClick={() => setSelectedNodeId(null)}
             fitView
             fitViewOptions={{ padding: 0.2 }}
@@ -404,6 +409,8 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
           onNoteChange={handleNoteChange}
           onFaultStrategyChange={handleFaultStrategyChange}
           onDelete={handleDeleteNode}
+          collapsed={panelCollapsed}
+          onToggleCollapse={() => setPanelCollapsed(!panelCollapsed)}
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { FlaskConical } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { NotificationToast } from "@/components/NotificationToast";
@@ -7,11 +7,13 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useAppStore } from "@/stores/app";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { onboardingCommands } from "@/lib/tauri";
-import HomePage from "@/pages/Home";
-import TimelinePage from "@/pages/Timeline";
-import QuickActionsPage from "@/pages/QuickActions";
-import PerformancePage from "@/pages/Performance";
-import SettingsPage from "@/pages/Settings";
+
+// 页面懒加载（减少首屏 JS 解析/执行时间）
+const HomePage = lazy(() => import("@/pages/Home"));
+const TimelinePage = lazy(() => import("@/pages/Timeline"));
+const QuickActionsPage = lazy(() => import("@/pages/QuickActions"));
+const PerformancePage = lazy(() => import("@/pages/Performance"));
+const SettingsPage = lazy(() => import("@/pages/Settings"));
 
 /**
  * 主窗口布局（SPEC 3.3）
@@ -71,6 +73,11 @@ export function Layout() {
     }
   };
 
+  /** 懒加载占位（与主内容区背景一致，避免白屏闪烁） */
+  const pageFallback = (
+    <div className="flex flex-1 items-center justify-center bg-background" />
+  );
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
       <Sidebar />
@@ -87,7 +94,7 @@ export function Layout() {
           key={currentPage}
           className="flex-1 animate-page-fade-in overflow-y-auto scrollbar-fluent"
         >
-          {renderPage()}
+          <Suspense fallback={pageFallback}>{renderPage()}</Suspense>
         </div>
       </main>
       {/* 应用内通知 Toast（监听后端 notification:in-app 事件） */}

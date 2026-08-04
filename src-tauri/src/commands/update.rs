@@ -58,7 +58,7 @@ pub struct TechStackItem {
 /// GitHub Release 响应（仅取需要的字段）
 #[derive(Debug, Deserialize)]
 struct GithubRelease {
-    /// Tag 名（如 v0.4.0-alpha.1）
+    /// Tag 名（如 v0.4.0-Alpha1，SPEC 13.10）
     tag_name: String,
     /// 发布时间（ISO 8601）
     published_at: String,
