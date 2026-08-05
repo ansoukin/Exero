@@ -157,6 +157,25 @@
   [contenteditable="true"] {
     user-select: text;
   }
+
+  /* GPU 加速：对频繁动画元素提升合成层 */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* 侧边栏宽度过渡优化 */
+  aside {
+    will-change: width;
+    transform: translateZ(0);
+  }
+
+  /* 滚动容器优化：使用 inertial scroll */
+  .scrollbar-fluent {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 }
 
 /* 滚动条样式（Win11 Fluent 风格） */
@@ -199,6 +218,7 @@
     );
     background-size: 200% 100%;
     animation: rainbow-slide 1.8s ease-in-out infinite;
+    will-change: transform;
   }
 
   @keyframes rainbow-slide {
@@ -210,6 +230,70 @@
     }
     100% {
       transform: translateX(-100%) scaleX(0.8);
+    }
+  }
+
+  /* ============================================================
+   * 页面切换 & 微交互动画（性能优化）
+   * ============================================================ */
+
+  /* 页面切换 fade-in 动画 */
+  .animate-page-fade-in {
+    animation: page-fade-in 200ms ease-out;
+    will-change: opacity, transform;
+  }
+
+  @keyframes page-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 按钮按下反馈 */
+  .btn-press {
+    transition: transform 100ms ease-out, background-color 150ms ease-out;
+  }
+  .btn-press:active {
+    transform: scale(0.96);
+  }
+
+  /* 卡片 hover 提升 */
+  .card-hover {
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+    will-change: transform;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+  }
+
+  /* 淡入动画工具类 */
+  .animate-fade-in {
+    animation: fade-in 200ms ease-out;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* 滑入动画工具类 */
+  .animate-slide-up {
+    animation: slide-up 250ms ease-out;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 }
