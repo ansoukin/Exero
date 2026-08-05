@@ -6,6 +6,19 @@
     <meta name="description" content="Exero - 基于 Tauri v2 + Rust 的 Windows 桌面自动化助手。快捷指令 + 可视化积木，20 种动作类型自由组合。" />
     <meta name="theme-color" content="#0078D4" />
     <title>Exero</title>
+    <!-- Favicon：根据系统主题自动切换深浅版本 -->
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="/favicon-light.ico"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="/favicon-dark.ico"
+      media="(prefers-color-scheme: dark)"
+    />
     <!-- 防止首帧白屏闪烁：React/CSS 加载前根据系统偏好预设背景色 + .dark 类 -->
     <style>
       body { margin: 0; background: #ffffff; }

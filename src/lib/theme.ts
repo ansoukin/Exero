@@ -70,9 +70,9 @@ export function watchSystemTheme(callback: () => void): () => void {
  * 应用主题模式到 DOM
  *
  * 逻辑：
- * - light → 移除 .dark class
- * - dark → 添加 .dark class
- * - system → 根据系统 prefers-color-scheme 决定
+ * - light -> 移除 .dark class
+ * - dark -> 添加 .dark class
+ * - system -> 根据系统 prefers-color-scheme 决定
  *
  * @param mode 主题模式
  */
@@ -80,6 +80,33 @@ export function applyThemeMode(mode: ThemeMode): void {
   const root = document.documentElement;
   const shouldUseDark = mode === "dark" || (mode === "system" && prefersDarkMode());
   root.classList.toggle("dark", shouldUseDark);
+  applyFavicon(shouldUseDark);
+}
+
+/**
+ * 应用 favicon（根据深浅主题切换）
+ *
+ * Tauri 窗口内嵌 WebView 通过 <link rel="icon"> 控制标签页/任务栏图标。
+ * index.html 已用 media 属性处理系统级切换；本函数处理应用内主动切换。
+ *
+ * @param isDark 是否深色模式
+ */
+function applyFavicon(isDark: boolean): void {
+  const href = isDark ? "/favicon-dark.ico" : "/favicon-light.ico";
+  // 复用现有 link[rel=icon] 节点，避免节点堆积
+  const links = document.querySelectorAll<HTMLLinkElement>("link[rel='icon']");
+  if (links.length > 0) {
+    links.forEach((link) => {
+      link.href = href;
+      link.removeAttribute("media");
+    });
+  } else {
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/x-icon";
+    link.href = href;
+    document.head.appendChild(link);
+  }
 }
 
 /**
