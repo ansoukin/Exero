@@ -8,18 +8,37 @@
  */
 
 export function Splash() {
+  const isDark =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const bgColor = isDark ? "#0a0a0f" : "#ffffff";
+  const primaryColor = isDark ? "#4cc2ff" : "#0078D4";
+  const mutedColor = isDark ? "#9ca3af" : "#6b7280";
+  const trackColor = isDark ? "#1f2937" : "#e5e7eb";
+
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-background">
+    <div
+      className="flex h-screen w-screen flex-col items-center justify-center gap-8"
+      style={{ backgroundColor: bgColor }}
+    >
       {/* "Exero" 文字 */}
       <div className="flex flex-col items-center gap-2">
-        <h1 className="text-5xl font-bold tracking-tight text-primary">
+        <h1
+          className="text-5xl font-bold tracking-tight"
+          style={{ color: primaryColor }}
+        >
           Exero
         </h1>
-        <p className="text-sm text-muted-foreground">个人自动化助手</p>
+        <p className="text-sm" style={{ color: mutedColor }}>
+          个人自动化助手
+        </p>
       </div>
 
       {/* 彩虹渐变进度条（indeterminate 动画） */}
-      <div className="h-1 w-48 overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-1 w-48 overflow-hidden rounded-full"
+        style={{ backgroundColor: trackColor }}
+      >
         <div className="rainbow-progress h-full w-1/2 rounded-full" />
       </div>
     </div>

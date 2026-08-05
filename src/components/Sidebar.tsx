@@ -51,28 +51,9 @@ export function Sidebar() {
         collapsed ? "w-16" : "w-60"
       )}
     >
-      {/* 顶部 Logo 区（纯 Logo + 应用名）
-          系统标题栏模式下无需 data-tauri-drag-region */}
-      <div
-        className={cn(
-          "flex h-12 shrink-0 items-center border-b",
-          collapsed ? "justify-center px-0" : "px-3"
-        )}
-      >
-        <div className={cn("flex items-center gap-2 font-semibold", collapsed && "mx-auto")}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-            E
-          </div>
-          {!collapsed && (
-            <span
-              className="text-sm font-bold tracking-tight"
-              style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
-            >
-              EXERO
-            </span>
-          )}
-        </div>
-      </div>
+      {/* 顶部间距区（原生窗口标题栏在上方，保留 h-12 空白间距）
+          已去除 Logo/应用名，仅保留原生窗口边框的 EXERO */}
+      <div className="h-12 shrink-0 border-b" />
 
       {/* 中部导航项 */}
       <nav className="flex flex-1 flex-col gap-1 p-2">
