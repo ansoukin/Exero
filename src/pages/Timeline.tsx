@@ -21,7 +21,6 @@ import { WeekView } from "./timeline/WeekView";
 import { MonthView } from "./timeline/MonthView";
 import { YearView } from "./timeline/YearView";
 import { DayView } from "./timeline/DayView";
-import type { DropTarget } from "./timeline/TimelineDndContext";
 import { CourseFormDialog } from "./timeline/CourseFormDialog";
 import { CourseActionMenu, type CourseActionMenuPosition } from "./timeline/CourseActionMenu";
 import { OverrideDialog } from "./timeline/OverrideDialog";
@@ -257,68 +256,6 @@ export default function TimelinePage() {
     if (activeSemesterId) loadSemesterData(activeSemesterId);
   }, [activeSemesterId, loadSemesterData]);
 
-  /**
-   * 拖拽移动课程（SPEC 3.5：拖拽编辑）
-   *
-   * 格点模式：更新 day_of_week + period_index，清空 start/end_time
-   * 自由模式：更新 day_of_week + start/end_time，清空 period_index
-   */
-  const handleMoveCourse = useCallback(
-    async (course: Course, target: DropTarget) => {
-      try {
-        if (target.periodIndex !== null && target.periodIndex !== undefined) {
-          // 格点模式 drop
-          await courseCommands.update(course.id, {
-            day_of_week: target.dayOfWeek,
-            period_index: target.periodIndex,
-            start_time: null,
-            end_time: null,
-          });
-        } else if (target.startTime && target.endTime) {
-          // 自由模式 drop（带明确时间）
-          await courseCommands.update(course.id, {
-            day_of_week: target.dayOfWeek,
-            period_index: null,
-            start_time: target.startTime,
-            end_time: target.endTime,
-          });
-        } else {
-          // 自由模式 drop 到列（无明确时间，保留原时长，仅换日）
-          const origStart = course.start_time || "08:00";
-          const origEnd = course.end_time || "08:45";
-          await courseCommands.update(course.id, {
-            day_of_week: target.dayOfWeek,
-            period_index: null,
-            start_time: origStart,
-            end_time: origEnd,
-          });
-        }
-        // 刷新数据
-        if (activeSemesterId) await loadSemesterData(activeSemesterId);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    },
-    [activeSemesterId, loadSemesterData]
-  );
-
-  /**
-   * 自由模式 resize：调整课程结束时间
-   */
-  const handleResizeCourse = useCallback(
-    async (course: Course, newEndTime: string) => {
-      try {
-        await courseCommands.update(course.id, {
-          end_time: newEndTime,
-        });
-        if (activeSemesterId) await loadSemesterData(activeSemesterId);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    },
-    [activeSemesterId, loadSemesterData]
-  );
-
   function renderView() {
     if (!activeSemester) {
       return (
@@ -370,8 +307,6 @@ export default function TimelinePage() {
             onCourseClick={handleCourseClick}
             onCourseLongPress={handleCourseLongPress}
             onCellClick={handleCellClick}
-            onMoveCourse={handleMoveCourse}
-            onResizeCourse={handleResizeCourse}
           />
         );
       case "week":
@@ -422,7 +357,7 @@ export default function TimelinePage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">时间轴</h1>
             <p className="text-xs text-muted-foreground">
-              日 / 周 / 月 / 年四视图 · 拖拽编辑 · 多周课表
+              日 / 周 / 月 / 年四视图 · 多周课表
             </p>
           </div>
         </div>
