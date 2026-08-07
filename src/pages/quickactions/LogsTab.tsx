@@ -183,14 +183,14 @@ export function LogsTab() {
       )}
 
       {/* 日志列表 */}
-      <div className="flex flex-1 items-center justify-center overflow-y-auto scrollbar-fluent">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto scrollbar-fluent">
         {loading ? (
           <div className="flex items-center text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             <span className="text-sm">加载中...</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex w-full max-w-xs flex-col items-center justify-center text-center text-muted-foreground">
+          <div className="flex w-full max-w-xs flex-col items-center justify-center py-8 text-center text-muted-foreground">
             <History className="mb-3 h-12 w-12 animate-pulse opacity-30" />
             <p className="text-sm font-medium transition-colors duration-300">
               暂无执行记录

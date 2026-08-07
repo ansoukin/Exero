@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 import { AppearanceSection } from "./settings/AppearanceSection";
 import { GeneralSection } from "./settings/GeneralSection";
+import { ExtensionPackSection } from "./settings/ExtensionPackSection";
 import { UpdateSection } from "./settings/UpdateSection";
 import { AboutSection } from "./settings/AboutSection";
 import { HelpSection } from "./settings/HelpSection";
@@ -13,23 +14,31 @@ import { HelpSection } from "./settings/HelpSection";
 /**
  * 设置页面（SPEC 3.5 页面 5）
  *
- * 5 个分区（SPEC 3.5）：
- * 1. 外观：深浅模式 + 8 色主题色 + Mica 背景 — Phase 6a ✅
- * 2. 通用：侧边栏折叠 + 开机自启 + 关闭主窗口行为 + 重新初始化课表 + URL 别名 + 导入导出 — Phase 6a/6b ✅
- * 3. 更新：自动更新 + 强制更新 + 渠道 — Phase 6b ✅
- * 4. 关于：基本信息 + 技术栈 + MIT 许可 + GitHub 链接 + 更新历史 — Phase 6b ✅
- * 5. 帮助：内置帮助页 — Phase 6b ✅
+ * 6 个分区：
+ * 1. 外观：深浅模式 + 8 色主题色 + Mica 背景 - Phase 6a ✅
+ * 2. 通用：侧边栏折叠 + 开机自启 + 关闭主窗口行为 + 重新初始化课表 + URL 别名 + 导入导出 - Phase 6a/6b ✅
+ * 3. 扩展：安装/卸载/目录管理/侧边栏排序 - Beta3 阶段 c ✅
+ * 4. 更新：自动更新 + 强制更新 + 渠道 - Phase 6b ✅
+ * 5. 关于：基本信息 + 技术栈 + MIT 许可 + GitHub 链接 + 更新历史 - Phase 6b ✅
+ * 6. 帮助：内置帮助页 - Phase 6b ✅
  *
  * 布局：左侧分区导航 + 右侧分区内容（Win11 设置风格）
  */
 
 /** 分区标识 */
-type SettingsSection = "appearance" | "general" | "updates" | "about" | "help";
+type SettingsSection =
+  | "appearance"
+  | "general"
+  | "extensions"
+  | "updates"
+  | "about"
+  | "help";
 
 /** 分区列表（顺序即导航顺序） */
 const SECTIONS: { key: SettingsSection; label: string }[] = [
   { key: "appearance", label: "外观" },
   { key: "general", label: "通用" },
+  { key: "extensions", label: "扩展" },
   { key: "updates", label: "更新" },
   { key: "about", label: "关于" },
   { key: "help", label: "帮助" },
@@ -53,7 +62,7 @@ export default function SettingsPage() {
               key={section.key}
               onClick={() => setActive(section.key)}
               className={cn(
-                "flex items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium transition-colors duration-200",
+                "interactive flex items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium",
                 active === section.key
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -68,6 +77,7 @@ export default function SettingsPage() {
         <Card className="flex-1 overflow-y-auto p-6 scrollbar-fluent">
           {active === "appearance" && <AppearanceSection />}
           {active === "general" && <GeneralSection />}
+          {active === "extensions" && <ExtensionPackSection />}
           {active === "updates" && <UpdateSection />}
           {active === "about" && <AboutSection />}
           {active === "help" && <HelpSection />}

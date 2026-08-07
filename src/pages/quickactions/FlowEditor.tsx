@@ -392,8 +392,8 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
 
           {/* 空画布提示 */}
           {nodes.length === 0 && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-muted-foreground">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8">
+              <div className="max-w-sm text-center text-muted-foreground">
                 <p className="text-sm font-medium">画布为空</p>
                 <p className="mt-1 text-xs">
                   从左侧节点库拖拽或点击节点类型开始构建动作链

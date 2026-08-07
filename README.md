@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Beta1-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta3-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,9 +14,26 @@
 
 ## 当前状态
 
-**V0.4.0 Beta1** - UI 优化与日志清空增强：
+**V0.4.0 Beta3** - 扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序 + 动画优化：
 
-**Phase 6b 收尾**：
+**Beta3**：
+
+- Splash 重做：单窗口 boot-splash 方案，移除独立 splash 窗口，彻底消除黑边
+- 扩展包架构（类比 MC 模组加载器）：base-pack 外置 + 三目录扫描（builtin/user/custom）+ 动态动作目录 + manifest 声明
+- base-pack 改为在线安装：不再内置捆绑，作为示例扩展包上传到 GitHub action-packs/ 目录，用户从扩展市场在线安装
+- 在线扩展市场（快捷指令页第 4 Tab）：直连 GitHub action-packs/ 拉取 .exero-pack 列表，在线安装/更新/卸载 + ghproxy 镜像后备 + 离线降级
+- 本地扩展包管理（设置页新增「扩展包」分区）：.exero-pack 文件安装 / 卸载 / 打开目录 / 自定义目录设置
+- 侧边栏动态入口 + 拖拽排序：扩展包注册侧边栏入口，展开模式拖拽排序，持久化到 settings
+- 动画优化：Win11 Fluent 标准曲线 + .interactive 交互反馈工具类
+
+**Beta2**：
+
+- 日时间轴重构：移除拖拽改为纯展示模式，保留点击编辑与右键菜单
+- 图标系统完善：深浅双版本应用图标，主题联动切换 favicon 与任务栏图标
+- UI 细节优化：去除 Sidebar 标题重复、EXERO Logo、动画性能优化
+- 快捷指令/关于页增强：属性面板自动折叠、执行日志按日期范围清空（修复 SQL 比较方向）、构建日期修复
+
+**Beta1 / Phase 6b 收尾**：
 
 - NSIS 打包配置完善（installMode=currentUser，LZMA 压缩，中英文双语，LICENSE + CHANGELOG.md 随包分发）
 - 更新检查器（SPEC 第七章）：GitHub Release latest API + 三级更新级别标记解析（`[强制更新]`/`[推荐更新]`/`[最低版本 x.y.z]`，SPEC 7.2/13.6）+ ghproxy 镜像后备 + 离线回退本地 CHANGELOG.md + SPEC 13.10 自定义 SemVer 版本号比较（Major.Minor.Patch-StageN）

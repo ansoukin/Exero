@@ -1,0 +1,76 @@
+{
+  "id": "lua-scripts-pack",
+  "version": "1.0.0",
+  "name": "基础 Lua 脚本包",
+  "description": "Exero 官方示例 Lua 脚本集合：Hello World、计数器、系统时间。演示 args 参数读取、exero.log/notify/set_result API、变量系统、os 库等基础能力。",
+  "author": "Exero",
+  "exero_api_version": "0.4.0",
+  "pack_type": "lua_scripts",
+  "scripts": [
+    {
+      "id": "hello-world",
+      "name": "Hello World",
+      "author": "Exero",
+      "version": "1.0.0",
+      "description": "最简入门示例：演示 args 参数读取、exero.log/notify/set_result 三大基础 API。",
+      "permissions": [],
+      "params": [
+        {
+          "name": "name",
+          "label": "称呼",
+          "type": "string",
+          "default": "World",
+          "options": [],
+          "required": false
+        }
+      ],
+      "file": "scripts/hello-world.lua"
+    },
+    {
+      "id": "counter",
+      "name": "计数器",
+      "author": "Exero",
+      "version": "1.0.0",
+      "description": "变量系统演示：使用全局变量 counter 跨动作链累加，支持 reset 参数重置。演示 exero.get_var/set_var 的 global 模式。",
+      "permissions": [],
+      "params": [
+        {
+          "name": "increment",
+          "label": "增量",
+          "type": "number",
+          "default": 1,
+          "options": [],
+          "required": false
+        },
+        {
+          "name": "reset",
+          "label": "重置计数器",
+          "type": "boolean",
+          "default": false,
+          "options": [],
+          "required": false
+        }
+      ],
+      "file": "scripts/counter.lua"
+    },
+    {
+      "id": "system-info",
+      "name": "系统时间",
+      "author": "Exero",
+      "version": "1.0.0",
+      "description": "os 库演示：格式化当前系统时间，支持 short/full 两种格式。严格沙箱下 os.date/os.time/os.clock 可正常使用。",
+      "permissions": [],
+      "params": [
+        {
+          "name": "format",
+          "label": "时间格式",
+          "type": "select",
+          "default": "short",
+          "options": ["short", "full"],
+          "required": false
+        }
+      ],
+      "file": "scripts/system-info.lua"
+    }
+  ]
+}

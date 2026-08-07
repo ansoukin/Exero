@@ -138,7 +138,7 @@ export function PropertyPanel({
           )}
 
           {/* 公共字段：容错策略 */}
-          <div className="space-y-2 border-t pt-3">
+          <div className="space-y-2 pt-2">
             <Label className="text-xs font-medium">容错策略</Label>
             <Select
               value={data.faultStrategy ?? "__inherit__"}
@@ -160,7 +160,7 @@ export function PropertyPanel({
           </div>
 
           {/* 公共字段：备注 */}
-          <div className="space-y-2 border-t pt-3">
+          <div className="space-y-2">
             <Label className="text-xs font-medium">备注</Label>
             <Textarea
               value={data.note ?? ""}

@@ -12,9 +12,9 @@ pub mod error;
 pub mod logging;
 pub mod commands;
 pub mod state;
+pub mod extension_pack;
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -100,29 +100,10 @@ pub fn run() {
             tray_builder.build(app)?;
             tracing::info!("系统托盘已创建");
 
-            // Splash → main 窗口切换（Phase 6a · SPEC 3.4）
-            // 有 splash 窗口时延迟 1.5 秒关闭 splash 显示 main（让用户看到进度条动画）
-            // 无 splash 窗口时直接显示 main
-            let main_window = app.get_webview_window("main");
-            let splash_window = app.get_webview_window("splash");
-            match (main_window, splash_window) {
-                (Some(main), Some(splash)) => {
-                    tauri::async_runtime::spawn(async move {
-                        tokio::time::sleep(Duration::from_millis(1500)).await;
-                        let _ = splash.close();
-                        let _ = main.show();
-                        let _ = main.set_focus();
-                        tracing::info!("Splash 关闭，主窗口已显示");
-                    });
-                }
-                (Some(main), None) => {
-                    let _ = main.show();
-                    tracing::info!("无 splash 窗口，直接显示主窗口");
-                }
-                _ => {
-                    tracing::warn!("未找到 main 窗口，无法显示");
-                }
-            }
+            // 单窗口 boot-splash 方案（Beta3 · SPEC 3.4 重做）
+            // main 窗口 visible:true 直接显示，index.html 内置 boot-splash 占位 DOM
+            // 前端 React 挂载 + 主题初始化 + onboarding 状态检测完成后隐藏 boot-splash
+            // 后端无需管理窗口切换，仅初始化应用状态
 
             Ok(())
         })
@@ -232,13 +213,9 @@ pub fn run() {
             commands::performance::one_click_optimize,
             commands::performance::get_optimize_blacklist,
             commands::performance::set_optimize_blacklist,
-            // Lua 脚本市场命令
+            // Lua 脚本本地管理命令
             commands::lua::list_installed_scripts,
             commands::lua::get_script_detail,
-            commands::lua::list_market_scripts,
-            commands::lua::install_script,
-            commands::lua::uninstall_script,
-            commands::lua::update_script,
             // 主题命令（Phase 6a）
             commands::theme::get_theme_config,
             commands::theme::set_theme_config,
@@ -263,6 +240,22 @@ pub fn run() {
             commands::url_alias::get_url_aliases,
             commands::url_alias::set_url_aliases,
             commands::url_alias::reset_url_aliases,
+            // 扩展包命令（Beta3 · 扩展包架构）
+            commands::extension_pack::list_action_catalog,
+            commands::extension_pack::list_installed_packs,
+            commands::extension_pack::get_pack_detail,
+            commands::extension_pack::get_sidebar_entries,
+            commands::extension_pack::reload_packs,
+            commands::extension_pack::get_extension_pack_user_dir,
+            commands::extension_pack::set_extension_pack_user_dir,
+            commands::extension_pack::get_pack_dirs_info,
+            // 扩展包安装/卸载/打开目录（阶段 c · 扩展市场 UI）
+            commands::extension_pack::install_pack_from_file,
+            commands::extension_pack::uninstall_pack,
+            commands::extension_pack::open_packs_dir,
+            // 扩展包在线市场（阶段 c · GitHub 在线安装）
+            commands::extension_pack_market::list_market_packs,
+            commands::extension_pack_market::install_pack_from_github,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");

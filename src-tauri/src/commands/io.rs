@@ -12,13 +12,17 @@
 //! exero_export.exero (zip)
 //! ├── meta.json         # 导出元信息（版本、时间、范围）
 //! ├── data.json         # 各表数据（按 scope 分组）
-//! └── scripts/          # Lua 脚本文件（可选）
-//!     ├── hello-world.lua
+//! ├── scripts/          # Lua 脚本文件（可选）
+//! │   ├── hello-world.lua
+//! │   └── ...
+//! └── packs/            # 扩展包文件（可选）
+//!     ├── demo-pack/
+//!     │   └── manifest.json
 //!     └── ...
 //! ```
 
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -26,7 +30,9 @@ use tauri::State;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
+use crate::db::Repository;
 use crate::error::{AppError, Result};
+use crate::extension_pack::loader::ExtensionPackLoader;
 use crate::state::AppState;
 
 /// 导入导出范围项
@@ -41,6 +47,8 @@ pub enum ExportScope {
     Settings,
     /// Lua 脚本（本地 .lua 文件 + lua_scripts 表记录）
     Scripts,
+    /// 扩展包（已安装扩展包的文件 + 目录结构）
+    Extensions,
     /// 全部
     All,
 }
@@ -130,6 +138,7 @@ pub struct ExportCounts {
     pub schedule_overrides: usize,
     pub settings: usize,
     pub lua_scripts: usize,
+    pub extension_packs: usize,
 }
 
 /// 导入模式
@@ -157,6 +166,8 @@ pub struct ImportResult {
     pub lua_scripts: usize,
     /// 导入的 Lua 脚本文件数
     pub script_files: usize,
+    /// 导入的扩展包数量
+    pub extension_packs: usize,
 }
 
 // ============ Tauri 命令 ============
@@ -173,9 +184,16 @@ pub async fn export_data(
 ) -> Result<ExportResult> {
     let scope = parse_scope(&scope)?;
     let data = collect_export_data(&state, &scope).await?;
-    let counts = count_export_data(&data);
+    let mut counts = count_export_data(&data);
     let lua_files = if scope.contains(&ExportScope::Scripts) || scope.contains(&ExportScope::All) {
         collect_lua_script_files()?
+    } else {
+        Vec::new()
+    };
+    let pack_files = if scope.contains(&ExportScope::Extensions) || scope.contains(&ExportScope::All) {
+        let files = collect_extension_pack_files(&state)?;
+        counts.extension_packs = files.iter().map(|(p, _)| p.clone()).collect::<std::collections::HashSet<_>>().len();
+        files
     } else {
         Vec::new()
     };
@@ -207,6 +225,12 @@ pub async fn export_data(
         let path = format!("scripts/{}", name);
         zip.start_file(&path, options)?;
         zip.write_all(content.as_bytes())?;
+    }
+
+    // packs/{pack_id}/{relative_path}
+    for (zip_path, content) in &pack_files {
+        zip.start_file(zip_path, options)?;
+        zip.write_all(content)?;
     }
 
     zip.finish()?;
@@ -289,6 +313,24 @@ pub async fn import_data(
         result.script_files = extract_lua_scripts(&mut archive)?;
     }
 
+    // 导入扩展包文件（事务外，文件系统操作）
+    if scope.contains(&ExportScope::Extensions) || scope.contains(&ExportScope::All) {
+        result.extension_packs = extract_extension_packs(&mut archive, mode == ImportMode::Replace)?;
+        // 重新加载扩展包注册表
+        let custom_dir = {
+            let repo = Repository::new(&state.db);
+            repo.get_setting("extension_pack.user_dir")
+                .ok()
+                .flatten()
+                .map(|s| s.value)
+                .filter(|v| !v.trim().is_empty())
+                .map(PathBuf::from)
+        };
+        if let Err(e) = state.extension_pack_registry.load_with_custom_dir(custom_dir) {
+            tracing::warn!("导入后重新加载扩展包注册表失败: {}", e);
+        }
+    }
+
     tracing::info!("导入完成: {} (模式={:?})", file_path, mode);
     Ok(result)
 }
@@ -309,6 +351,7 @@ fn parse_scope(scope: &[String]) -> Result<Vec<ExportScope>> {
             "courses" => Ok(ExportScope::Courses),
             "settings" => Ok(ExportScope::Settings),
             "scripts" => Ok(ExportScope::Scripts),
+            "extensions" => Ok(ExportScope::Extensions),
             "all" => Ok(ExportScope::All),
             other => Err(AppError::InvalidArgument(format!(
                 "未知导出范围: {}",
@@ -324,6 +367,7 @@ fn scope_to_str(s: &ExportScope) -> &'static str {
         ExportScope::Courses => "courses",
         ExportScope::Settings => "settings",
         ExportScope::Scripts => "scripts",
+        ExportScope::Extensions => "extensions",
         ExportScope::All => "all",
     }
 }
@@ -640,6 +684,9 @@ fn count_export_data(data: &ExportData) -> ExportCounts {
         schedule_overrides: data.schedule_overrides.len(),
         settings: data.settings.len(),
         lua_scripts: data.lua_scripts.len(),
+        // 扩展包文件单独收集，不存于 ExportData，此处初始化为 0，
+        // 实际值在 export_data 命令中通过 collect_extension_pack_files 收集后赋值
+        extension_packs: 0,
     }
 }
 
@@ -862,6 +909,103 @@ fn extract_lua_scripts(archive: &mut ZipArchive<std::fs::File>) -> Result<usize>
         tracing::debug!("已导入 Lua 脚本: {}", file_name);
     }
 
+    Ok(count)
+}
+
+/// 收集已安装扩展包的所有文件
+///
+/// 返回 (zip 内完整路径, 文件内容) 列表，路径格式为 `packs/{pack_id}/{相对路径}`。
+fn collect_extension_pack_files(
+    state: &State<'_, Arc<AppState>>,
+) -> Result<Vec<(String, Vec<u8>)>> {
+    let packs = state.extension_pack_registry.list_packs();
+    let mut files = Vec::new();
+    for pack in &packs {
+        let pack_id = &pack.manifest.id;
+        collect_dir_files_recursive(&pack.pack_dir, &pack.pack_dir, pack_id, &mut files)?;
+    }
+    Ok(files)
+}
+
+/// 递归收集目录下所有文件
+fn collect_dir_files_recursive(
+    base: &Path,
+    dir: &Path,
+    pack_id: &str,
+    files: &mut Vec<(String, Vec<u8>)>,
+) -> Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_dir_files_recursive(base, &path, pack_id, files)?;
+        } else {
+            // strip_prefix 返回 StripPrefixError，AppError 未实现 From<StripPrefixError>，
+            // 此处用 map_err 转为 AppError::Other（base 是 pack_dir，path 必然以其为前缀，正常不会触发）
+            let rel = path.strip_prefix(base).map_err(|e| {
+                AppError::Other(format!("路径前缀剥离失败: {} (base={})", e, base.display()))
+            })?;
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            let zip_path = format!("packs/{}/{}", pack_id, rel_str);
+            let content = std::fs::read(&path)?;
+            files.push((zip_path, content));
+        }
+    }
+    Ok(())
+}
+
+/// 从 zip 中解压扩展包到用户扩展包目录
+///
+/// `replace` 为 true 时先清空用户扩展包目录下的现有扩展包。
+/// 返回导入的扩展包数量（按 pack_id 去重）。
+fn extract_extension_packs(
+    archive: &mut ZipArchive<std::fs::File>,
+    replace: bool,
+) -> Result<usize> {
+    let user_dir = ExtensionPackLoader::user_packs_dir();
+
+    // 替换模式：先清空用户扩展包目录下的所有子目录
+    if replace && user_dir.exists() {
+        for entry in std::fs::read_dir(&user_dir)? {
+            let entry = entry?;
+            if entry.path().is_dir() {
+                let _ = std::fs::remove_dir_all(entry.path());
+            }
+        }
+    }
+
+    std::fs::create_dir_all(&user_dir)?;
+
+    // 先收集所有 packs/ 前缀的文件名
+    let mut pack_entries: Vec<String> = Vec::new();
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name.starts_with("packs/") && !name.ends_with('/') {
+            pack_entries.push(name);
+        }
+    }
+
+    let mut installed_packs: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for name in &pack_entries {
+        let mut entry = archive.by_name(name)?;
+        // 提取相对路径（去掉 packs/ 前缀）
+        let rel_path = name.trim_start_matches("packs/");
+        let dest = user_dir.join(rel_path);
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut file = std::fs::File::create(&dest)?;
+        std::io::copy(&mut entry, &mut file)?;
+
+        // 按 pack_id 去重计数
+        if let Some(pack_id) = rel_path.split('/').next() {
+            installed_packs.insert(pack_id.to_string());
+        }
+    }
+
+    let count = installed_packs.len();
+    tracing::info!("已导入 {} 个扩展包", count);
     Ok(count)
 }
 

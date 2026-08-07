@@ -606,40 +606,12 @@ export interface InstalledScript {
   content_hash: string;
 }
 
-/** 市场脚本（GitHub 列表项，含安装状态） */
-export interface MarketScript {
-  id: string;
-  name: string;
-  author: string;
-  version: string;
-  description: string;
-  permissions: string[];
-  params: ScriptParam[];
-  /** 是否已安装 */
-  installed: boolean;
-  /** 已安装版本（若已安装） */
-  installed_version: string | null;
-  /** 是否有更新 */
-  update_available: boolean;
-}
-
 export const luaCommands = {
   /** 列出所有已安装脚本 */
   listInstalled: () => invoke<InstalledScript[]>("list_installed_scripts"),
   /** 获取单个已安装脚本详情 */
   getDetail: (scriptId: string) =>
     invoke<InstalledScript | null>("get_script_detail", { scriptId }),
-  /** 列出市场可用脚本（网络失败进入离线模式，仅返回已安装） */
-  listMarket: () => invoke<MarketScript[]>("list_market_scripts"),
-  /** 安装脚本（下载 .lua + .json，写入本地与数据库） */
-  install: (scriptId: string) =>
-    invoke<InstalledScript>("install_script", { scriptId }),
-  /** 卸载脚本（删数据库 + 删本地文件） */
-  uninstall: (scriptId: string) =>
-    invoke<void>("uninstall_script", { scriptId }),
-  /** 更新脚本（重新下载 + 覆盖） */
-  update: (scriptId: string) =>
-    invoke<InstalledScript>("update_script", { scriptId }),
 };
 
 // ============================================================
@@ -810,7 +782,7 @@ export const updateCommands = {
 // ============================================================
 
 /** 导入导出范围 */
-export type ExportScope = "flows" | "courses" | "settings" | "scripts" | "all";
+export type ExportScope = "flows" | "courses" | "settings" | "scripts" | "extensions" | "all";
 
 /** 导入模式 */
 export type ImportMode = "merge" | "replace";
@@ -831,6 +803,7 @@ export interface ExportResult {
     schedule_overrides: number;
     settings: number;
     lua_scripts: number;
+    extension_packs: number;
   };
 }
 
@@ -847,6 +820,7 @@ export interface ImportResult {
   settings: number;
   lua_scripts: number;
   script_files: number;
+  extension_packs: number;
 }
 
 export const ioCommands = {
@@ -876,4 +850,186 @@ export const urlAliasCommands = {
     invoke<void>("set_url_aliases", { aliases }),
   /** 重置为默认别名（baidu/google/github/bing） */
   reset: () => invoke<UrlAlias[]>("reset_url_aliases"),
+};
+
+// ============================================================
+// 扩展包（Beta3 · 扩展包架构）
+// ============================================================
+
+/** 执行器类型（镜像 ExecutorType） */
+export type ExecutorType = "rust" | "lua";
+
+/** 端口位置（镜像 PortPosition） */
+export type PortPosition = "top" | "bottom" | "left" | "right";
+
+/** 端口声明（镜像 PortManifest） */
+export interface PortManifest {
+  id: string;
+  position: PortPosition;
+  label?: string | null;
+}
+
+/** 端口配置（镜像 PortsManifest） */
+export interface PortsManifest {
+  inputs: PortManifest[];
+  outputs: PortManifest[];
+}
+
+/** 动作 manifest 声明（镜像 ActionManifest） */
+export interface ActionManifest {
+  id: string;
+  executor_type: ExecutorType;
+  executor_id: string;
+  label: string;
+  category: string;
+  icon: string;
+  default_params: Record<string, unknown>;
+  ports: PortsManifest;
+  summarize_template: string;
+}
+
+/** 页面类型（镜像 PageType） */
+export type PageType = "detail" | "declarative";
+
+/** 侧边栏入口声明（镜像 SidebarManifest） */
+export interface SidebarManifest {
+  id: string;
+  label: string;
+  icon: string;
+  page_type: PageType;
+}
+
+/** 扩展包 manifest（镜像 ExtensionPackManifest） */
+export interface ExtensionPackManifest {
+  id: string;
+  version: string;
+  name: string;
+  description: string;
+  author: string;
+  exero_api_version: string;
+  actions: ActionManifest[];
+  sidebar?: SidebarManifest | null;
+}
+
+/** 已安装扩展包摘要 */
+export interface PackSummary {
+  id: string;
+  version: string;
+  name: string;
+  description: string;
+  author: string;
+  exero_api_version: string;
+  /** 扩展包类型：action / lua_scripts */
+  pack_type: string;
+  action_count: number;
+  /** Lua 脚本数量（pack_type = lua_scripts 时有意义） */
+  script_count: number;
+  has_sidebar: boolean;
+  /** 来源目录类型：builtin / user / custom */
+  source: string;
+}
+
+/** 扩展包详情 */
+export interface PackDetail {
+  summary: PackSummary;
+  manifest: ExtensionPackManifest;
+  pack_dir: string;
+}
+
+/** 侧边栏入口（含所属扩展包 id） */
+export interface SidebarEntry {
+  pack_id: string;
+  sidebar: SidebarManifest;
+}
+
+/** 扩展包目录信息 */
+export interface PackDirsInfo {
+  /** 只读目录（base-pack 所在） */
+  builtin_dir: string;
+  /** 可写目录（用户扩展包） */
+  user_dir: string;
+}
+
+export const extensionPackCommands = {
+  /** 获取完整动作目录（所有扩展包动作合集） */
+  listActionCatalog: () =>
+    invoke<ActionManifest[]>("list_action_catalog"),
+  /** 获取已安装扩展包列表 */
+  listInstalledPacks: () =>
+    invoke<PackSummary[]>("list_installed_packs"),
+  /** 获取指定扩展包详情 */
+  getPackDetail: (packId: string) =>
+    invoke<PackDetail | null>("get_pack_detail", { packId }),
+  /** 获取扩展包注册的侧边栏入口 */
+  getSidebarEntries: () =>
+    invoke<SidebarEntry[]>("get_sidebar_entries"),
+  /** 重新扫描扩展包目录（安装/卸载/改自定义目录后调用） */
+  reloadPacks: () => invoke<number>("reload_packs"),
+  /** 获取用户自定义扩展包目录（未设置返回空字符串） */
+  getUserDir: () => invoke<string>("get_extension_pack_user_dir"),
+  /** 设置用户自定义扩展包目录（空字符串表示清除） */
+  setUserDir: (dir: string) =>
+    invoke<void>("set_extension_pack_user_dir", { dir }),
+  /** 获取默认扩展包目录信息（只读 + 可写路径） */
+  getPackDirsInfo: () => invoke<PackDirsInfo>("get_pack_dirs_info"),
+  /** 从 .exero-pack 文件安装扩展包（zip 格式，覆盖同名） */
+  installPackFromFile: (filePath: string) =>
+    invoke<PackSummary>("install_pack_from_file", { filePath }),
+  /** 卸载扩展包（所有来源可卸载，base-pack 已改为在线安装） */
+  uninstallPack: (packId: string) =>
+    invoke<void>("uninstall_pack", { packId }),
+  /** 在文件管理器中打开扩展包目录（dirType: "user" / "builtin"） */
+  openPacksDir: (dirType: "user" | "builtin") =>
+    invoke<void>("open_packs_dir", { dirType }),
+};
+
+// ============================================================
+// 扩展包在线市场（Beta3 阶段 c · GitHub 在线安装）
+// ============================================================
+
+/** 在线市场扩展包摘要 */
+export interface MarketPack {
+  /** 扩展包 id */
+  id: string;
+  /** 显示名 */
+  name: string;
+  /** 版本 */
+  version: string;
+  /** 描述 */
+  description: string | null;
+  /** 作者 */
+  author: string | null;
+  /** exero_api_version */
+  exero_api_version: string;
+  /** 扩展包类型：action / lua_scripts */
+  pack_type: string;
+  /** 动作数量 */
+  action_count: number;
+  /** Lua 脚本数量 */
+  script_count: number;
+  /** 是否注册侧边栏入口 */
+  has_sidebar: boolean;
+  /** 下载 URL（raw.githubusercontent.com，离线模式为空） */
+  download_url: string;
+  /** 文件名（如 base-pack.exero-pack） */
+  file_name: string;
+  /** 文件大小（字节） */
+  size: number;
+  /** 是否已安装 */
+  installed: boolean;
+  /** 已安装版本 */
+  installed_version: string | null;
+  /** 是否有更新 */
+  update_available: boolean;
+}
+
+export const extensionPackMarketCommands = {
+  /** 列出在线市场可用扩展包（网络失败进入离线模式，仅返回已安装） */
+  listMarketPacks: () => invoke<MarketPack[]>("list_market_packs"),
+  /** 从 GitHub 下载并安装扩展包 */
+  installPackFromGithub: (downloadUrl: string, fileName: string) =>
+    invoke<PackSummary>("install_pack_from_github", {
+      downloadUrl,
+      fileName,
+    }),
 };

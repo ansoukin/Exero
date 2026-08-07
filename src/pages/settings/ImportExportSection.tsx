@@ -32,6 +32,7 @@ const SCOPE_OPTIONS: { key: ExportScope; label: string; desc: string }[] = [
   { key: "courses", label: "课表", desc: "学期 + 节次 + 课程 + 调课 + 模板" },
   { key: "settings", label: "设置", desc: "settings 表（排除敏感项）" },
   { key: "scripts", label: "Lua 脚本", desc: "本地 .lua 文件 + 元数据" },
+  { key: "extensions", label: "扩展包", desc: "已安装扩展包的文件和目录结构" },
 ];
 
 /** 导入模式选项 */
@@ -110,10 +111,11 @@ export function ImportExportSection() {
         result.schedule_overrides +
         result.settings +
         result.lua_scripts +
-        result.script_files;
+        result.script_files +
+        result.extension_packs;
       setFeedback({
         type: "success",
-        message: `导入成功：共 ${total} 条记录（含 ${result.script_files} 个 Lua 脚本文件）`,
+        message: `导入成功：共 ${total} 条记录（含 ${result.script_files} 个 Lua 脚本、${result.extension_packs} 个扩展包）`,
       });
     } catch (e) {
       setFeedback({
@@ -130,7 +132,7 @@ export function ImportExportSection() {
       <div>
         <h3 className="text-base font-medium">导入导出</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          导出为 .exero 备份文件，支持快捷指令、课表、设置和 Lua 脚本
+          导出为 .exero 备份文件，支持快捷指令、课表、设置、Lua 脚本和扩展包
         </p>
       </div>
 

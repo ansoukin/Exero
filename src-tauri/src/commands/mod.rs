@@ -18,6 +18,8 @@
 //! - `update`：更新检查 + 应用信息 + 更新历史（Phase 6b）
 //! - `io`：导入导出 .exero（Phase 6b · SPEC 5.5）
 //! - `url_alias`：URL 短域名别名管理（Phase 6b · SPEC 11.3）
+//! - `extension_pack`：扩展包管理（Beta3 · 动作目录 / 已安装列表 / 详情 / 本地安装/卸载）
+//! - `extension_pack_market`：扩展包在线市场（Beta3 · GitHub 拉取列表 / 在线安装）
 //! - `test`：端到端测试
 
 pub mod db;
@@ -35,4 +37,6 @@ pub mod onboarding;
 pub mod update;
 pub mod io;
 pub mod url_alias;
+pub mod extension_pack;
+pub mod extension_pack_market;
 pub mod test;

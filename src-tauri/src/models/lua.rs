@@ -1,7 +1,7 @@
-//! Lua 脚本市场模型
+//! Lua 脚本模型
 //!
-//! 定义脚本 manifest（仓库 .json 元数据）与已安装脚本（数据库记录）结构。
-//! SPEC 第六章：脚本市场仓库结构 `scripts/` 平铺，每个脚本一个 `.lua` + 同名 `.json`。
+//! 定义脚本 manifest（脚本元数据）与已安装脚本（数据库记录）结构。
+//! 市场分发通过 .exero-pack（pack_type=lua_scripts），见 extension_pack 模块。
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -74,22 +74,4 @@ pub struct InstalledScript {
     pub updated_at: DateTime<Utc>,
     pub source_url: String,
     pub content_hash: String,
-}
-
-/// 市场脚本（GitHub 列表项，附带已安装状态）
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MarketScript {
-    pub id: String,
-    pub name: String,
-    pub author: String,
-    pub version: String,
-    pub description: String,
-    pub permissions: Vec<String>,
-    pub params: Vec<ScriptParam>,
-    /// 是否已安装
-    pub installed: bool,
-    /// 已安装版本（若已安装）
-    pub installed_version: Option<String>,
-    /// 是否有更新（市场版本 > 已安装版本）
-    pub update_available: bool,
 }

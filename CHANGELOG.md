@@ -1,5 +1,117 @@
 # 更新历史
 
+## V0.4.0-Beta3
+
+**扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序 + 动画优化**
+
+### 重大变更
+
+- **base-pack 改为在线安装**：不再内置捆绑 base-pack，tauri.conf.json 移除 resources 配置。base-pack 作为示例扩展包上传到 GitHub `action-packs/` 目录，用户首次启动需从扩展市场在线安装。所有来源扩展包均支持卸载（包括 builtin）
+- **Lua 脚本市场 → 扩展市场**：快捷指令页第 4 Tab 从「Lua 脚本市场」重命名为「扩展市场」，直连 GitHub `action-packs/` 目录拉取 .exero-pack 列表，替代原 `scripts/` 目录的裸 .lua 文件分发
+
+### 新增
+
+- **Splash 重做**：移除独立 splash 窗口，采用单窗口 boot-splash 方案（main 窗口 visible:true 直接显示，index.html 内置占位 DOM，前端 ready 信号控制隐藏），彻底消除多窗口 DWM 边框残留导致的黑边问题
+- **扩展包架构**（类比 MC 模组加载器）：
+  - base-pack 外置到 `data/action-packs/base-pack/`，manifest.json 声明 20 种内置动作的元数据
+  - 三目录扫描策略（只读 builtin / 可写 user / 自定义 custom），同名扩展包先加载的优先
+  - 动态动作目录：前端 NodePalette 从后端拉取动作目录，替代硬编码枚举
+  - 扩展包注册表 ExtensionPackRegistry，支持启动时加载 + 运行时重新扫描
+- **扩展市场 Tab**（快捷指令页第 4 Tab，直连 GitHub 在线安装）：
+  - GitHub Contents API 列 `action-packs/` 目录下 .exero-pack 文件
+  - 在线安装 / 更新 / 卸载（下载到临时文件复用本地安装逻辑）
+  - 网络后备：github.com 主 → ghproxy 镜像 → 离线模式（仅已安装）
+  - 卡片式展示（名称 / 版本 / 作者 / 动作数 / 文件大小 / 侧边栏入口标记）
+- **扩展包本地管理 UI**（设置页新增「扩展包」分区）：
+  - .exero-pack 文件安装（zip 格式，文件选择器选择，覆盖同名）
+  - 卸载扩展包（所有来源可卸载）
+  - 打开扩展包目录（文件管理器）
+  - 自定义目录设置 + 重新扫描
+  - 已安装列表卡片式展示
+- **侧边栏动态入口 + 拖拽排序**：
+  - 扩展包可注册侧边栏入口，动态追加到内置导航之后
+  - 展开模式下支持拖拽排序（仅扩展包入口之间，内置导航固定）
+  - 拖拽手柄 hover 显示，排序持久化到 settings 表 `extension_pack.sidebar_order` 键
+- **扩展包详情页**：统一详情页模板，展示元数据 / 来源 / 动作列表
+
+### 优化
+
+- **动画跟手性提升**：引入 Win11 Fluent 标准曲线 `cubic-bezier(0.16, 1, 0.3, 1)`，统一应用到页面切换 / 按钮按压 / 卡片 hover / 入场动画
+- 新增 `.interactive` 交互反馈工具类（hover 背景 + active 按压），应用于侧边栏导航项、设置页导航项
+- 侧边栏拖拽使用 PointerSensor + distance:5px 约束，区分点击与拖拽
+
+### 后端命令
+
+- 新增 5 个 Tauri 命令：
+  - 本地管理：`install_pack_from_file` / `uninstall_pack` / `open_packs_dir`
+  - 在线市场：`list_market_packs` / `install_pack_from_github`
+
+### UI 优化与扩展市场增强
+
+- **窗口边框重构**：`decorations:false` 取消原生边框，自定义 TitleBar 内嵌 Windows 三按钮（最小化/最大化/关闭），位置保持右上角
+- **侧边栏 EXERO 标识**：左上角新增图标 + 粗体 Segoe UI "EXERO" 文字，折叠态居中显示
+- **扩展市场搜索栏修复**：聚焦时左右边框被遮盖问题（提升 z-index + `focus-visible:ring-2`）
+- **长横幅卡片响应式**：宽屏（≥640px）使用类 Modrinth 长横幅布局，窄屏回退网格卡片（ResizeObserver 监听容器宽度）
+- **扩展包类型区分**：manifest 新增 `pack_type` 字段（action / lua_scripts），市场卡片显示类型徽章 + 筛选 Tag（全部 / 动作包 / Lua 脚本）
+- **Lua 脚本包支持**：`pack_type=lua_scripts` 的扩展包安装时自动注册脚本到数据库，卸载时注销
+- **骨架屏加载动画**：替换 Loader2 spinner 为 Skeleton 占位卡片（pulse 动画，零布局跳动）
+
+### 市场目录统一
+
+- **统一市场目录**：GitHub 仓库根目录新建 `Market/` 文件夹
+  - `Market/action-packs/`：动作包 .exero-pack（pack_type=action）
+  - `Market/lua-scripts/`：Lua 脚本包 .exero-pack（pack_type=lua_scripts）
+- **删除旧市场命令链路**：`list_market_scripts` / `install_script` / `uninstall_script` / `update_script`（拉 `scripts/` 裸 .lua，前端已无调用方）+ `MarketScript` 类型
+- **`list_market_packs` 增强**：分别拉两个子目录合并返回，支持动作包 + Lua 脚本包统一展示
+- **Lua 脚本包打包脚本**：`scripts/build-packs.ps1`（.NET ZipFile）+ `scripts/lua-scripts-pack.json`（3 个示例脚本 manifest）
+
+---
+
+## V0.4.0-Beta2
+
+**时间轴重构 + 图标系统完善 + UI 细节优化**
+
+### 变更
+
+- **日时间轴重构**：移除拖拽功能改为纯展示模式，保留点击编辑与右键菜单
+- **图标系统完善**：深浅双版本应用图标，主题联动切换 favicon 与任务栏图标
+- **UI 细节优化**：
+  - 去除 Sidebar 标题重复
+  - 修复 Splash 黑边（Beta3 彻底重做）
+  - EXERO Logo（SegoeUI 粗体）
+  - 动画性能优化（页面切换 fade-in + GPU 加速 + 微交互工具类）
+- **快捷指令/关于页增强**：
+  - 属性面板自动折叠
+  - 执行日志按日期范围清空（修复 SQL 比较方向反转 bug）
+  - 关于页 Markdown 更新历史
+  - 构建日期 unknown 修复（build.rs 注入 BUILD_DATE）
+  - 技术栈与 License 折叠
+
+---
+
+## V0.4.0-Beta1
+
+**Phase 6b 收尾交付（NSIS 打包 + 更新检查器 + 关于/帮助页 + 导入导出 + URL 别名）**
+
+### 新增
+
+- **NSIS 打包配置完善**：installMode=currentUser（避免 UAC），LZMA 压缩，中英文双语，LICENSE + CHANGELOG.md 随包分发
+- **更新检查器**（SPEC 第七章）：
+  - GitHub Release latest API + ghproxy 镜像后备 + 离线回退本地 CHANGELOG.md
+  - 三级更新级别标记解析（`[强制更新]` / `[推荐更新]` / `[最低版本 x.y.z]`，SPEC 7.2/13.6）
+  - SPEC 13.10 自定义 SemVer 版本号比较（Major.Minor.Patch-StageN）
+- **关于页**：应用基本信息 + 15 项技术栈 + MIT 许可（含娱乐性 24 小时删除声明）+ GitHub 仓库链接 + 更新历史（云端优先）
+- **帮助页**：V0.4.0 占位文案（功能说明 / FAQ / 错误代码 / 概念词典待后续补充）
+- **导入导出功能**（SPEC 5.5）：.exero 文件格式（zip 包含 meta.json + data.json + scripts/*.lua），4 范围可选，2 模式（merge / replace），事务性数据库操作
+- **URL 短域名别名配置**（SPEC 11.3）：设置页可编辑映射表，OpenUrl 动作自动解析别名（优先级：别名匹配 > scheme 补全 > 原样使用）
+- **设置页 5 分区完整**（外观 / 通用 / 更新 / 关于 / 帮助）
+
+### 后端命令
+
+- 新增 9 个 Tauri 命令：`get_app_info` / `check_for_updates` / `get_changelog` / `get_changelog_path` / `export_data` / `import_data` / `get_url_aliases` / `set_url_aliases` / `reset_url_aliases`
+
+---
+
 ## V0.4.0-alpha.1
 
 **首发版本（Alpha 阶段）**

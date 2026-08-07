@@ -200,53 +200,24 @@
   }
 
   /* ============================================================
-   * Splash 彩虹进度条（Phase 6a · SPEC 3.4）
-   * indeterminate 动画，循环左右滑动 + 宽度变化
-   * 30Hz 兼容：transform/opacity 合成层属性
-   * ============================================================ */
-  .rainbow-progress {
-    background: linear-gradient(
-      90deg,
-      #ff0000,
-      #ff7f00,
-      #ffff00,
-      #00ff00,
-      #0000ff,
-      #4b0082,
-      #9400d3,
-      #ff0000
-    );
-    background-size: 200% 100%;
-    animation: rainbow-slide 1.8s ease-in-out infinite;
-    will-change: transform;
-  }
-
-  @keyframes rainbow-slide {
-    0% {
-      transform: translateX(-100%) scaleX(0.8);
-    }
-    50% {
-      transform: translateX(150%) scaleX(1.2);
-    }
-    100% {
-      transform: translateX(-100%) scaleX(0.8);
-    }
-  }
-
-  /* ============================================================
    * 页面切换 & 微交互动画（性能优化）
    * ============================================================ */
 
-  /* 页面切换 fade-in 动画 */
+  /* Win11 Fluent 标准曲线：起步快、收尾平滑，提升跟手性 */
+  :root {
+    --ease-fluent: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* 页面切换 fade-in 动画（30Hz 兼容：200ms + 微位移） */
   .animate-page-fade-in {
-    animation: page-fade-in 200ms ease-out;
+    animation: page-fade-in 200ms var(--ease-fluent);
     will-change: opacity, transform;
   }
 
   @keyframes page-fade-in {
     from {
       opacity: 0;
-      transform: translateY(4px);
+      transform: translateY(2px);
     }
     to {
       opacity: 1;
@@ -254,17 +225,20 @@
     }
   }
 
-  /* 按钮按下反馈 */
+  /* 按钮按下反馈（100ms 按压 + 150ms 背景色过渡） */
   .btn-press {
-    transition: transform 100ms ease-out, background-color 150ms ease-out;
+    transition: transform 100ms var(--ease-fluent),
+                background-color 150ms var(--ease-fluent),
+                color 150ms var(--ease-fluent);
   }
   .btn-press:active {
     transform: scale(0.96);
   }
 
-  /* 卡片 hover 提升 */
+  /* 卡片 hover 提升（200ms 上抬 + 阴影） */
   .card-hover {
-    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+    transition: transform 200ms var(--ease-fluent),
+                box-shadow 200ms var(--ease-fluent);
     will-change: transform;
   }
   .card-hover:hover {
@@ -273,7 +247,7 @@
 
   /* 淡入动画工具类 */
   .animate-fade-in {
-    animation: fade-in 200ms ease-out;
+    animation: fade-in 200ms var(--ease-fluent);
   }
 
   @keyframes fade-in {
@@ -283,7 +257,7 @@
 
   /* 滑入动画工具类 */
   .animate-slide-up {
-    animation: slide-up 250ms ease-out;
+    animation: slide-up 250ms var(--ease-fluent);
   }
 
   @keyframes slide-up {
@@ -295,5 +269,37 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* 缩放入场动画工具类（弹窗/卡片入场） */
+  .animate-scale-in {
+    animation: scale-in 200ms var(--ease-fluent);
+    will-change: opacity, transform;
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* 统一过渡工具类（200ms，兼容 30Hz） */
+  .transition-smart {
+    transition: all 200ms var(--ease-fluent);
+  }
+
+  /* 统一交互反馈（hover 背景 + active 按压，提升跟手性） */
+  .interactive {
+    transition: background-color 150ms var(--ease-fluent),
+                color 150ms var(--ease-fluent),
+                transform 80ms var(--ease-fluent);
+  }
+  .interactive:active {
+    transform: scale(0.97);
   }
 }

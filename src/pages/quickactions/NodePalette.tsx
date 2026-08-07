@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Loader2, PackageOpen, Store } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   NODE_CATEGORIES,
-  NODE_REGISTRY,
   getCategoryColor,
-  getNodesByCategory,
   type NodeMeta,
 } from "@/lib/nodeCatalog";
+import {
+  useActionCatalog,
+  groupByCategory,
+} from "@/lib/actionCatalog";
+import { useAppStore } from "@/stores/app";
+import { useQuickActionsStore } from "@/stores/quickactions";
 import type { ActionTypeKind } from "@/lib/tauri";
 
 interface NodePaletteProps {
@@ -21,19 +26,28 @@ interface NodePaletteProps {
 /**
  * 节点库（左栏，SPEC 3.5 可视化编辑器三栏布局之一）
  *
- * 6 类节点分组展示，支持：
+ * Beta3 改造：从后端 list_action_catalog 动态拉取动作目录，
+ * 与本地元数据合并后按类别分组展示。
+ *
+ * 支持：
  * - 拖拽到画布（onDragStart）
  * - 点击直接创建（onClick，作为拖拽的兜底交互）
  * - 搜索过滤
+ * - 空状态引导（无扩展包时提示去扩展市场安装 base-pack）
  */
 export function NodePalette({ onDragStart, onClick }: NodePaletteProps) {
   const [query, setQuery] = useState("");
+  const { catalog, loading } = useActionCatalog();
+  const setPage = useAppStore((s) => s.setPage);
+  const clearEditing = useQuickActionsStore((s) => s.clearEditing);
 
   const filtered = query
-    ? NODE_REGISTRY.filter((m) =>
+    ? catalog.filter((m) =>
         m.label.toLowerCase().includes(query.toLowerCase()),
       )
-    : NODE_REGISTRY;
+    : catalog;
+
+  const groups = groupByCategory(filtered);
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r bg-card">
@@ -53,7 +67,37 @@ export function NodePalette({ onDragStart, onClick }: NodePaletteProps) {
 
       {/* 节点列表（按类别分组） */}
       <div className="flex-1 overflow-y-auto scrollbar-fluent">
-        {query ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <span className="text-xs">加载动作目录...</span>
+          </div>
+        ) : catalog.length === 0 ? (
+          // 空状态：无扩展包，引导用户去扩展市场安装 base-pack
+          <div className="flex flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+            <PackageOpen className="h-10 w-10 text-muted-foreground/50" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                无可用动作
+              </p>
+              <p className="text-xs text-muted-foreground">
+                尚未安装任何扩展包，请先安装 base-pack 基础动作包
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => {
+                clearEditing();
+                setPage("extensions");
+              }}
+            >
+              <Store className="h-3.5 w-3.5" />
+              前往扩展市场
+            </Button>
+          </div>
+        ) : query ? (
           // 搜索模式：扁平展示
           <div className="flex flex-col gap-1 p-2">
             {filtered.length === 0 ? (
@@ -73,13 +117,12 @@ export function NodePalette({ onDragStart, onClick }: NodePaletteProps) {
           </div>
         ) : (
           // 默认模式：按类别分组
-          NODE_CATEGORIES.map((category) => {
-            const items = getNodesByCategory(category.id);
-            if (items.length === 0) return null;
+          groups.map(({ category, items }) => {
+            const catMeta = NODE_CATEGORIES.find((c) => c.id === category);
             return (
-              <div key={category.id} className="border-b last:border-0">
+              <div key={category} className="border-b last:border-0">
                 <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {category.label}
+                  {catMeta?.label ?? category}
                 </div>
                 <div className="flex flex-col gap-1 p-2 pt-0">
                   {items.map((meta) => (
@@ -99,7 +142,7 @@ export function NodePalette({ onDragStart, onClick }: NodePaletteProps) {
 
       {/* 底部提示 */}
       <div className="border-t px-3 py-2 text-[10px] text-muted-foreground">
-        拖拽到画布或点击创建
+        {catalog.length > 0 ? "拖拽到画布或点击创建" : "安装扩展包后可用"}
       </div>
     </aside>
   );

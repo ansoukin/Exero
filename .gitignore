@@ -33,6 +33,10 @@ cargo_check.log
 cargo_test.log
 crash-*.dmp
 
+# ===== AI 协作开发文件（本地，不入库）=====
+CLAUDE.local.md
+tmemory.md
+
 # ===== IDE / 编辑器 =====
 .vscode/
 .idea/
