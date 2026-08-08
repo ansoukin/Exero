@@ -63,6 +63,8 @@ interface AppState {
   dynamicNavEntries: DynamicNavEntry[];
   /** 扩展包侧边栏入口排序（pack_id 数组，持久化到 settings extension_pack.sidebar_order） */
   sidebarOrder: string[];
+  /** 扩展包变更版本号（安装/卸载后递增，触发 Sidebar 等组件重新拉取） */
+  packVersion: number;
 
   /** 切换页面 */
   setPage: (page: string) => void;
@@ -74,6 +76,8 @@ interface AppState {
   setDynamicNavEntries: (entries: DynamicNavEntry[]) => void;
   /** 设置侧边栏入口排序（拖拽排序后调用） */
   setSidebarOrder: (order: string[]) => void;
+  /** 递增扩展包变更版本号（安装/卸载后调用，触发依赖组件刷新） */
+  bumpPackVersion: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -81,6 +85,7 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarCollapsed: false,
   dynamicNavEntries: [],
   sidebarOrder: [],
+  packVersion: 0,
 
   setPage: (page) => set({ currentPage: page }),
   toggleSidebar: () =>
@@ -90,4 +95,6 @@ export const useAppStore = create<AppState>((set) => ({
   setDynamicNavEntries: (entries) =>
     set({ dynamicNavEntries: entries }),
   setSidebarOrder: (order) => set({ sidebarOrder: order }),
+  bumpPackVersion: () =>
+    set((state) => ({ packVersion: state.packVersion + 1 })),
 }));

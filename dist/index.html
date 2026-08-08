@@ -21,7 +21,8 @@
     />
     <!-- 防止首帧白屏闪烁：React/CSS 加载前根据系统偏好预设背景色 + .dark 类 -->
     <style>
-      body { margin: 0; background: #ffffff; }
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+      body { background: #ffffff; }
       @media (prefers-color-scheme: dark) {
         body { background: #0a0a0f; }
       }
@@ -32,33 +33,61 @@
         if (prefersDark) document.documentElement.classList.add("dark");
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-DtXHW4z5.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-PB3ozIaD.css">
+    <script type="module" crossorigin src="/assets/index-Cs3Y6LnI.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DOM01bz1.css">
   </head>
   <body>
     <div id="root">
-      <!-- 预渲染 loading 占位：JS 未加载/未挂载时显示，React 挂载后自动替换 -->
-      <div id="boot-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;background:#ffffff;font-family:system-ui,-apple-system,sans-serif;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-          <h1 style="margin:0;font-size:48px;font-weight:700;letter-spacing:-0.02em;color:#0078D4;">Exero</h1>
-          <p style="margin:0;font-size:14px;color:#6b7280;">个人自动化助手</p>
+      <!-- Boot-splash 圆角横幅 banner（Beta3 · SPEC 3.4 重做）
+           单窗口方案：main 窗口 visible:true 直接显示，此占位 DOM 在 React 挂载 +
+           主题初始化 + onboarding 状态检测完成后由前端隐藏（上滑淡出 300ms） -->
+      <div id="boot-splash" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#ffffff;font-family:'Segoe UI Variable','Segoe UI',-apple-system,BlinkMacSystemFont,'Microsoft YaHei UI','Microsoft YaHei',sans-serif;z-index:9999;">
+        <!-- 圆角横幅卡片：左图标 + 居中 EXERO 文字 + 底部 indeterminate 进度条 -->
+        <div style="position:relative;display:flex;align-items:center;gap:24px;padding:32px 40px;border-radius:12px;background:#f3f4f6;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+          <!-- 左侧图标：根据系统主题自动切换深浅版本 -->
+          <picture>
+            <source srcset="/favicon-dark.ico" media="(prefers-color-scheme: dark)" />
+            <img src="/favicon-light.ico" alt="Exero" style="width:56px;height:56px;display:block;" />
+          </picture>
+          <!-- 居中 EXERO 文字（SegoeUI 粗体）+ 副标题 -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <h1 style="margin:0;font-size:36px;font-weight:700;letter-spacing:0.08em;color:#0078D4;">EXERO</h1>
+            <p style="margin:0;font-size:13px;color:#6b7280;">个人自动化助手</p>
+          </div>
+          <!-- 底部 indeterminate 进度条（绝对定位在卡片底部） -->
+          <div style="position:absolute;left:32px;right:32px;bottom:12px;height:3px;border-radius:9999px;background:#e5e7eb;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;height:100%;width:40%;border-radius:9999px;background:#0078D4;animation:boot-progress 1.4s ease-in-out infinite;"></div>
+          </div>
         </div>
-        <div style="width:192px;height:4px;border-radius:9999px;background:#e5e7eb;overflow:hidden;">
-          <div style="width:50%;height:100%;border-radius:9999px;background:linear-gradient(90deg,#f87171,#fbbf24,#34d399,#60a5fa,#a78bfa);animation:boot-progress 1.5s ease-in-out infinite;"></div>
-        </div>
+        <style>
+          @keyframes boot-progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+          }
+          /* boot-splash 上滑淡出动画（ready 信号触发后添加 .leaving 类） */
+          #boot-splash.leaving {
+            animation: boot-splash-leave 300ms ease-out forwards;
+          }
+          @keyframes boot-splash-leave {
+            from {
+              opacity: 1;
+              transform: translateY(0);
+            }
+            to {
+              opacity: 0;
+              transform: translateY(-20px);
+            }
+          }
+          @media (prefers-color-scheme: dark) {
+            #boot-splash { background: #0a0a0f !important; }
+            #boot-splash > div { background: #1f2937 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important; }
+            #boot-splash h1 { color: #4cc2ff !important; }
+            #boot-splash p { color: #9ca3af !important; }
+            #boot-splash > div > div:last-child { background: #374151 !important; }
+            #boot-splash > div > div:last-child > div { background: #4cc2ff !important; }
+          }
+        </style>
       </div>
-      <style>
-        @keyframes boot-progress {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-        @media (prefers-color-scheme: dark) {
-          #boot-splash { background: #0a0a0f !important; }
-          #boot-splash h1 { color: #4cc2ff !important; }
-          #boot-splash p { color: #9ca3af !important; }
-          #boot-splash > div:last-child { background: #1f2937 !important; }
-        }
-      </style>
     </div>
   </body>
 </html>

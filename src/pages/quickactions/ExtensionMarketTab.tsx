@@ -59,6 +59,7 @@ import {
   type MarketPack,
 } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app";
 
 /** 每页显示数选项 */
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
@@ -87,6 +88,7 @@ function formatSize(bytes: number): string {
 }
 
 export function ExtensionMarketTab() {
+  const bumpPackVersion = useAppStore((s) => s.bumpPackVersion);
   const [packs, setPacks] = useState<MarketPack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +195,7 @@ export function ExtensionMarketTab() {
         pack.file_name,
       );
       await loadMarket();
+      bumpPackVersion();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -210,6 +213,7 @@ export function ExtensionMarketTab() {
         pack.file_name,
       );
       await loadMarket();
+      bumpPackVersion();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -225,6 +229,7 @@ export function ExtensionMarketTab() {
     try {
       await extensionPackCommands.uninstallPack(pack.id);
       await loadMarket();
+      bumpPackVersion();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

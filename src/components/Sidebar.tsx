@@ -127,6 +127,7 @@ export function Sidebar() {
   const setDynamicNavEntries = useAppStore((s) => s.setDynamicNavEntries);
   const sidebarOrder = useAppStore((s) => s.sidebarOrder);
   const setSidebarOrder = useAppStore((s) => s.setSidebarOrder);
+  const packVersion = useAppStore((s) => s.packVersion);
 
   // 拖拽传感器：距离约束 5px，区分点击与拖拽
   const sensors = useSensors(
@@ -173,7 +174,7 @@ export function Sidebar() {
     return () => {
       mounted = false;
     };
-  }, [setDynamicNavEntries, setSidebarOrder]);
+  }, [setDynamicNavEntries, setSidebarOrder, packVersion]);
 
   /** 排序后的动态入口 */
   const sortedEntries = useMemo(
@@ -224,8 +225,10 @@ export function Sidebar() {
   const navRef = useRef<HTMLElement>(null);
   const lastWheelTimeRef = useRef(0);
 
-  /** 完整可切换页面列表：内置导航 + 动态入口（顺序与显示一致） */
-  const switchablePages = useMemo<PageId[]>(() => {
+  /** 完整可切换页面列表：内置导航 + 动态入口（顺序与显示一致）
+   *  类型为 string[]：内置页 id 是 PageId 联合子集，动态页 id 是 `pack:xxx` 字符串，
+   *  store 的 currentPage 也是 string，统一用 string 与 store 一致。 */
+  const switchablePages = useMemo<string[]>(() => {
     const builtin = NAV_ITEMS.map((i) => i.id);
     const dynamic = sortedEntries.map((e) => e.pageId);
     return [...builtin, ...dynamic];
