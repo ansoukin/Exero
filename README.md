@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Beta3-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta4-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,7 +14,20 @@
 
 ## 当前状态
 
-**V0.4.0 Beta3** - 扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序 + 动画优化：
+**V0.4.0 Beta4** - UI 优化 + 自动更新机制 + 静默自启：
+
+**Beta4**：
+
+- 全局滚动条 Fluent 样式（替换 Edge 默认风格）
+- React Flow 画布控制按钮折叠：圆形菜单按钮，点击展开放大/缩小/适应视图
+- 自动更新机制：GitHub/镜像下载 x64 .exe + NSIS 无人值守静默安装
+  - [强制更新]：全屏阻断弹窗，仅"立即更新"或"退出软件"
+  - [推荐更新]：启动弹窗显示版本信息 + Release Note（可滚动），三选项（立即更新 / 忽略本次 / 取消该版本）
+  - 保险措施：强制更新时自动将检测频率改为 startup，新版本启动后恢复原值
+- 静默自启：设置-通用新增"静默自启"选项，自启时隐藏到托盘
+- Vite 依赖预打包优化（消除懒加载页面首次访问时的 splash 重载）
+- 修复时间轴右键菜单位置错误
+- 修复设置页文字发虚（will-change 导致合成层禁用子像素抗锯齿）
 
 **Beta3**：
 
