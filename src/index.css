@@ -231,7 +231,6 @@
   /* 页面切换 fade-in 动画（30Hz 兼容：200ms + 微位移） */
   .animate-page-fade-in {
     animation: page-fade-in 200ms var(--ease-fluent);
-    will-change: opacity, transform;
   }
 
   @keyframes page-fade-in {
