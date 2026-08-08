@@ -46,6 +46,7 @@ type CloseBehavior = (typeof CLOSE_BEHAVIORS)[number]["key"];
 
 export function GeneralSection() {
   const [autostart, setAutostart] = useState(false);
+  const [silentAutostart, setSilentAutostart] = useState(false);
   const [closeBehavior, setCloseBehavior] = useState<CloseBehavior>("ask");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -70,6 +71,14 @@ export function GeneralSection() {
         }
       })
       .catch((e) => console.error("[general] 读取关闭行为失败:", e));
+
+    // 加载静默自启设置
+    settingCommands
+      .get("general.silent_autostart")
+      .then((s) => {
+        if (s) setSilentAutostart(s.value === "true");
+      })
+      .catch((e) => console.error("[general] 读取静默自启设置失败:", e));
   }, []);
 
   const handleAutostartChange = async (enabled: boolean) => {
@@ -84,6 +93,25 @@ export function GeneralSection() {
       // 失败时回滚状态
       setAutostart(!enabled);
       console.error("[general] 切换开机自启失败:", e);
+    }
+  };
+
+  const handleSilentAutostartChange = async (enabled: boolean) => {
+    setSilentAutostart(enabled);
+    try {
+      await settingCommands.set({
+        key: "general.silent_autostart",
+        value: enabled.toString(),
+        value_type: "bool",
+      });
+      // 开机自启已开启时重新注册，确保 --autostart 启动参数生效
+      if (enabled && autostart) {
+        await disable();
+        await enable();
+      }
+    } catch (e) {
+      setSilentAutostart(!enabled);
+      console.error("[general] 保存静默自启设置失败:", e);
     }
   };
 
@@ -123,6 +151,24 @@ export function GeneralSection() {
           </p>
         </div>
         <Switch checked={autostart} onCheckedChange={handleAutostartChange} />
+      </section>
+
+      {/* 静默自启（依赖开机自启） */}
+      <section className={cn(
+        "flex items-center justify-between gap-4 transition-opacity",
+        !autostart && "pointer-events-none opacity-50"
+      )}>
+        <div className="flex-1">
+          <h3 className="text-base font-medium">静默自启</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            开机自启时隐藏到托盘，不显示主界面
+          </p>
+        </div>
+        <Switch
+          checked={silentAutostart}
+          onCheckedChange={handleSilentAutostartChange}
+          disabled={!autostart}
+        />
       </section>
 
       {/* 关闭主窗口行为 */}

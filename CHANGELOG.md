@@ -1,5 +1,42 @@
 # 更新历史
 
+## V0.4.0-Beta4
+
+**UI 优化 + 自动更新机制 + 静默自启**
+
+### 新增
+
+- **自动更新机制**（SPEC 7.6）：
+  - GitHub Release 下载 x64 .exe 安装包（主源 + ghproxy 镜像后备）
+  - NSIS `/S` 无人值守静默安装，安装后自动退出旧版本
+  - [强制更新]：全屏阻断弹窗（仅"立即更新"或"退出软件"），屏蔽所有非更新操作
+  - [推荐更新]：启动弹窗显示版本信息 + Release Note（可滚动），三选项（立即更新 / 忽略本次 / 取消该版本）
+  - 保险措施：检测到强制更新时自动将 check_frequency 改为 startup，新版本启动后恢复原值
+  - 临时目录旧安装包自动清理
+- **静默自启**：设置-通用新增"静默自启"选项，自启时自动隐藏到托盘，用户可从托盘唤起主界面
+- **React Flow 画布控制按钮折叠**：默认圆形菜单按钮，点击向上展开放大/缩小/适应视图，再点收回
+
+### 优化
+
+- **全局滚动条 Fluent 样式**：替换 Edge 默认滚动条为 Win11 Fluent 风格（细条 + 半透明 + hover 加深）
+- **Vite 依赖预打包优化**：`optimizeDeps.entries` 限定根入口 + `include` 预声明 26 个运行时依赖，消除首次访问懒加载页面时的依赖优化重载
+
+### 修复
+
+- **时间轴右键菜单位置错误**：移除全屏 overlay，改用 document 级事件监听实现 click-outside 关闭，右键不同课程块时菜单直接跳到新位置
+- **lib.rs 自启参数类型错误**：`--autostart` 参数从 `String` 改为 `&str`
+- **CourseActionMenu.tsx 语法错误**：移除 overlay 后遗留的多余 `</div>` 闭合标签
+
+### 重构
+
+- **updateStore 重命名**：`stores/update.ts` → `stores/updateStore.ts`，避免与后端 `commands/update.rs` 在 IDE 大纲中混淆
+
+### 后端命令
+
+- 新增 4 个 Tauri 命令：`download_and_install_update` / `restore_check_frequency` / `prepare_force_update` / `cleanup_old_installers`
+
+---
+
 ## V0.4.0-Beta3
 
 **扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序 + 动画优化**

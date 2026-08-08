@@ -883,7 +883,7 @@
     <a href="#" class="nav-brand">
       <div class="nav-logo">D</div>
       <span class="nav-name">Exero</span>
-      <span class="nav-badge">0.4.0-α</span>
+      <span class="nav-badge">0.4.0-Beta4</span>
     </a>
     <div class="nav-links">
       <a href="#features">特性</a>
@@ -915,7 +915,7 @@
   <div class="hero-content">
     <div class="hero-chip">
       <span class="hero-chip-dot"></span>
-      Phase 6 全部完成 · V0.4.0 Alpha1 最终交付
+      V0.4.0 Beta4 · 自动更新 + UI 优化 + 静默自启
     </div>
     <h1 class="hero-title">
       <span class="hero-title-gradient">Exero</span>
@@ -942,7 +942,7 @@
       <img src="https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white" alt="Tauri">
       <img src="https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white" alt="Rust">
       <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white" alt="React">
-      <img src="https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg" alt="Phase">
+      <img src="https://img.shields.io/badge/Beta-4-0078D4.svg" alt="Beta">
     </div>
   </div>
 </section>
@@ -994,7 +994,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC131" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         </div>
         <h3>Lua 脚本扩展</h3>
-        <p>内置 mlua 引擎（LuaJIT），严格沙箱隔离，支持脚本市场直连 GitHub 仓库浏览与安装。</p>
+        <p>内置 mlua 引擎（LuaJIT），严格沙箱隔离，支持扩展市场在线安装动作包与 Lua 脚本。</p>
       </div>
 
       <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
@@ -1197,7 +1197,7 @@ return { success = true, count = count }</code></pre>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>当前进度如何？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Phase 1（核心调度 + 动作执行）、Phase 2（UI 骨架 + 首页 Dashboard）、Phase 3（时间轴页面）、Phase 4（可视化编辑器 + 性能优化页）、Phase 5（Lua 脚本集成）与 Phase 6（系统集成 + 主题 + 收尾）全部完成。V0.4.0 Alpha1 最终交付：系统集成（托盘/自启/Toast）、主题系统（深浅模式 + 8 色主题 + Mica）、课表初始化向导、NSIS 打包、更新检查器、导入导出、URL 短域名别名等全部就绪。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
+        <div class="faq-a"><p>Phase 1-6 全部完成，当前处于 Beta 阶段。V0.4.0-Beta4：自动更新机制（强制/推荐更新 + NSIS 静默安装）、静默自启、全局滚动条 Fluent 样式、React Flow 控制按钮折叠、时间轴右键菜单修复、Vite 依赖预打包优化。Beta3：扩展包架构（类比 MC 模组加载器）+ 在线扩展市场 + 侧边栏拖拽排序。Beta2：时间轴重构 + 图标系统完善。Beta1：UI 优化 + 日志清空增强。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
       </div>
     </div>
   </div>
@@ -1215,9 +1215,58 @@ return { success = true, count = count }</code></pre>
     <div class="changelog reveal">
       <div class="cl-item">
         <div class="cl-header">
-          <span class="cl-version current">0.4.0-Beta1</span>
-          <span class="cl-date">2026-08-04</span>
+          <span class="cl-version current">0.4.0-Beta4</span>
+          <span class="cl-date">2026-08-08</span>
           <span class="cl-tag now">当前</span>
+        </div>
+        <div class="cl-title">UI 优化 + 自动更新机制 + 静默自启</div>
+        <ul class="cl-list">
+          <li>自动更新机制：GitHub/镜像下载 x64 .exe + NSIS /S 静默安装 + 强制更新全屏阻断 + 推荐更新弹窗（版本信息 + Release Note 可滚动）</li>
+          <li>强制更新保险措施：自动将 check_frequency 改为 startup，新版本启动后恢复原值</li>
+          <li>静默自启：自启时自动隐藏到托盘，用户可从托盘唤起主界面</li>
+          <li>全局滚动条 Fluent 样式（细条 + 半透明 + hover 加深，替换 Edge 默认风格）</li>
+          <li>React Flow 画布控制按钮折叠（圆形菜单按钮，点击展开放大/缩小/适应视图）</li>
+          <li>时间轴右键菜单位置修复（document 级事件监听替代 overlay）</li>
+          <li>Vite 依赖预打包优化（消除首次访问懒加载页面时的依赖优化重载）</li>
+          <li>updateStore.ts 重命名（避免与后端 update.rs 在 IDE 大纲中混淆）</li>
+          <li>新增 4 个 Tauri 命令：download_and_install_update / restore_check_frequency / prepare_force_update / cleanup_old_installers</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-Beta3</span>
+          <span class="cl-date">2026-08-06</span>
+        </div>
+        <div class="cl-title">扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序</div>
+        <ul class="cl-list">
+          <li>扩展包架构（类比 MC 模组加载器）：base-pack 外置 + 三目录扫描 + 动态动作目录</li>
+          <li>在线扩展市场：GitHub 在线安装/更新/卸载 .exero-pack，网络后备（github.com → ghproxy → 离线）</li>
+          <li>侧边栏动态入口 + 拖拽排序（PointerSensor distance:5px 区分点击/拖拽）</li>
+          <li>窗口边框重构：decorations:false + 自定义 TitleBar 内嵌 Windows 三按钮</li>
+          <li>扩展包类型区分：pack_type=action/lua_scripts + 筛选 Tag + Lua 脚本包支持</li>
+          <li>骨架屏加载动画 + Win11 Fluent 动画曲线</li>
+          <li>统一市场目录：Market/action-packs/ + Market/lua-scripts/</li>
+          <li>侧边栏刷新修复：packVersion 计数器机制（安装/卸载后触发 Sidebar 重新拉取）</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-Beta2</span>
+          <span class="cl-date">2026-08-05</span>
+        </div>
+        <div class="cl-title">时间轴重构 + 图标系统完善 + UI 细节优化</div>
+        <ul class="cl-list">
+          <li>日时间轴重构：移除拖拽功能改为纯展示模式，保留点击编辑与右键菜单</li>
+          <li>图标系统完善：深浅双版本应用图标，主题联动切换 favicon 与任务栏图标</li>
+          <li>UI 细节优化：去除 Sidebar 标题重复 + EXERO Logo + 动画性能优化</li>
+          <li>快捷指令/关于页增强：属性面板自动折叠 + 执行日志按日期范围清空 + 关于页 Markdown 更新历史</li>
+          <li>构建日期 unknown 修复（build.rs 注入 BUILD_DATE）</li>
+        </ul>
+      </div>
+      <div class="cl-item">
+        <div class="cl-header">
+          <span class="cl-version pending">0.4.0-Beta1</span>
+          <span class="cl-date">2026-08-04</span>
         </div>
         <div class="cl-title">UI 优化与日志清空增强（首个 Beta 版本）</div>
         <ul class="cl-list">

@@ -109,6 +109,35 @@ export function CourseActionMenu({
     };
   }, []);
 
+  // click-outside 关闭（移除全屏 overlay，改用 document 事件监听）
+  // 课程块 handleContextMenu 调用 nativeEvent.stopImmediatePropagation() 阻止
+  // document 级 contextmenu 监听触发，使菜单直接更新到新位置而非关闭
+  useEffect(() => {
+    if (!position) return;
+
+    function handlePointerDown(e: PointerEvent) {
+      // 仅左键触发关闭，右键由 contextmenu 监听处理
+      if (e.button !== 0) return;
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+
+    function handleContextMenu(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, [position, onClose]);
+
   if (!position || !course) return null;
 
   const openSubmenu = () => {
@@ -123,25 +152,15 @@ export function CourseActionMenu({
   const hasOverride = onCancelOccurrence || onMoveOccurrence;
 
   return (
-    <>
-      {/* 透明遮罩，点击关闭 */}
-      <div
-        className="fixed inset-0 z-50"
-        onClick={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      />
-      <div
-        ref={menuRef}
-        role="menu"
-        className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
-        style={{
-          left: (adjustedPos ?? position).x,
-          top: (adjustedPos ?? position).y,
-        }}
-      >
+    <div
+      ref={menuRef}
+      role="menu"
+      className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+      style={{
+        left: (adjustedPos ?? position).x,
+        top: (adjustedPos ?? position).y,
+      }}
+    >
         <div className="px-2 py-1.5 text-xs text-muted-foreground">
           {course.subject}
         </div>
@@ -209,7 +228,6 @@ export function CourseActionMenu({
           />
         )}
       </div>
-    </>
   );
 }
 

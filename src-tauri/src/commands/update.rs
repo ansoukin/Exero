@@ -15,6 +15,7 @@ use tauri::State;
 
 use crate::error::{AppError, Result};
 use crate::state::AppState;
+use crate::Repository;
 
 /// GitHub Release latest API（主源）
 const RELEASE_API: &str = "https://api.github.com/repos/ansoukin/Exero/releases/latest";
@@ -55,6 +56,15 @@ pub struct TechStackItem {
     pub version: &'static str,
 }
 
+/// GitHub Release 资产（下载文件）
+#[derive(Debug, Deserialize)]
+struct GithubAsset {
+    /// 文件名（如 Exero_0.4.0-Beta4_x64-setup.exe）
+    name: String,
+    /// 浏览器下载链接
+    browser_download_url: String,
+}
+
 /// GitHub Release 响应（仅取需要的字段）
 #[derive(Debug, Deserialize)]
 struct GithubRelease {
@@ -64,8 +74,11 @@ struct GithubRelease {
     published_at: String,
     /// Release 正文（Markdown）
     body: Option<String>,
-    /// 资产下载链接
+    /// Release HTML 页面链接
     html_url: String,
+    /// 资产列表（下载文件）
+    #[serde(default)]
+    assets: Vec<GithubAsset>,
 }
 
 /// 更新检查结果
@@ -92,6 +105,8 @@ pub struct UpdateStatus {
     pub minimum_version_required: bool,
     /// 检查时间（ISO 8601）
     pub checked_at: String,
+    /// Release 正文（Markdown，供更新弹窗显示 Release Note）
+    pub release_body: Option<String>,
     /// 错误信息（网络失败等）
     pub error: Option<String>,
 }
@@ -233,6 +248,7 @@ pub async fn check_for_updates(
                 minimum_version: None,
                 minimum_version_required: false,
                 checked_at: checked_at.clone(),
+                release_body: None,
                 error: Some(format!("更新检查失败: {}", e)),
             };
             if let Err(e) = persist_latest_version(&state, &status) {
@@ -281,6 +297,7 @@ pub async fn check_for_updates(
         minimum_version,
         minimum_version_required,
         checked_at,
+        release_body: release.as_ref().and_then(|r| r.body.clone()),
         error: None,
     };
 
@@ -588,4 +605,168 @@ fn parse_minimum_version_marker(body: &str) -> Option<String> {
     } else {
         Some(version.to_string())
     }
+}
+
+// ============ 自动更新：下载安装 + 频率恢复 + 清理（SPEC 7.6） ============
+
+/// 下载并安装更新（SPEC 7.6 R3）
+///
+/// 流程：
+/// 1. 拉取最新 Release，查找 x64 .exe 安装包
+/// 2. 下载到系统临时目录（主源 -> ghproxy 后备）
+/// 3. 以 NSIS /S 静默模式启动安装程序
+/// 4. 退出当前应用（安装程序将覆盖可执行文件）
+#[tauri::command]
+pub async fn download_and_install_update(
+    app: tauri::AppHandle,
+) -> Result<()> {
+    // 1. 拉取最新 Release
+    let release = fetch_latest_release()
+        .await?
+        .ok_or_else(|| AppError::Other("未找到任何 Release".into()))?;
+
+    // 2. 查找 x64 .exe 安装包
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name.contains("x64") && a.name.ends_with(".exe"))
+        .ok_or_else(|| AppError::Other("未找到 x64 .exe 安装包".into()))?;
+
+    tracing::info!("找到安装包: {} ({})", asset.name, asset.browser_download_url);
+
+    // 3. 下载到临时目录（主源 -> ghproxy 后备）
+    let temp_dir = std::env::temp_dir();
+    let file_path = temp_dir.join(&asset.name);
+
+    let client = reqwest::Client::builder()
+        .user_agent("Exero-App")
+        .timeout(std::time::Duration::from_secs(300))
+        .build()?;
+
+    let download_urls = [
+        asset.browser_download_url.clone(),
+        format!("{}/{}", GHPROXY_BASE, asset.browser_download_url),
+    ];
+
+    let mut downloaded = false;
+    for url in &download_urls {
+        tracing::info!("尝试下载: {}", url);
+        match client.get(url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                let bytes = resp.bytes().await?;
+                std::fs::write(&file_path, &bytes)?;
+                downloaded = true;
+                tracing::info!("安装包已下载: {} ({} bytes)", file_path.display(), bytes.len());
+                break;
+            }
+            Ok(resp) => {
+                tracing::warn!("下载失败 (HTTP {}): {}", resp.status(), url);
+            }
+            Err(e) => {
+                tracing::warn!("下载失败: {} -> {}", url, e);
+            }
+        }
+    }
+
+    if !downloaded {
+        return Err(AppError::Other(
+            "安装包下载失败（含 ghproxy 后备）".into(),
+        ));
+    }
+
+    // 4. 以 NSIS /S 静默模式启动安装程序
+    tracing::info!("启动静默安装: {} /S", file_path.display());
+    std::process::Command::new(&file_path)
+        .arg("/S")
+        .spawn()
+        .map_err(|e| AppError::Other(format!("启动安装程序失败: {}", e)))?;
+
+    // 5. 退出当前应用
+    tracing::info!("安装程序已启动，退出当前应用");
+    app.exit(0);
+
+    Ok(())
+}
+
+/// 恢复更新检查频率（SPEC 7.6 R4 保险措施）
+///
+/// 新版本启动时调用：检查 `update.previous_check_frequency`，
+/// 若存在非空值则恢复 `update.check_frequency` 并清除该键。
+#[tauri::command]
+pub async fn restore_check_frequency(
+    state: State<'_, Arc<AppState>>,
+) -> Result<()> {
+    let repo = Repository::new(&state.db);
+
+    if let Some(prev) = repo.get_setting("update.previous_check_frequency")? {
+        if !prev.value.is_empty() {
+            repo.set_setting(&crate::models::Setting::from_string(
+                "update.check_frequency",
+                &prev.value,
+            ))?;
+            tracing::info!("已恢复更新检查频率: {}", prev.value);
+        }
+        // 清除 previous_check_frequency（设为空字符串）
+        repo.set_setting(&crate::models::Setting::from_string(
+            "update.previous_check_frequency",
+            "",
+        ))?;
+        tracing::info!("已清除 update.previous_check_frequency");
+    }
+
+    Ok(())
+}
+
+/// 准备强制更新（SPEC 7.6 R4 保险措施）
+///
+/// 检测到强制更新时调用：
+/// 1. 保存当前 check_frequency 到 previous_check_frequency
+/// 2. 将 check_frequency 改为 "startup"
+/// 防止标签更新后被弹窗卡死。
+#[tauri::command]
+pub async fn prepare_force_update(
+    state: State<'_, Arc<AppState>>,
+) -> Result<()> {
+    let repo = Repository::new(&state.db);
+
+    // 读取当前频率（缺失时默认 "startup"）
+    let current = repo
+        .get_setting("update.check_frequency")?
+        .map(|s| s.value)
+        .unwrap_or_else(|| "startup".to_string());
+
+    // 保存到 previous_check_frequency
+    repo.set_setting(&crate::models::Setting::from_string(
+        "update.previous_check_frequency",
+        &current,
+    ))?;
+
+    // 改为 startup
+    repo.set_setting(&crate::models::Setting::from_string(
+        "update.check_frequency",
+        "startup",
+    ))?;
+
+    tracing::info!("强制更新准备完成：频率 {} -> startup（原值已保存）", current);
+
+    Ok(())
+}
+
+/// 清理旧安装包（SPEC 7.6 R3）
+///
+/// 新版本启动时调用：清理临时目录中的 Exero_*_x64-setup.exe 文件。
+#[tauri::command]
+pub async fn cleanup_old_installers() -> Result<()> {
+    let temp_dir = std::env::temp_dir();
+    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with("Exero_") && name_str.ends_with("_x64-setup.exe") {
+                let _ = std::fs::remove_file(entry.path());
+                tracing::info!("已清理旧安装包: {}", name_str);
+            }
+        }
+    }
+    Ok(())
 }

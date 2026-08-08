@@ -3,7 +3,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   Background,
-  Controls,
+  useReactFlow,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
@@ -23,7 +23,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Loader2, AlertCircle, Play } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Play, Menu, X, Plus, Minus, Maximize } from "lucide-react";
 import {
   actionCommands,
   executionCommands,
@@ -65,6 +65,47 @@ export function FlowEditor({ flowId, onExit }: FlowEditorProps) {
     <ReactFlowProvider>
       <FlowEditorInner flowId={flowId} onExit={onExit} />
     </ReactFlowProvider>
+  );
+}
+
+/**
+ * 自定义画布控制按钮（折叠式，Win11 Fluent 风格）
+ *
+ * 默认状态：一个圆形按钮（菜单图标）
+ * 点击展开：向上弹出 放大/缩小/适应视图 三个控制按钮
+ * 再点收回：按钮消失，恢复单个圆形按钮
+ */
+function FlowControls() {
+  const [expanded, setExpanded] = useState(false);
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  const buttons = [
+    { Icon: Plus, label: "放大", onClick: () => zoomIn() },
+    { Icon: Minus, label: "缩小", onClick: () => zoomOut() },
+    { Icon: Maximize, label: "适应视图", onClick: () => fitView({ padding: 0.2 }) },
+  ];
+
+  return (
+    <div className="absolute bottom-4 left-4 z-10 flex flex-col-reverse items-center gap-1.5">
+      {expanded &&
+        buttons.map((btn, i) => (
+          <button
+            key={i}
+            onClick={btn.onClick}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border bg-card text-foreground shadow-sm transition-colors hover:bg-accent animate-scale-in"
+            title={btn.label}
+          >
+            <btn.Icon className="h-4 w-4" />
+          </button>
+        ))}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex h-10 w-10 items-center justify-center rounded-full border bg-card text-foreground shadow-sm transition-colors hover:bg-accent interactive"
+        title={expanded ? "收起控制" : "展开控制"}
+      >
+        {expanded ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+      </button>
+    </div>
   );
 }
 
@@ -387,7 +428,7 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
             className="bg-background"
           >
             <Background gap={16} size={1} color="hsl(var(--border))" />
-            <Controls className="!bg-card !border !shadow-sm" />
+            <FlowControls />
           </ReactFlow>
 
           {/* 空画布提示 */}

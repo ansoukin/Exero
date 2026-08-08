@@ -34,6 +34,7 @@ import {
   type Setting,
   type UpdateStatus,
 } from "@/lib/tauri";
+import { useUpdateStore } from "@/stores/updateStore";
 import { cn } from "@/lib/utils";
 
 /** 更新检查频率选项 */
@@ -143,6 +144,14 @@ export function UpdateSection() {
     try {
       const result = await updateCommands.checkForUpdates();
       setStatus(result);
+
+      // 强制更新检测：通过 store 触发全屏阻断弹窗（SPEC 7.6 R4）
+      const isForce =
+        result.force_update_required || result.minimum_version_required;
+      if (isForce) {
+        await updateCommands.prepareForceUpdate().catch(() => {});
+        useUpdateStore.getState().setForceStatus(result);
+      }
     } catch (e) {
       setCheckError(e instanceof Error ? e.message : String(e));
     } finally {

@@ -757,6 +757,8 @@ export interface UpdateStatus {
   /** 当前版本是否低于最低版本要求（触发强制更新行为） */
   minimum_version_required: boolean;
   checked_at: string;
+  /** Release 正文（Markdown，供更新弹窗显示 Release Note） */
+  release_body: string | null;
   error: string | null;
 }
 
@@ -775,6 +777,14 @@ export const updateCommands = {
   checkForUpdates: () => invoke<UpdateStatus>("check_for_updates"),
   /** 获取更新历史（GitHub Releases 优先，失败回退本地 CHANGELOG.md） */
   getChangelog: () => invoke<ChangelogEntry[]>("get_changelog"),
+  /** 下载并安装更新（SPEC 7.6：下载 x64 .exe -> NSIS /S 静默安装 -> 退出应用） */
+  downloadAndInstall: () => invoke<void>("download_and_install_update"),
+  /** 恢复更新检查频率（新版本启动时调用，SPEC 7.6 R4） */
+  restoreCheckFrequency: () => invoke<void>("restore_check_frequency"),
+  /** 准备强制更新（保存原频率 + 改为 startup，SPEC 7.6 R4） */
+  prepareForceUpdate: () => invoke<void>("prepare_force_update"),
+  /** 清理临时目录中的旧安装包（SPEC 7.6 R3） */
+  cleanupOldInstallers: () => invoke<void>("cleanup_old_installers"),
 };
 
 // ============================================================

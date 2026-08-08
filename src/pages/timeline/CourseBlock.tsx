@@ -95,6 +95,9 @@ export function CourseBlock({
     if (!onLongPress) return;
     e.preventDefault();
     e.stopPropagation();
+    // 阻止原生事件冒泡到 document，使 CourseActionMenu 的 document 级
+    // contextmenu 监听不触发（菜单直接更新到新位置而非关闭再重开）
+    e.nativeEvent.stopImmediatePropagation();
     onLongPress(course, { x: e.clientX, y: e.clientY });
   };
 

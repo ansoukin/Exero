@@ -1,8 +1,8 @@
 # Exero V0.4.0 设计规格文档
 
-> **版本**：V0.4.0-Beta2 · SPEC V2 修订版
-> **状态**：Beta 测试阶段（Beta3 开发中）
-> **日期**：2026-07-18（初版）/ 2026-07-23（V2 修订）
+> **版本**：V0.4.0-Beta4 · SPEC V2.3 修订版
+> **状态**：Beta 测试阶段（Beta3 已交付，Beta4 开发中）
+> **日期**：2026-07-18（初版）/ 2026-07-23（V2 修订）/ 2026-08-08（V2.3 修订）
 > **作者**：AI 协作生成（基于需求讨论）
 
 > **⚠️ AI 协作开发必读**：所有对话（P1-P6 及后续迭代）在开始开发前，**必须先阅读 [9.6 AI 协作开发规则](#96-ai-协作开发规则重点)**。该节定义了 TraeWork 规则、CLAUDE.local.md 四大准则、规则优先级和临时记忆机制，是预防 AI 胡思乱想/过度设计/擅自改动的核心约束。**不读 9.6 节就开始写代码 = 违规操作。不读 CLAUDE.local.md = 违规操作。不认真读 SPEC 有关章节 = 违规操作。**
@@ -17,6 +17,7 @@
 | V2 | 2026-07-23 | 基于 Phase 1-2 实际开发反馈 + P3 重新 Remake 需求修订：新增课程与学期数据模型（5 表含 weekly_templates）；重写 3.5 页面 2 时间轴（三视图改为周/月/年三级递进，月视图直接列课程详情，年视图三级钻取）；扩充 Phase 3 交付物 |
 | V2.1 | 2026-07-24 | 时间轴拖拽体验修订：四视图体系（新增日视图承载时间轴拖拽，周视图及以上改网格）；拖拽性能优化（rAF 节流 + ref 缓存 + hysteresis 滞后区解决鬼影抽搐）；click 拦截升级（dragStart 即时抑制 + dragEnd 后 500ms 禁用窗口根治编辑弹窗误弹）；落点视觉强调重构（高亮线 + 简化色条 + 双侧时间标签明确"拖到哪一刻"） |
 | V2.2 | 2026-08-03 | P4 反馈修复：动作节点数量 12 种 -> 6 类共 20 种（与后端 ActionType 一致）；节点编辑交互明确为单击选中->右侧面板实时编辑（不弹模态框）；Phase 4 交付物补全性能优化页（SPEC 3.6 页面4 原遗漏）；新增第十三章发布流程（AI 准备+用户执行分工/三级更新级别标记 `[强制更新]`/`[推荐更新]`/`[最低版本 x.y.z]`/GitHub+ghproxy 发布渠道）；新增 13.10 版本号命名规则（自定义 SemVer：`VMajor.Minor.Patch-StageN`，Alpha/Beta 从 1 开始，首字母大写，GitHub Tag 用 v 前缀）+ 版本号比较规则（两级比较：语义化版本号优先，相同则比阶段 Alpha<Beta<Stable）；新增 9.6 AI 协作开发规则（TraeWork rules + CLAUDE.local.md 四大准则 + 规则优先级 + tmemory.md 临时记忆机制）；SPEC 开头新增"不懂就问用户"最高准则；第十章深度简化为开发历史归档汇总表（P1-P6 已全部完成）；版本状态更新为 V0.4.0-Beta2（Beta3 开发中） |
+| V2.3 | 2026-08-08 | Beta4 需求修订：全局滚动条 Fluent 样式优化（全局 `*` 选择器 + 保留 `.scrollbar-fluent`）；React Flow 画布控制按钮自定义样式+折叠交互（圆形菜单按钮展开/收回，`useReactFlow` hook 自建）；自动更新机制（7.6 新增：GitHub/ghproxy 下载 .exe 至临时目录 -> NSIS `/S` 静默安装 -> 应用退出；新版本启动时清理临时安装包）；强制更新全屏阻断弹窗（仅"立即更新"/"退出软件"）+ 自动改 `update.check_frequency` 为 `startup` 保险措施（原设置存 `update.previous_check_frequency`，新版本启动后复原）；推荐更新弹窗三选项：立即更新 / 忽略更新（本次跳过） / 取消（持久忽略此版本 `update.ignored_version`）；时间轴右键菜单位置修复（移除全屏 overlay 改用 document 事件监听，课程块 stopPropagation 使菜单直接更新到新位置） |
 
 ---
 
@@ -468,14 +469,18 @@ V0.4.0 支持 6 类动作：
 应用支持三级更新级别，通过 GitHub Release body 中的标记区分（标记互斥，一个 Release 只能有一个）：
 
 **A. 强制更新 `[强制更新]`**：
-- **行为**：弹窗提示用户必须更新才能继续使用，屏蔽应用其他功能
+- **行为**：全屏阻断弹窗，屏蔽应用所有功能，用户仅可选"立即更新"或"退出软件"。选择"立即更新"后自动下载 .exe 安装包并以 NSIS `/S` 静默模式安装（无需用户操作），安装启动后应用自动退出。
+- **保险措施**：检测到强制更新时，自动将 `update.check_frequency` 改为 `startup`（原值存入 `update.previous_check_frequency`），确保即使本次跳过下次启动仍会检查。新版本启动后检测到 `update.previous_check_frequency` 时复原原设置并删除该键。
 - **用途**：重大 Bug 修复时推送
 - **触发**：Release body 含 `[强制更新]` 标记，且 tag_name 版本高于当前版本
 
 **B. 推荐更新 `[推荐更新]`**：
-- **行为**：启动时弹窗提示，用户可"稍后"跳过，可"忽略"记录版本（忽略后该版本不再弹窗，直到新版本发布）
+- **行为**：启动时弹窗提示，显示版本信息 + Release Notes（可滚动，max-height 限制防溢出）。三选项：
+  - **立即更新**：下载 .exe + NSIS `/S` 静默安装 + 应用退出
+  - **忽略更新**：本次跳过（不持久化），下次启动仍弹窗
+  - **取消**：持久忽略此版本（记录到 `update.ignored_version`），该版本不再弹窗，直到新版本发布
 - **用途**：重要但不紧急的修复或功能改进
-- **触发**：Release body 含 `[推荐更新]` 标记，且 tag_name 版本高于当前版本，且用户未忽略该版本
+- **触发**：Release body 含 `[推荐更新]` 标记，且 tag_name 版本高于当前版本，且用户未"取消"该版本
 
 **C. 最低版本 `[最低版本 x.y.z]`**：
 - **行为**：应用版本 < x.y.z 时强制更新（同 A 行为），>= x.y.z 时按普通更新处理
@@ -509,6 +514,31 @@ V0.4.0 支持 6 类动作：
 - **安装目录**：`C:/Program Files/Exero/`
 - **分发**：GitHub Release
 - **数据目录**：`C:/Program Files/Exero/data/`（便携式）
+
+### 7.6 自动更新实现（Beta4 新增）
+
+**下载流程**：
+1. 从 GitHub Release `assets` 中匹配 `*x64*setup.exe` 资产，获取 `browser_download_url`
+2. 网络后备：github.com 直链 -> ghproxy 代理 -> 失败报错
+3. 下载至系统临时目录（`std::env::temp_dir()`），通过 Tauri 事件 `update:download-progress` 通知前端进度
+
+**安装流程**：
+1. 下载完成后，`std::process::Command::new(installer_path).arg("/S").spawn()` 启动 NSIS 静默安装
+2. 应用调用 `app.exit(0)` 退出，安装程序独立运行替换文件
+3. NSIS `/S` 标志：无人看守模式，不显示安装界面，不要求用户操作
+
+**临时文件清理**：
+- 新版本启动时扫描临时目录中的 `Exero_*_x64-setup.exe` 文件并删除
+- 防止临时目录残留旧安装包
+
+**强制更新设置保险**：
+- 检测到强制更新：保存 `update.check_frequency` 原值到 `update.previous_check_frequency`，改 `update.check_frequency` 为 `startup`
+- 新版本启动：检测 `update.previous_check_frequency`，复原原值并删除该键
+
+**GitHub Release Assets 解析**：
+- `GithubRelease` struct 增加 `assets` 字段（`Vec<GithubAsset>`）
+- `GithubAsset`：`name`（文件名）、`browser_download_url`（下载链接）、`size`（文件大小 bytes）
+- `UpdateStatus` 增加 `download_url`（匹配的 .exe 资产 URL）和 `release_notes`（body 原文）
 
 ---
 
@@ -712,7 +742,7 @@ tmemory.md
 
 ## 十、开发历史归档
 
-> P1-P6 全部完成，V0.4.0-Alpha1 已交付。当前版本 V0.4.0-Beta2，Beta3 开发中。
+> P1-P6 全部完成，V0.4.0-Alpha1 已交付。V0.4.0-Beta3 已交付（扩展包架构 + 扩展市场 + UI 优化）。当前版本 V0.4.0-Beta4，Beta4 开发中。
 > 以下为开发阶段历史摘要，详细交付记录见 `project_memory.md`。
 
 | Phase | 状态 | 核心交付 |

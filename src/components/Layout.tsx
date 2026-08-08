@@ -5,6 +5,7 @@ import { TitleBar } from "@/components/TitleBar";
 import { NotificationToast } from "@/components/NotificationToast";
 import { CloseBehaviorDialog } from "@/components/CloseBehaviorDialog";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { UpdateManager } from "@/components/UpdateManager";
 import { useAppStore, isPackPage, extractPackId } from "@/stores/app";
 import { useOnboardingStore } from "@/stores/onboarding";
 
@@ -97,6 +98,8 @@ export function Layout() {
       <CloseBehaviorDialog />
       {/* 课表初始化向导（首次启动 / 空状态触发 / 设置页重新初始化） */}
       <OnboardingWizard />
+      {/* 更新管理器（启动检查 + 强制更新阻断 + 推荐更新弹窗） */}
+      <UpdateManager />
     </div>
   );
 }

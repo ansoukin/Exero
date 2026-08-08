@@ -41,13 +41,32 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![]),
+            Some(vec!["--autostart"]),
         ))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             tracing::info!("执行 setup 回调");
             // 初始化应用状态
             let state = AppState::new(app.handle())?;
+
+            // 静默自启检测：以 --autostart 参数启动且 general.silent_autostart=true 时隐藏主窗口
+            let is_autostart = std::env::args().any(|a| a == "--autostart");
+            if is_autostart {
+                let repo = Repository::new(&state.db);
+                let silent = repo
+                    .get_setting("general.silent_autostart")
+                    .ok()
+                    .flatten()
+                    .map(|s| s.value == "true")
+                    .unwrap_or(false);
+                if silent {
+                    if let Some(main) = app.get_webview_window("main") {
+                        let _ = main.hide();
+                        tracing::info!("静默自启：主窗口已隐藏到托盘");
+                    }
+                }
+            }
+
             app.manage(Arc::new(state));
             tracing::info!("应用状态已初始化");
 
@@ -233,6 +252,10 @@ pub fn run() {
             commands::update::check_for_updates,
             commands::update::get_changelog,
             commands::update::get_changelog_path,
+            commands::update::download_and_install_update,
+            commands::update::restore_check_frequency,
+            commands::update::prepare_force_update,
+            commands::update::cleanup_old_installers,
             // 导入导出命令（Phase 6b · SPEC 5.5）
             commands::io::export_data,
             commands::io::import_data,
