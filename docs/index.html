@@ -3,2013 +3,1181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exero — 个人自动化助手</title>
+  <title>Exero - 个人自动化助手</title>
   <meta name="description" content="基于 Tauri v2 + Rust 的 Windows 桌面自动化工具，采用快捷指令 + 可视化积木理念。">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FFC131'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='900' text-anchor='middle' fill='%23000' font-family='system-ui'%3ED%3C/text%3E%3C/svg%3E">
-  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-lua.min.js"></script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230078D4'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='900' text-anchor='middle' fill='%23fff' font-family='system-ui'%3EE%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
     :root {
-      /* Win11 Light */
-      --bg-body: #f3f3f3;
-      --bg-layer: #fcfcfc;
-      --bg-mica: rgba(252, 252, 252, 0.72);
-      --bg-mica-hover: rgba(252, 252, 252, 0.88);
-      --bg-card: #ffffff;
-      --bg-card-hover: #f8f8f8;
-      --bg-code: #1e1e2e;
-      --bg-subtle: #f5f5f5;
-      --text-primary: #1a1a1a;
-      --text-secondary: #5a5a5a;
-      --text-tertiary: #999999;
-      --border-subtle: rgba(0,0,0,0.06);
-      --border-card: rgba(0,0,0,0.08);
-      --border-focus: rgba(0,120,212,0.5);
-      --accent: #0078D4;
-      --accent-hover: #1a8ad4;
-      --accent-light: rgba(0,120,212,0.08);
-      --accent-glow: rgba(0,120,212,0.15);
-      --brand-yellow: #FFC131;
-      --brand-red: #CE422B;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-card: 0 2px 8px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04);
-      --shadow-elevated: 0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
-      --shadow-hover: 0 12px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,120,212,0.08);
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --radius-xl: 24px;
+      --bg: #f5f5f7; --bg-card: #fff; --bg-hover: #f0f0f3; --bg-subtle: #eeeef1;
+      --bg-canvas: #eef1f6; --bg-sidebar: #f5f7fa; --bg-window: #ffffff;
+      --text: #1d1d1f; --text-secondary: #555; --text-tertiary: #86868b;
+      --border: rgba(0,0,0,0.08); --border-hover: rgba(0,120,212,0.3);
+      --brand: #0078D4; --brand-hover: #1a8ad4; --brand-light: rgba(0,120,212,0.08); --brand-glow: rgba(0,120,212,0.15);
+      --radius: 12px; --radius-sm: 8px; --radius-xs: 6px;
+      --font: 'Segoe UI','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+      --font-mono: 'Cascadia Code','Consolas','JetBrains Mono',monospace;
+      --shadow-window: 0 28px 70px rgba(0,0,0,0.12), 0 14px 32px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05);
+      --ease: cubic-bezier(0.22,1,0.36,1);
     }
-
     .dark {
-      --bg-body: #1c1c1c;
-      --bg-layer: #242424;
-      --bg-mica: rgba(36, 36, 36, 0.72);
-      --bg-mica-hover: rgba(36, 36, 36, 0.88);
-      --bg-card: #2d2d2d;
-      --bg-card-hover: #333333;
-      --bg-code: #1a1a2e;
-      --bg-subtle: #2a2a2a;
-      --text-primary: #f0f0f0;
-      --text-secondary: #b0b0b0;
-      --text-tertiary: #707070;
-      --border-subtle: rgba(255,255,255,0.05);
-      --border-card: rgba(255,255,255,0.07);
-      --border-focus: rgba(96,174,255,0.5);
-      --accent: #60AFFF;
-      --accent-hover: #7abfff;
-      --accent-light: rgba(96,174,255,0.08);
-      --accent-glow: rgba(96,174,255,0.12);
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-      --shadow-card: 0 2px 8px rgba(0,0,0,0.3), 0 0 1px rgba(0,0,0,0.2);
-      --shadow-elevated: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
-      --shadow-hover: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(96,174,255,0.08);
+      --bg: #0a0f1a; --bg-card: #121826; --bg-hover: #1a2235; --bg-subtle: #1a2235;
+      --bg-canvas: #0d121c; --bg-sidebar: #0f1520; --bg-window: #121826;
+      --text: #e8eef5; --text-secondary: #8b9bb0; --text-tertiary: #5a6b80;
+      --border: rgba(255,255,255,0.06); --border-hover: rgba(43,157,255,0.3);
+      --brand: #2b9dff; --brand-hover: #4db0ff; --brand-light: rgba(43,157,255,0.08); --brand-glow: rgba(43,157,255,0.15);
+      --shadow-window: 0 28px 70px rgba(0,0,0,0.5), 0 14px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
     }
+    *{box-sizing:border-box;margin:0;padding:0} html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--bg);color:var(--text-secondary);line-height:1.6;-webkit-font-smoothing:antialiased;transition:background .3s ease,color .3s ease}
+    .dark body{background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(43,157,255,0.06),transparent),var(--bg)}
+    h1,h2,h3{color:var(--text);font-weight:700;letter-spacing:-.02em} a{color:inherit}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg-body);
-      color: var(--text-secondary);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      transition: background 0.4s ease, color 0.4s ease;
-    }
-    ::selection { background: var(--accent); color: #fff; }
-    h1, h2, h3 { color: var(--text-primary); font-weight: 600; letter-spacing: -0.02em; }
+    .nav{position:fixed;top:0;left:0;right:0;z-index:100;height:44px;display:flex;align-items:center;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%)}
+    .nav-inner{width:100%;max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+    .nav-brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+    .nav-logo{width:24px;height:24px;border-radius:6px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff}
+    .nav-name{font-weight:600;font-size:14px}
+    .nav-end{display:flex;align-items:center;gap:8px}
+    .theme-btn{width:32px;height:18px;border-radius:9px;background:var(--bg-subtle);border:1px solid var(--border);position:relative;cursor:pointer;transition:all .3s ease}
+    .theme-dot{position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:var(--brand);transition:transform .3s var(--ease)}
+    .dark .theme-dot{transform:translateX(13px)}
+    .gh-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:var(--bg-subtle);border:1px solid var(--border);color:var(--text);text-decoration:none;font-size:12px;font-weight:500;transition:all .2s ease}
+    .gh-btn:hover{border-color:var(--border-hover);color:var(--brand)} .gh-btn svg{width:12px;height:12px;fill:currentColor}
 
-    /* ===== Navigation ===== */
-    .nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-      height: 52px; display: flex; align-items: center;
-      background: var(--bg-mica);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid var(--border-subtle);
-      transition: background 0.3s ease, border-color 0.3s ease;
-    }
-    .nav-inner {
-      width: 100%; max-width: 1200px; margin: 0 auto;
-      padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
-    }
-    .nav-brand {
-      display: flex; align-items: center; gap: 10px;
-      text-decoration: none; color: var(--text-primary);
-    }
-    .nav-logo {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--brand-yellow), #FF8D42);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 18px; color: #1a0f0a;
-    }
-    .nav-name { font-weight: 600; font-size: 15px; }
-    .nav-badge {
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      padding: 2px 8px; border-radius: 4px;
-      background: var(--accent-light); color: var(--accent);
-    }
-    .nav-links { display: flex; gap: 32px; }
-    .nav-links a {
-      color: var(--text-secondary); text-decoration: none;
-      font-size: 13px; font-weight: 500;
-      transition: color 0.2s ease; position: relative;
-    }
-    .nav-links a:hover { color: var(--accent); }
-    .nav-links a::after {
-      content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-      width: 0; height: 2px; border-radius: 1px; background: var(--accent);
-      transition: width 0.25s ease;
-    }
-    .nav-links a:hover::after { width: 100%; }
-    .nav-end { display: flex; align-items: center; gap: 12px; }
-    .theme-btn {
-      width: 40px; height: 22px; border-radius: 11px;
-      background: var(--bg-subtle); border: 1px solid var(--border-card);
-      position: relative; cursor: pointer; transition: all 0.3s ease;
-    }
-    .theme-dot {
-      position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-      border-radius: 50%; background: var(--accent);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex; align-items: center; justify-content: center; font-size: 10px;
-    }
-    .dark .theme-dot { transform: translateX(18px); }
-    .gh-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border-radius: 6px; background: var(--bg-subtle);
-      border: 1px solid var(--border-card); color: var(--text-primary);
-      text-decoration: none; font-size: 13px; font-weight: 500;
-      transition: all 0.2s ease;
-    }
-    .gh-btn:hover { border-color: var(--border-focus); color: var(--accent); }
-    .gh-btn svg { width: 14px; height: 14px; fill: currentColor; }
+    .section{max-width:1080px;margin:0 auto;padding:0 24px}
+    .section-hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-top:60px;padding-bottom:40px;position:relative;overflow:hidden}
+    .section-demo{padding:100px 24px}
+    @media(max-width:768px){.section-demo{padding:60px 24px}}
 
-    @media (max-width: 768px) { .nav-links { display: none; } }
+    /* Hero background animation */
+    .hero-bg{position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.9}
+    .hero-bg-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:760px;height:540px;border-radius:50%;background:radial-gradient(circle,var(--brand-glow) 0%,transparent 70%);filter:blur(60px);opacity:.6}
+    .hero-bg svg{position:absolute;inset:0;width:100%;height:100%}
+    .hero-bg-line{fill:none;stroke-width:2.5;opacity:0;stroke-dasharray:8 6;stroke-linecap:round;stroke-linejoin:round}
+    .hero-bg-line.drawn{opacity:.7;animation:dashFlow 1.2s linear infinite}
+    @keyframes dashFlow{to{stroke-dashoffset:-14}}
+    .bg-node{position:absolute;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,0.3);opacity:0;transform:scale(.6) translateY(0);transition:opacity .4s var(--ease),box-shadow .3s ease}
+    .dark .bg-node{box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+    .bg-node.visible{opacity:.92;animation:nodePop .45s var(--ease) forwards,nodeFloat 5s ease-in-out infinite .45s}
+    .bg-node.active{box-shadow:0 0 0 2px var(--node-c,var(--brand)),0 0 28px var(--node-c,var(--brand)),0 8px 32px rgba(0,0,0,0.4);opacity:1}
+    @keyframes nodePop{from{transform:scale(.6) translateY(0)}to{transform:scale(1) translateY(0)}}
+    @keyframes nodeFloat{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1) translateY(-7px)}}
+    .bg-node-icon{width:26px;height:26px;border-radius:7px;background:var(--node-bg,rgba(43,157,255,0.14));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .bg-node-icon i{font-size:13px;color:var(--node-c,var(--brand))}
+    .bg-node-label{font-weight:500;font-size:11px;color:var(--text)}
+    .bg-node-cat{font-family:var(--font-mono);font-size:8px;color:var(--text-tertiary);letter-spacing:.03em;margin-bottom:1px}
+    .bg-cursor{position:absolute;width:18px;height:18px;z-index:3;opacity:0;transition:opacity .3s ease,transform .14s var(--ease);transform:translate(-50%,-50%) scale(1)}
+    .bg-cursor.visible{opacity:1}
+    .bg-cursor.clicking{transform:translate(-50%,-50%) scale(.72)}
+    .bg-cursor svg{width:18px;height:18px;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45))}
+    .hero-content{position:relative;z-index:2}
 
-    /* ===== Container ===== */
-    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .hero-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;background:var(--brand-light);border:1px solid var(--border);font-size:12px;color:var(--brand);margin-bottom:20px;backdrop-filter:blur(8px)}
+    .hero-title{font-size:clamp(3rem,8vw,5.5rem);font-weight:800;letter-spacing:-.05em;line-height:1;margin-bottom:14px;background:linear-gradient(135deg,var(--text) 0%,var(--brand) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .hero-tagline{font-size:clamp(1.1rem,2.5vw,1.5rem);color:var(--text-secondary);max-width:520px;margin:0 auto 28px;line-height:1.5}
+    .hero-actions{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap}
+    .btn-primary{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border-radius:99px;background:var(--brand);color:#fff;text-decoration:none;font-size:14px;font-weight:600;box-shadow:0 10px 28px var(--brand-glow),inset 0 0 0 1px rgba(255,255,255,.12);transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s ease}
+    .btn-primary:hover{transform:translateY(-2px);background:var(--brand-hover);box-shadow:0 14px 32px var(--brand-glow)}
+    .btn-primary i{font-size:14px}
+    .btn-meta{font-size:11px;font-weight:600;opacity:.9;padding-left:10px;margin-left:2px;border-left:1px solid rgba(255,255,255,.3)}
+    .btn-ghost{display:inline-flex;align-items:center;gap:10px;padding:13px 20px;border-radius:99px;background:var(--bg-card);color:var(--text);text-decoration:none;font-size:14px;font-weight:600;border:1px solid var(--border);transition:all .2s var(--ease)}
+    .btn-ghost:hover{border-color:var(--border-hover);background:var(--bg-hover);transform:translateY(-2px)}
+    .btn-ghost i{font-size:14px}
+    .btn-ext{font-size:10px;opacity:.5;margin-left:2px}
 
-    /* ===== Hero ===== */
-    .hero {
-      padding: 160px 0 100px; position: relative; overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh;
-    }
-    .hero-bg {
-      position: absolute; inset: 0; pointer-events: none;
-      background:
-        radial-gradient(ellipse 600px 400px at 30% 20%, var(--accent-glow) 0%, transparent 70%),
-        radial-gradient(ellipse 500px 350px at 70% 70%, rgba(206,66,43,0.06) 0%, transparent 70%);
-    }
-    .hero-rings {
-      position: absolute; inset: 0; pointer-events: none;
-      opacity: 0.4; transition: opacity 0.5s ease;
-    }
-    .hero-ring {
-      position: absolute; border-radius: 50%;
-      border: 1px solid var(--border-subtle);
-      top: 50%; left: 50%; transform: translate(-50%, -50%);
-    }
-    .hero-ring:nth-child(1) { width: 500px; height: 500px; animation: ringPulse 8s ease-in-out infinite; }
-    .hero-ring:nth-child(2) { width: 700px; height: 700px; animation: ringPulse 8s ease-in-out infinite 1s; }
-    .hero-ring:nth-child(3) { width: 900px; height: 900px; animation: ringPulse 8s ease-in-out infinite 2s; }
-    @keyframes ringPulse {
-      0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
-      50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.05); }
-    }
-    .hero-content {
-      position: relative; z-index: 2; text-align: center; max-width: 640px;
-    }
-    .hero-chip {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 16px; border-radius: 99px;
-      background: var(--bg-mica); backdrop-filter: blur(10px);
-      border: 1px solid var(--border-card); margin-bottom: 32px;
-      font-size: 13px; color: var(--text-secondary);
-      animation: fadeIn 0.6s ease-out;
-    }
-    .hero-chip-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--accent); animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.3); }
-    }
-    .hero-title {
-      font-size: clamp(3rem, 7vw, 5.5rem);
-      font-weight: 800; letter-spacing: -0.04em;
-      line-height: 1; margin-bottom: 20px;
-      animation: fadeIn 0.6s ease-out 0.1s both;
-    }
-    .hero-title-gradient {
-      background: linear-gradient(135deg, var(--brand-yellow) 0%, #FF8D42 40%, var(--brand-red) 100%);
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-tagline {
-      font-size: clamp(1.25rem, 2.5vw, 1.75rem);
-      font-weight: 500; color: var(--text-primary);
-      margin-bottom: 16px; letter-spacing: -0.02em;
-      animation: fadeIn 0.6s ease-out 0.2s both;
-    }
-    .hero-tagline .cursor::after {
-      content: '|'; color: var(--accent);
-      animation: blink 1s infinite; font-weight: 300; margin-left: 3px;
-    }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .hero-desc {
-      font-size: 16px; color: var(--text-secondary);
-      max-width: 480px; margin: 0 auto 36px; line-height: 1.7;
-      animation: fadeIn 0.6s ease-out 0.3s both;
-    }
-    .hero-cta {
-      display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
-      margin-bottom: 36px;
-      animation: fadeIn 0.6s ease-out 0.4s both;
-    }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 12px 24px; border-radius: 8px;
-      font-weight: 600; font-size: 15px; text-decoration: none;
-      transition: all 0.2s ease; cursor: pointer; border: none;
-      font-family: inherit;
-    }
-    .btn-accent {
-      background: var(--accent); color: #fff;
-      box-shadow: 0 4px 12px var(--accent-glow);
-    }
-    .btn-accent:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 8px 20px var(--accent-glow); }
-    .btn-accent:active { transform: translateY(0); }
-    .btn-outline {
-      background: var(--bg-mica); color: var(--text-primary);
-      backdrop-filter: blur(10px); border: 1px solid var(--border-card);
-    }
-    .btn-outline:hover { border-color: var(--border-focus); color: var(--accent); transform: translateY(-1px); }
-    .btn-outline:active { transform: translateY(0); }
-    .hero-badges {
-      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
-      animation: fadeIn 0.6s ease-out 0.5s both;
-    }
-    .hero-badges img { height: 24px; }
+    .demo-eyebrow{font-size:13px;font-weight:600;color:var(--brand);margin-bottom:8px;letter-spacing:.02em}
+    .demo-title{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;letter-spacing:-.03em;line-height:1.2;margin-bottom:16px;color:var(--text)}
+    .demo-desc{font-size:16px;line-height:1.7;margin-bottom:20px;max-width:560px}
+    .demo-points{display:flex;flex-direction:column;gap:8px;margin-bottom:40px}
+    .demo-point{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text-secondary)}
+    .demo-point svg{width:16px;height:16px;color:var(--brand);flex-shrink:0}
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .app-window{background:var(--bg-window);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-window);border:1px solid var(--border)}
+    .app-titlebar{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg-sidebar);border-bottom:1px solid var(--border);height:36px;flex-shrink:0}
+    .app-tb-left{display:flex;align-items:center;gap:8px}
+    .app-tb-logo{width:16px;height:16px;border-radius:4px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:9px;color:#fff}
+    .app-tb-name{font-size:12px;font-weight:600;color:var(--text)}
+    .app-tb-sub{font-size:11px;color:var(--text-tertiary);margin-left:2px}
+    .app-tb-sub::before{content:'·';margin-right:4px}
+    .app-tb-btns{display:flex;gap:6px}
+    .tb-btn{width:11px;height:11px;border-radius:50%;cursor:default}
+    .dark .tb-btn:nth-child(1){background:#ff5f56} .dark .tb-btn:nth-child(2){background:#ffbd2e} .dark .tb-btn:nth-child(3){background:#27c93f}
+    :root:not(.dark) .tb-btn{background:var(--border)}
 
-    /* ===== Section ===== */
-    .section { padding: 96px 0; }
-    .section-header {
-      text-align: center; margin-bottom: 64px;
-    }
-    .section-label {
-      display: inline-block; font-family: 'JetBrains Mono', monospace;
-      font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 12px;
-    }
-    .section-title {
-      font-size: clamp(1.75rem, 3vw, 2.5rem);
-      margin-bottom: 12px; letter-spacing: -0.02em;
-    }
-    .section-subtitle {
-      color: var(--text-secondary); font-size: 16px;
-      max-width: 480px; margin: 0 auto;
-    }
+    .app-body{display:flex;height:360px}
+    @media(max-width:640px){.app-body{height:auto;flex-direction:column;min-height:400px}}
+    .app-sidebar{width:48px;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;flex-shrink:0}
+    @media(max-width:640px){.app-sidebar{flex-direction:row;width:100%;height:44px;padding:0 4px;justify-content:center;border-right:none;border-bottom:1px solid var(--border)}}
+    .sb-logo{width:24px;height:24px;border-radius:6px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#fff;margin-bottom:6px}
+    @media(max-width:640px){.sb-logo{display:none}}
+    .sb-item{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);transition:all .2s ease;cursor:default;position:relative}
+    .sb-item svg{width:16px;height:16px}
+    .sb-item.active{background:var(--brand-light);color:var(--brand)}
+    .sb-item.active::before{content:'';position:absolute;left:-10px;top:50%;transform:translateY(-50%);width:3px;height:16px;border-radius:2px;background:var(--brand)}
+    @media(max-width:640px){.sb-item.active::before{display:none}}
 
-    /* ===== Feature Cards ===== */
-    .features-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-    @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 600px) { .features-grid { grid-template-columns: 1fr; } }
+    .app-main{flex:1;display:flex;flex-direction:column;min-width:0}
+    .app-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .app-h-left{display:flex;align-items:center;gap:8px}
+    .app-h-icon{color:var(--brand)} .app-h-icon svg{width:16px;height:16px}
+    .app-h-title{font-size:13px;font-weight:600;color:var(--text)}
+    .app-h-sub{font-size:11px;color:var(--text-tertiary)}
+    .app-h-right{display:flex;align-items:center;gap:6px}
 
-    .feature-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      border-radius: var(--radius-md);
-      padding: 24px;
-      position: relative;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: var(--shadow-sm);
-      overflow: hidden;
-    }
-    .feature-card:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-focus);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-hover);
-    }
-    .feature-card::before {
-      content: ''; position: absolute; inset: 0; border-radius: var(--radius-md);
-      opacity: 0; transition: opacity 0.25s ease;
-      background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 40%);
-      pointer-events: none;
-    }
-    .feature-card:hover::before { opacity: 1; }
-    .feature-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 16px; position: relative; z-index: 1;
-    }
-    .feature-icon svg { width: 20px; height: 20px; }
-    .feature-card h3 {
-      font-size: 16px; margin-bottom: 8px; position: relative; z-index: 1;
-    }
-    .feature-card p {
-      font-size: 14px; color: var(--text-secondary); line-height: 1.6;
-      position: relative; z-index: 1;
-    }
+    .dash-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:10px;overflow:hidden}
+    @media(max-width:640px){.dash-grid{grid-template-columns:1fr;grid-template-rows:auto}}
+    .dash-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+    .dash-card-head{display:flex;align-items:center;gap:5px;flex-shrink:0}
+    .dash-card-head svg{width:12px;height:12px;color:var(--brand)}
+    .dash-card-title{font-size:10px;font-weight:600;color:var(--text)}
+    .dash-card-desc{font-size:9px;color:var(--text-tertiary);margin-left:auto}
+    .dash-live{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(52,199,89,0.12);color:#34c759;display:flex;align-items:center;gap:3px}
+    .dash-live::before{content:'';width:4px;height:4px;border-radius:50%;background:#34c759;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .sys-row{display:flex;align-items:center;gap:6px;font-size:10px}
+    .sys-row svg{width:12px;height:12px;color:var(--text-tertiary)}
+    .sys-label{color:var(--text-secondary);flex-shrink:0;font-weight:500}
+    .sys-val{font-family:var(--font-mono);font-weight:600;flex-shrink:0;margin-left:auto;transition:color .5s ease}
+    .sys-bar{height:4px;border-radius:2px;background:var(--bg-subtle);overflow:hidden;flex:1}
+    .sys-fill{height:100%;border-radius:2px;transition:width .8s var(--ease),background .5s ease;width:0%}
+    .sys-info{font-size:9px;color:var(--text-tertiary);margin-top:2px}
+    .task-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:10px}
+    .task-icon{width:16px;height:16px;border-radius:4px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .task-icon svg{width:9px;height:9px;color:var(--brand)}
+    .task-name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+    .task-badge{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(52,199,89,0.1);color:#34c759;flex-shrink:0}
+    .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;flex:1}
+    .qa-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:5px 6px;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);font-size:9px;font-weight:500;color:var(--text);overflow:hidden}
+    .qa-btn svg{width:10px;height:10px;color:var(--brand)}
+    .qa-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+    .log-item{display:flex;align-items:center;gap:5px;padding:2px 0;font-size:9px}
+    .log-status{width:12px;height:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .log-status svg{width:10px;height:10px}
+    .log-status.success svg{color:#34c759} .log-status.fail svg{color:#ff3b30}
+    .log-name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);font-size:9px}
+    .log-time{color:var(--text-tertiary);font-family:var(--font-mono);font-size:8px;flex-shrink:0}
 
-    /* ===== Action Carousel (3-Phase Showcase) ===== */
-    .actions-stage {
-      position: relative; width: 100%; max-width: 720px;
-      margin: 56px auto 0; height: 280px;
-      perspective: 1200px;
-    }
-    .actions-track {
-      position: relative; width: 100%; height: 100%;
-      transform-style: preserve-3d;
-    }
-    .action-card {
-      position: absolute; inset: 0;
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-elevated);
-      padding: 28px;
-      display: flex; flex-direction: column;
-      gap: 14px;
-      opacity: 0;
-      pointer-events: none;
-      backface-visibility: hidden;
-      overflow: hidden;
-    }
-    .action-card.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .action-card::before {
-      content: ''; position: absolute;
-      top: 0; right: 0; width: 50%; height: 50%;
-      background: radial-gradient(circle at top right, var(--card-tint, var(--accent-glow)), transparent 70%);
-      opacity: 0.7; pointer-events: none;
-    }
-    .action-card-header {
-      display: flex; align-items: center; gap: 16px;
-      position: relative; z-index: 1;
-    }
-    .action-card-icon {
-      width: 52px; height: 52px; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--card-tint, var(--accent-light));
-      font-size: 26px; flex-shrink: 0;
-    }
-    .action-card-meta { flex: 1; min-width: 0; }
-    .action-card-type {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: var(--card-color, var(--accent));
-      letter-spacing: 0.1em; text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .action-card-name {
-      font-size: 22px; font-weight: 600;
-      color: var(--text-primary); letter-spacing: -0.01em;
-    }
-    .action-card-desc {
-      font-size: 15px; color: var(--text-secondary);
-      line-height: 1.6; position: relative; z-index: 1;
-    }
+    .reveal{opacity:0;transform:translateY(8px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px} ::-webkit-scrollbar-thumb:hover{background:var(--text-tertiary)}
+    .placeholder-section{text-align:center;padding:80px 24px;color:var(--text-tertiary);font-size:14px}
 
-    /* 角标 */
-    .action-card-corner {
-      position: absolute; top: 16px; right: 20px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; color: var(--text-tertiary);
-      letter-spacing: 0.15em; z-index: 1;
-    }
+    /* Demo 2: 快捷指令编辑器 */
+    .flow-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;flex:1;align-content:start}
+    @media(max-width:640px){.flow-list{grid-template-columns:repeat(2,1fr)}}
+    .flow-card{background:var(--bg-card);border:1px solid var(--border);border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;cursor:default;transition:all .2s var(--ease)}
+    .flow-card.new{border:1.5px dashed var(--border);background:transparent;align-items:center;justify-content:center;min-height:62px}
+    .flow-card-head{display:flex;align-items:center;gap:6px}
+    .flow-card-icon{width:18px;height:18px;border-radius:5px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .flow-card-icon i{font-size:9px;color:var(--brand)}
+    .flow-card-title{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .flow-card-meta{font-size:9px;color:var(--text-tertiary);display:flex;align-items:center;gap:5px}
+    .flow-card-badge{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(52,199,89,0.12);color:#34c759}
+    .flow-card.new i{font-size:16px;color:var(--text-tertiary)}
+    .flow-card.new span{font-size:10px;color:var(--text-tertiary)}
+    .flow-card.new:hover,.flow-card:hover{border-color:var(--border-hover)}
+    .flow-card.new.highlight{border-color:var(--brand);background:var(--brand-light)}
+    .flow-card.new.highlight i,.flow-card.new.highlight span{color:var(--brand)}
 
-    /* 大数字背景水印 */
-    .action-card-watermark {
-      position: absolute; right: -20px; bottom: -60px;
-      font-size: 200px; font-weight: 900;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--card-color, var(--accent));
-      opacity: 0.05; pointer-events: none;
-      line-height: 1; letter-spacing: -0.05em;
-      z-index: 0;
-    }
+    .editor-toolbar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .tb-left{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary)}
+    .tb-left i{color:var(--brand);font-size:11px}
+    .tb-left .name{color:var(--text);font-weight:600}
+    .tb-btn-run{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:5px;background:var(--brand);color:#fff;font-size:10px;font-weight:600;transition:all .2s var(--ease);cursor:default}
+    .tb-btn-run i{font-size:9px}
+    .tb-btn-run.highlight{box-shadow:0 0 0 2px var(--brand),0 0 16px var(--brand-glow)}
 
-    /* ===== 慢速横切 - 中等卡片 ===== */
-    .action-card.phase-slow {
-      padding: 24px;
-      gap: 12px;
-    }
-    .action-card.phase-slow .action-card-desc {
-      font-size: 14px;
-    }
-    .action-card.phase-slow .action-card-watermark {
-      font-size: 180px;
-    }
+    .editor-body{flex:1;display:flex;min-height:0;position:relative}
+    .node-palette{width:130px;background:var(--bg-sidebar);border-right:1px solid var(--border);padding:8px;overflow:hidden;flex-shrink:0}
+    .palette-title{font-size:8px;font-weight:700;color:var(--text-tertiary);letter-spacing:.05em;text-transform:uppercase;margin:6px 4px 4px}
+    .palette-item{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:5px;font-size:10px;color:var(--text-secondary);cursor:default;transition:all .15s ease}
+    .palette-item:hover{background:var(--bg-hover)}
+    .palette-item.dragging{background:var(--brand-light);color:var(--brand);box-shadow:0 0 0 1.5px var(--brand)}
+    .palette-icon{width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .palette-icon i{font-size:8px}
+    .palette-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-    /* ===== 慢速横切动画（400ms） ===== */
-    @keyframes ac-slow-in {
-      from { opacity: 0; transform: translateX(50px) scale(0.92); filter: blur(2px); }
-      to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
-    }
-    @keyframes ac-slow-out {
-      from { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
-      to { opacity: 0; transform: translateX(-50px) scale(0.92); filter: blur(2px); }
-    }
-    .action-card.slow-in { animation: ac-slow-in 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-    .action-card.slow-out { animation: ac-slow-out 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .canvas{flex:1;position:relative;overflow:hidden;background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);background-size:14px 14px}
+    .flow-node{position:absolute;width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);padding:7px 9px;display:flex;flex-direction:column;gap:3px;opacity:0;transform:scale(.7);transition:opacity .35s var(--ease),transform .35s var(--ease),box-shadow .2s ease}
+    .dark .flow-node{box-shadow:0 4px 12px rgba(0,0,0,0.4)}
+    .flow-node.visible{opacity:1;transform:scale(1)}
+    .flow-node.active{box-shadow:0 0 0 2px var(--node-c,var(--brand)),0 6px 18px rgba(0,0,0,0.15)}
+    .flow-node-head{display:flex;align-items:center;gap:6px}
+    .flow-node-icon{width:20px;height:20px;border-radius:5px;background:var(--node-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .flow-node-icon i{font-size:10px;color:var(--node-c,var(--brand))}
+    .flow-node-title{font-size:10px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .flow-node-summary{font-size:8px;color:var(--text-tertiary);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .flow-port{position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--bg-card);border:1.5px solid var(--node-c,var(--brand))}
+    .flow-port.in{top:-5px}
+    .flow-port.out{bottom:-5px}
+    .canvas-edge{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 
-    /* ===== 最终传送带式无限滚动 ===== */
-    .actions-final {
-      margin-top: 48px;
-      opacity: 0; transform: translateY(20px);
-      transition: opacity 0.8s ease, transform 0.8s ease;
-      pointer-events: none;
-    }
-    .actions-final.visible {
-      opacity: 1; transform: translateY(0);
-      pointer-events: auto;
-    }
-    .actions-final-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .actions-final-title {
-      font-size: 14px; color: var(--text-secondary); font-weight: 500;
-    }
-    .actions-final-title strong {
-      color: var(--accent); font-family: 'JetBrains Mono', monospace;
-    }
-    .actions-final-hint {
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      color: var(--text-tertiary);
-      display: flex; align-items: center; gap: 6px;
-    }
-    .actions-final-hint .auto-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--accent); animation: pulse 2s infinite;
-    }
+    .property-panel{width:140px;background:var(--bg-sidebar);border-left:1px solid var(--border);padding:8px;overflow:hidden;flex-shrink:0;transition:width .3s var(--ease),opacity .3s ease;display:flex;flex-direction:column}
+    .property-panel.collapsed{width:0;opacity:0;padding:0;border-left:none}
+    .pp-title{font-size:9px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+    .pp-title i{color:var(--brand);font-size:9px}
+    .pp-field{margin-bottom:6px}
+    .pp-label{font-size:8px;color:var(--text-tertiary);margin-bottom:2px;display:block}
+    .pp-input{width:100%;height:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:9px;color:var(--text);font-family:var(--font-mono);display:flex;align-items:center;overflow:hidden}
+    .pp-input .caret{display:inline-block;width:1px;height:9px;background:var(--brand);margin-left:1px;animation:blink 1s steps(2) infinite}
+    @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
 
-    /* 传送带视窗 */
-    .actions-final-viewport {
-      position: relative; overflow: hidden;
-      mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
-      -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 5%, black 95%, transparent 100%);
-    }
-    .actions-final-track {
-      display: flex; gap: 12px;
-      padding: 8px 4px 16px;
-      will-change: transform;
-      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .actions-final-track.auto-scroll {
-      animation: conveyorAuto 60s linear infinite;
-      transition: none;
-    }
-    .actions-final-track.user-control {
-      animation: none;
-    }
-    @keyframes conveyorAuto {
-      from { transform: translateX(0); }
-      to { transform: translateX(-50%); }
-    }
-    .actions-final-viewport:hover .actions-final-track.auto-scroll {
-      animation-play-state: paused;
-    }
+    .fake-window{position:absolute;background:var(--bg-window);border-radius:6px;box-shadow:0 16px 40px rgba(0,0,0,0.2),0 0 0 1px var(--border);overflow:hidden;opacity:0;transform:scale(.85) translateY(10px);transition:opacity .3s var(--ease),transform .3s var(--ease);z-index:5}
+    .dark .fake-window{box-shadow:0 16px 40px rgba(0,0,0,0.5),0 0 0 1px var(--border)}
+    .fake-window.visible{opacity:1;transform:scale(1) translateY(0)}
+    .fw-titlebar{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg-sidebar);border-bottom:1px solid var(--border);height:24px}
+    .fw-titlebar .tb-btn{width:8px;height:8px}
+    .fw-name{font-size:9px;color:var(--text-secondary);flex:1}
+    .fw-body{padding:8px 10px;font-family:var(--font-mono);font-size:9px;color:var(--text);line-height:1.6;min-width:200px}
+    .fw-body .ln{white-space:pre}
 
-    .mini-card {
-      flex-shrink: 0; width: 200px;
-      background: var(--bg-card); border: 1px solid var(--border-card);
-      border-radius: var(--radius-md); padding: 16px;
-      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                  border-color 0.25s ease,
-                  box-shadow 0.25s ease;
-      cursor: pointer; position: relative; overflow: hidden;
-      box-shadow: var(--shadow-sm);
-    }
-    .mini-card:hover {
-      transform: translateY(-4px) scale(1.02);
-      border-color: var(--mini-color, var(--accent));
-      box-shadow: 0 12px 32px var(--mini-tint, var(--accent-glow));
-    }
-    .mini-card::before {
-      content: ''; position: absolute;
-      top: 0; left: 0; right: 0; height: 3px;
-      background: var(--mini-color, var(--accent));
-      opacity: 0; transition: opacity 0.2s ease;
-    }
-    .mini-card:hover::before { opacity: 1; }
-    .mini-card-header {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 10px;
-    }
-    .mini-card-icon {
-      width: 36px; height: 36px; border-radius: 9px;
-      background: var(--mini-tint, var(--accent-light));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
-    }
-    .mini-card-num {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      color: var(--text-tertiary); letter-spacing: 0.1em;
-      margin-left: auto;
-    }
-    .mini-card-name {
-      font-size: 14px; font-weight: 600;
-      color: var(--text-primary); margin-bottom: 4px;
-    }
-    .mini-card-desc {
-      font-size: 12px; color: var(--text-secondary);
-      line-height: 1.5;
-    }
+    .demo-cursor{position:absolute;width:14px;height:14px;z-index:6;opacity:0;transition:opacity .25s ease;transform:translate(-50%,-50%);pointer-events:none}
+    .demo-cursor.visible{opacity:1}
+    .demo-cursor svg{width:14px;height:14px;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))}
+    .demo-cursor.clicking{transform:translate(-50%,-50%) scale(.75)}
 
-    /* ===== 进度指示器（三阶段共用） ===== */
-    .actions-dots {
-      display: flex; flex-wrap: wrap; gap: 5px;
-      justify-content: center; margin-top: 28px;
-      max-width: 480px; margin-left: auto; margin-right: auto;
-    }
-    .actions-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--border-card); transition: all 0.3s ease;
-      cursor: pointer;
-    }
-    .actions-dot:hover { background: var(--text-tertiary); }
-    .actions-dot.active {
-      background: var(--accent);
-      transform: scale(1.4);
-      box-shadow: 0 0 12px var(--accent-glow);
-    }
-    .actions-dot.done {
-      background: var(--accent); opacity: 0.4;
-    }
+    /* Demo 3: 扩展市场 */
+    .market-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:10px;flex:1;align-content:start}
+    @media(max-width:640px){.market-grid{grid-template-columns:1fr}}
+    .ext-card{background:var(--bg-card);border:1px solid var(--border);border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;transition:all .2s var(--ease)}
+    .ext-card-head{display:flex;align-items:center;gap:6px}
+    .ext-icon{width:22px;height:22px;border-radius:5px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .ext-icon i{font-size:11px;color:var(--brand)}
+    .ext-name{font-size:11px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ext-ver{font-size:8px;padding:1px 5px;border-radius:3px;background:var(--bg-subtle);color:var(--text-secondary);font-family:var(--font-mono)}
+    .ext-desc{font-size:9px;color:var(--text-tertiary);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .ext-meta{font-size:8px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px}
+    .ext-meta i{font-size:7px}
+    .ext-actions{display:flex;justify-content:flex-end;margin-top:2px}
+    .ext-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;font-size:9px;font-weight:600;cursor:default;transition:all .2s var(--ease)}
+    .ext-btn.install{background:var(--brand);color:#fff}
+    .ext-btn.installed{background:rgba(52,199,89,0.12);color:#34c759}
+    .ext-btn.loading{background:var(--bg-subtle);color:var(--text-tertiary)}
+    .ext-btn i{font-size:8px}
+    .ext-btn.loading i{animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* 阶段指示器 */
-    .actions-phase {
-      display: flex; align-items: center; justify-content: center;
-      gap: 16px; margin-top: 16px;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      color: var(--text-tertiary); letter-spacing: 0.1em;
-    }
-    .actions-phase-item {
-      display: flex; align-items: center; gap: 6px;
-      opacity: 0.4; transition: opacity 0.3s ease;
-    }
-    .actions-phase-item.active { opacity: 1; color: var(--accent); }
-    .actions-phase-item.done { opacity: 0.6; color: #22c55e; }
-    .actions-phase-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: currentColor;
-    }
-    .actions-phase-divider {
-      width: 24px; height: 1px;
-      background: var(--border-card);
-    }
+    /* 特性网格 + FAQ + Footer */
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    @media(max-width:768px){.feature-grid{grid-template-columns:1fr}}
+    .feature-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+    .feature-icon{width:36px;height:36px;border-radius:9px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+    .feature-icon i{font-size:16px;color:var(--brand)}
+    .feature-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+    .feature-desc{font-size:13px;color:var(--text-secondary);line-height:1.6}
+    /* FAQ 成熟方案：卡片化 + 编号 + 引导线 + 手风琴 */
+    .faq-list{display:flex;flex-direction:column;gap:10px}
+    .faq-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .2s ease,box-shadow .2s ease}
+    .faq-item:hover{border-color:var(--border-hover)}
+    .faq-item.open{border-color:var(--border-hover);box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+    .dark .faq-item.open{box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+    .faq-q{display:flex;align-items:center;gap:16px;padding:16px 18px;cursor:pointer;font-size:14px;font-weight:600;color:var(--text);user-select:none}
+    .faq-num{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-light);width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .faq-q-text{flex:1;letter-spacing:-.01em}
+    .faq-q i.chev{color:var(--text-tertiary);transition:transform .3s var(--ease),color .2s ease;font-size:12px;flex-shrink:0}
+    .faq-item.open .faq-q i.chev{transform:rotate(180deg);color:var(--brand)}
+    .faq-a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease)}
+    .faq-item.open .faq-a{max-height:160px}
+    .faq-a-inner{padding:0 18px 16px 62px;font-size:13px;color:var(--text-secondary);line-height:1.7;border-left:2px solid var(--brand);margin-left:18px;margin-right:18px;margin-bottom:4px;padding-left:14px}
 
-    /* 控制按钮 */
-    .actions-ctrl {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; margin-top: 16px;
-      font-family: 'JetBrains Mono', monospace; font-size: 12px;
-      color: var(--text-tertiary);
-    }
-    .actions-ctrl-btn {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--bg-card); border: 1px solid var(--border-card);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.2s ease;
-      color: var(--text-secondary);
-    }
-    .actions-ctrl-btn:hover {
-      border-color: var(--border-focus); color: var(--accent);
-      transform: translateY(-1px);
-    }
-    .actions-ctrl-btn svg { width: 14px; height: 14px; }
-    .actions-counter {
-      min-width: 80px; text-align: center;
-      font-variant-numeric: tabular-nums;
-    }
-    .actions-counter .current {
-      color: var(--accent); font-weight: 600;
-      display: inline-block;
-    }
-    .actions-counter .current.flip {
-      animation: numFlip 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    @keyframes numFlip {
-      0% { transform: translateY(0); opacity: 1; }
-      50% { transform: translateY(-8px); opacity: 0; }
-      51% { transform: translateY(8px); opacity: 0; }
-      100% { transform: translateY(0); opacity: 1; }
-    }
+    /* FAQ 下方下载区 */
+    .download-cta{text-align:center;padding:48px 24px 24px;margin-top:8px}
+    .download-cta .dc-eyebrow{font-size:12px;font-weight:600;color:var(--brand);letter-spacing:.04em;margin-bottom:10px;text-transform:uppercase}
+    .download-cta .dc-title{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:700;letter-spacing:-.03em;color:var(--text);margin-bottom:8px}
+    .download-cta .dc-desc{font-size:14px;color:var(--text-secondary);margin-bottom:28px}
+    .download-cta .dc-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    .dc-btn-primary{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:99px;background:var(--brand);color:#fff;text-decoration:none;font-size:15px;font-weight:600;box-shadow:0 10px 28px var(--brand-glow),inset 0 0 0 1px rgba(255,255,255,.12);transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s ease}
+    .dc-btn-primary:hover{transform:translateY(-2px);background:var(--brand-hover);box-shadow:0 14px 32px var(--brand-glow)}
+    .dc-btn-primary i{font-size:15px}
+    .dc-meta{font-size:12px;font-weight:600;opacity:.9;padding-left:12px;margin-left:4px;border-left:1px solid rgba(255,255,255,.3)}
+    .dc-btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:14px 22px;border-radius:99px;background:var(--bg-card);color:var(--text);text-decoration:none;font-size:14px;font-weight:600;border:1px solid var(--border);transition:all .2s var(--ease)}
+    .dc-btn-ghost:hover{border-color:var(--border-hover);background:var(--bg-hover);transform:translateY(-2px)}
+    .dc-btn-ghost i{font-size:13px;color:var(--brand)}
 
-    /* 开场进度条 */
-    .opening-progress {
-      position: absolute; top: -8px; left: 50%;
-      transform: translateX(-50%);
-      width: 200px; height: 2px;
-      background: var(--border-card); border-radius: 1px;
-      overflow: hidden; z-index: 10;
-      opacity: 0; transition: opacity 0.3s ease;
-    }
-    .actions-stage.opening .opening-progress { opacity: 1; }
-    .opening-progress-bar {
-      height: 100%; width: 0%;
-      background: linear-gradient(90deg, var(--accent), var(--brand-yellow));
-      transition: width 0.1s linear;
-    }
-
-
-    /* ===== Lua Demo ===== */
-    .demo-section { background: var(--bg-layer); }
-    .lua-demo {
-      background: var(--bg-card); border: 1px solid var(--border-card);
-      border-radius: var(--radius-lg); overflow: hidden;
-      box-shadow: var(--shadow-elevated); max-width: 960px; margin: 0 auto;
-    }
-    .lua-demo-bar {
-      padding: 10px 16px; background: var(--bg-code);
-      display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .lua-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .lua-filename {
-      margin-left: 6px; font-family: 'JetBrains Mono', monospace;
-      font-size: 12px; color: #9ca3af;
-    }
-    .lua-status {
-      margin-left: auto; font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: #22c55e; display: flex; align-items: center; gap: 6px;
-    }
-    .lua-status::before {
-      content: ''; width: 6px; height: 6px; border-radius: 50%;
-      background: #22c55e; animation: pulse 2s infinite;
-    }
-    .lua-demo-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      min-height: 360px;
-    }
-    @media (max-width: 768px) { .lua-demo-grid { grid-template-columns: 1fr; } }
-    .lua-code {
-      background: var(--bg-code); padding: 20px; overflow: auto;
-      border-right: 1px solid rgba(255,255,255,0.05);
-    }
-    @media (max-width: 768px) { .lua-code { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.05); } }
-    .lua-code pre {
-      margin: 0; font-family: 'JetBrains Mono', monospace !important;
-      font-size: 13px; line-height: 1.7; color: #e5e7eb;
-      background: transparent !important;
-    }
-    .lua-code pre code {
-      font-family: 'JetBrains Mono', monospace !important;
-      background: transparent !important;
-    }
-    .lua-output {
-      padding: 20px; background: var(--bg-card);
-      font-family: 'JetBrains Mono', monospace; font-size: 13px;
-      overflow: auto;
-    }
-    .lua-line {
-      padding: 3px 0; display: flex; gap: 8px; align-items: baseline;
-      opacity: 0; transform: translateX(-6px);
-      transition: opacity 0.35s ease, transform 0.35s ease;
-    }
-    .lua-line.visible { opacity: 1; transform: translateX(0); }
-    .lua-line .ts { color: var(--text-tertiary); flex-shrink: 0; }
-    .lua-line.info { color: var(--accent); }
-    .lua-line.success { color: #22c55e; }
-    .lua-line.warn { color: var(--brand-yellow); }
-    .lua-line.error { color: #ff6b6b; }
-    .lua-line.ret { background: rgba(34,197,94,0.06); color: #22c55e; padding: 8px 12px; border-radius: 6px; margin-top: 8px; }
-
-    /* ===== Roadmap ===== */
-    .roadmap { max-width: 720px; margin: 0 auto; }
-    .roadmap-item {
-      display: flex; gap: 20px; padding: 20px;
-      background: var(--bg-card); border: 1px solid var(--border-card);
-      border-radius: var(--radius-md); margin-bottom: 12px;
-      transition: all 0.2s ease; box-shadow: var(--shadow-sm);
-    }
-    .roadmap-item:hover { border-color: var(--border-focus); transform: translateX(4px); box-shadow: var(--shadow-card); }
-    .roadmap-item.done { border-left: 3px solid #22c55e; }
-    .roadmap-item.current { border-left: 3px solid var(--accent); }
-    .roadmap-item.pending { border-left: 3px solid var(--border-card); }
-    .roadmap-num {
-      font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600;
-      width: 48px; flex-shrink: 0; line-height: 1;
-    }
-    .roadmap-item.done .roadmap-num { color: #22c55e; }
-    .roadmap-item.current .roadmap-num { color: var(--accent); }
-    .roadmap-item.pending .roadmap-num { color: var(--text-tertiary); }
-    .roadmap-info { flex: 1; }
-    .roadmap-name {
-      font-size: 16px; font-weight: 600; color: var(--text-primary);
-      display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
-    }
-    .roadmap-tag {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      padding: 2px 8px; border-radius: 4px;
-    }
-    .roadmap-item.done .roadmap-tag { background: rgba(34,197,94,0.12); color: #22c55e; }
-    .roadmap-item.current .roadmap-tag { background: var(--accent-light); color: var(--accent); }
-    .roadmap-desc { font-size: 14px; color: var(--text-secondary); }
-
-    /* ===== FAQ ===== */
-    .faq { max-width: 640px; margin: 0 auto; }
-    .faq-item {
-      background: var(--bg-card); border: 1px solid var(--border-card);
-      border-radius: var(--radius-md); margin-bottom: 8px;
-      transition: all 0.2s ease; box-shadow: var(--shadow-sm);
-    }
-    .faq-item:hover { border-color: var(--border-focus); }
-    .faq-q {
-      padding: 16px 20px; cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center;
-      font-weight: 500; color: var(--text-primary); font-size: 15px;
-    }
-    .faq-chevron {
-      color: var(--accent); font-size: 20px; transition: transform 0.3s ease;
-    }
-    .faq-item.active .faq-chevron { transform: rotate(45deg); }
-    .faq-a {
-      max-height: 0; overflow: hidden;
-      transition: max-height 0.35s ease, padding 0.35s ease;
-      padding: 0 20px;
-    }
-    .faq-item.active .faq-a { max-height: 300px; padding-bottom: 16px; }
-    .faq-a p {
-      font-size: 14px; color: var(--text-secondary); line-height: 1.7;
-    }
-    .faq-a code {
-      background: var(--accent-light); color: var(--accent);
-      padding: 2px 6px; border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace; font-size: 13px;
-    }
-    .faq-a a { color: var(--accent); text-decoration: none; }
-    .faq-a a:hover { text-decoration: underline; }
-
-    /* ===== Changelog ===== */
-    .changelog { max-width: 640px; margin: 0 auto; }
-    .cl-item {
-      padding: 24px 0; border-bottom: 1px solid var(--border-subtle);
-    }
-    .cl-item:last-child { border-bottom: none; }
-    .cl-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-    .cl-version {
-      font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600;
-      padding: 4px 12px; border-radius: 6px;
-    }
-    .cl-version.current { background: var(--accent-light); color: var(--accent); }
-    .cl-version.pending { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border-card); }
-    .cl-date { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-tertiary); }
-    .cl-tag {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 4px;
-    }
-    .cl-tag.now { background: var(--accent-light); color: var(--accent); }
-    .cl-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-    .cl-list { padding-left: 20px; font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
-
-    /* ===== CTA ===== */
-    .cta {
-      padding: 96px 0; text-align: center;
-      background: var(--bg-layer);
-    }
-    .cta-title {
-      font-size: clamp(2rem, 4vw, 2.75rem);
-      margin-bottom: 16px; letter-spacing: -0.02em;
-    }
-    .cta-desc { font-size: 16px; color: var(--text-secondary); max-width: 480px; margin: 0 auto 32px; }
-    .cta-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-
-    /* ===== Hitokoto 一言 ===== */
-    .hitokoto {
-      text-align: center; margin-bottom: 32px;
-      padding: 24px 16px 8px; position: relative;
-    }
-    .hitokoto-divider {
-      height: 1px; max-width: 280px; margin: 0 auto 28px;
-      background: linear-gradient(90deg, transparent, var(--border-card), transparent);
-    }
-    .hitokoto-text {
-      font-size: 15px; color: var(--text-secondary);
-      line-height: 1.8; max-width: 620px; margin: 0 auto 10px;
-      letter-spacing: 0.01em; position: relative;
-      padding: 0 22px; transition: opacity 0.4s ease, transform 0.4s ease;
-    }
-    .hitokoto-text::before,
-    .hitokoto-text::after {
-      position: absolute; font-size: 26px; color: var(--accent);
-      opacity: 0.45; font-family: 'JetBrains Mono', monospace;
-      line-height: 1;
-    }
-    .hitokoto-text::before { content: '\201C'; left: 0; top: -2px; }
-    .hitokoto-text::after  { content: '\201D'; right: 0; bottom: -10px; }
-    .hitokoto-from {
-      font-size: 12px; color: var(--text-tertiary);
-      font-family: 'JetBrains Mono', monospace;
-      transition: opacity 0.4s ease;
-    }
-    .hitokoto.loading .hitokoto-text { opacity: 0.25; transform: translateY(2px); }
-    .hitokoto.loading .hitokoto-from { opacity: 0.25; }
-
-    /* ===== Footer ===== */
-    .footer {
-      padding: 40px 0; border-top: 1px solid var(--border-subtle);
-      background: var(--bg-card);
-    }
-    .footer-inner {
-      display: flex; flex-wrap: wrap; gap: 24px;
-      justify-content: space-between; align-items: center;
-    }
-    .footer-brand { display: flex; align-items: center; gap: 10px; }
-    .footer-logo {
-      width: 28px; height: 28px; border-radius: 7px;
-      background: linear-gradient(135deg, var(--brand-yellow), #FF8D42);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 14px; color: #1a0f0a;
-    }
-    .footer-name { font-weight: 600; color: var(--text-primary); font-size: 14px; }
-    .footer-sub { font-size: 12px; color: var(--text-tertiary); }
-    .footer-links { display: flex; gap: 20px; }
-    .footer-links a {
-      font-size: 13px; color: var(--text-tertiary); text-decoration: none;
-      transition: color 0.2s ease;
-    }
-    .footer-links a:hover { color: var(--accent); }
-    .footer-bottom {
-      margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-subtle);
-      text-align: center; font-size: 12px; color: var(--text-tertiary);
-    }
-
-    /* ===== Scrollbar ===== */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border-card); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
-
-    /* ===== Animations ===== */
-    .reveal {
-      opacity: 0; transform: translateY(20px);
-      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .reveal.visible { opacity: 1; transform: translateY(0); }
-    .reveal-stagger { opacity: 0; transform: translateY(16px); }
-    .reveal-stagger.visible { opacity: 1; transform: translateY(0); }
-
-    /* ===== Progress bar ===== */
-    .progress-bar {
-      position: fixed; top: 0; left: 0; height: 2px; z-index: 60;
-      background: var(--accent); transition: width 0.15s ease;
-    }
+    .footer{border-top:1px solid var(--border);padding:40px 24px 30px;margin-top:40px}
+    .footer-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+    .footer-brand{display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:13px}
+    .footer-links{display:flex;gap:20px}
+    .footer-links a{color:var(--text-secondary);text-decoration:none;font-size:13px;transition:color .2s ease}
+    .footer-links a:hover{color:var(--brand)}
   </style>
 </head>
 <body>
 
-<div class="progress-bar" id="progressBar" style="width:0%"></div>
-
-<!-- Navigation -->
-<nav class="nav" id="navbar">
+<nav class="nav">
   <div class="nav-inner">
-    <a href="#" class="nav-brand">
-      <div class="nav-logo">D</div>
-      <span class="nav-name">Exero</span>
-      <span class="nav-badge">0.4.0-Beta4</span>
-    </a>
-    <div class="nav-links">
-      <a href="#features">特性</a>
-      <a href="#actions">动作</a>
-      <a href="#security">安全</a>
-      <a href="#roadmap">路线</a>
-      <a href="#faq">FAQ</a>
-    </div>
+    <a href="#" class="nav-brand"><div class="nav-logo">E</div><span class="nav-name">Exero</span></a>
     <div class="nav-end">
-      <div class="theme-btn" onclick="toggleTheme()" title="切换主题">
-        <div class="theme-dot" id="themeDot"></div>
-      </div>
+      <div class="theme-btn" onclick="toggleTheme()" title="切换主题"><div class="theme-dot"></div></div>
       <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="gh-btn">
-        <svg viewBox="0 0 24 24"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.8-1.6 8.2-6.1 8.2-11.4C24 5.9 18.6.5 12 .5z"/></svg>
-        GitHub
-      </a>
+        <svg viewBox="0 0 24 24"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.8-1.6 8.2-6.1 8.2-11.4C24 5.9 18.6.5 12 .5z"/></svg>GitHub</a>
     </div>
   </div>
 </nav>
 
 <!-- Hero -->
-<section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-rings">
-    <div class="hero-ring"></div>
-    <div class="hero-ring"></div>
-    <div class="hero-ring"></div>
-  </div>
-  <div class="hero-content">
-    <div class="hero-chip">
-      <span class="hero-chip-dot"></span>
-      V0.4.0 Beta4 · 自动更新 + UI 优化 + 静默自启
+<section class="section section-hero">
+  <div class="hero-bg">
+    <div class="hero-bg-glow"></div>
+    <svg id="heroSvg"></svg>
+    <div class="bg-node" id="bgNode0" style="top:16%;left:5%;--node-c:#2b9dff;--node-bg:rgba(43,157,255,0.14);border-left:3px solid #2b9dff">
+      <div class="bg-node-icon"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="bg-node-cat">触发器</div><div class="bg-node-label">Cron 17:00</div></div>
     </div>
-    <h1 class="hero-title">
-      <span class="hero-title-gradient">Exero</span>
-    </h1>
-    <p class="hero-tagline">
-      让 <span class="hero-title-gradient" id="typewriter"></span><span class="cursor"></span>
-    </p>
-    <p class="hero-desc">
-      基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。通过快捷指令 + 可视化积木理念，将时间触发、系统事件与 20+ 种动作类型自由组合。
-    </p>
-    <div class="hero-cta">
-      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="btn btn-accent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.8-1.6 8.2-6.1 8.2-11.4C24 5.9 18.6.5 12 .5z"/></svg>
-        查看源码
+    <div class="bg-node" id="bgNode1" style="top:16%;right:5%;--node-c:#a855f7;--node-bg:rgba(168,85,247,0.14);border-left:3px solid #a855f7">
+      <div class="bg-node-icon"><i class="fa-solid fa-volume-high"></i></div>
+      <div><div class="bg-node-cat">媒体</div><div class="bg-node-label">SetVolume 60</div></div>
+    </div>
+    <div class="bg-node" id="bgNode2" style="top:70%;left:4%;--node-c:#ec4899;--node-bg:rgba(236,72,153,0.14);border-left:3px solid #ec4899">
+      <div class="bg-node-icon"><i class="fa-solid fa-bell"></i></div>
+      <div><div class="bg-node-cat">通知</div><div class="bg-node-label">ShowToast</div></div>
+    </div>
+    <div class="bg-node" id="bgNode3" style="top:72%;right:4%;--node-c:#ff9500;--node-bg:rgba(255,149,0,0.14);border-left:3px solid #ff9500">
+      <div class="bg-node-icon"><i class="fa-solid fa-power-off"></i></div>
+      <div><div class="bg-node-cat">系统</div><div class="bg-node-label">Shutdown</div></div>
+    </div>
+    <div class="bg-node" id="bgNode4" style="top:44%;right:3%;--node-c:#34c759;--node-bg:rgba(52,199,89,0.14);border-left:3px solid #34c759">
+      <div class="bg-node-icon"><i class="fa-solid fa-window-restore"></i></div>
+      <div><div class="bg-node-cat">应用</div><div class="bg-node-label">LaunchProgram</div></div>
+    </div>
+    <div class="bg-cursor" id="bgCursor">
+      <svg viewBox="0 0 24 24" fill="white" stroke="rgba(0,0,0,0.35)" stroke-width="1.2" stroke-linejoin="round"><path d="M5 3l14 9-7 2-2 7z"/></svg>
+    </div>
+  </div>
+  <div class="hero-content reveal">
+    <h1 class="hero-title">Exero</h1>
+    <p class="hero-tagline">让 Windows 自动化像搭积木一样简单。</p>
+    <div class="hero-actions">
+      <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener" class="btn-primary">
+        <i class="fa-solid fa-arrow-down-to-line"></i>
+        <span>下载 Windows</span>
+        <span class="btn-meta">Beta4</span>
       </a>
-      <a href="#security" class="btn btn-outline">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        安全演示
-      </a>
-    </div>
-    <div class="hero-badges">
-      <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
-      <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4.svg" alt="Platform">
-      <img src="https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white" alt="Tauri">
-      <img src="https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white" alt="Rust">
-      <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white" alt="React">
-      <img src="https://img.shields.io/badge/Beta-4-0078D4.svg" alt="Beta">
-    </div>
-  </div>
-</section>
-
-<!-- Features -->
-<section id="features" class="section">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">Features</div>
-      <h2 class="section-title">核心特性</h2>
-      <p class="section-subtitle">从触发到执行，从可视化编辑到脚本扩展，覆盖完整的自动化链路。</p>
-    </div>
-
-    <div class="features-grid">
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(0,120,212,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <h3>多类型触发器</h3>
-        <p>Cron 定时、系统事件（开机/USB/网络/进程）、课表触发、手动按钮。覆盖教室与日常全场景，让自动化无处不在。</p>
-      </div>
-
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(206,66,43,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CE422B" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </div>
-        <h3>20+ 种动作功能</h3>
-        <p>应用启动、媒体控制、系统电源、Toast 通知、控制流（if/loop/变量）、Lua 脚本，均开箱即用。</p>
-      </div>
-
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(168,85,247,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
-        </div>
-        <h3>可视化积木编辑</h3>
-        <p>基于 React Flow 的三栏编辑器，拖拽积木块组合动作链，支持条件分支、循环、变量传递。</p>
-      </div>
-
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(34,197,94,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </div>
-        <h3>容错与日志</h3>
-        <p>每动作可配容错策略（继续/停止/回滚/通知），执行日志持久化到 SQLite，便于回溯与审计。</p>
-      </div>
-
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(255,193,49,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC131" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        </div>
-        <h3>Lua 脚本扩展</h3>
-        <p>内置 mlua 引擎（LuaJIT），严格沙箱隔离，支持扩展市场在线安装动作包与 Lua 脚本。</p>
-      </div>
-
-      <div class="feature-card reveal" onmousemove="cardGlow(event, this)">
-        <div class="feature-icon" style="background: rgba(236,72,153,0.1);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        </div>
-        <h3>便携式部署</h3>
-        <p>数据与程序同目录，NSIS 安装包分发，支持 U 盘导入导出配置，适配学校机器环境。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Actions Quick View -->
-<section id="actions" class="section" style="background: var(--bg-layer);">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">Actions</div>
-      <h2 class="section-title">20+ 种动作功能</h2>
-      <p class="section-subtitle">从系统控制到脚本扩展，每一类动作都经过精心设计，开箱即用。</p>
-    </div>
-
-    <div class="actions-stage reveal" id="actionsStage">
-      <div class="opening-progress"><div class="opening-progress-bar" id="openingBar"></div></div>
-      <div class="actions-track" id="actionsTrack"></div>
-    </div>
-
-    <div class="actions-phase reveal" id="actionsPhase">
-      <div class="actions-phase-item active" data-phase="1">
-        <span class="actions-phase-dot"></span>
-      </div>
-      <div class="actions-phase-divider"></div>
-      <div class="actions-phase-item" data-phase="2">
-        <span class="actions-phase-dot"></span>
-      </div>
-    </div>
-
-    <div class="actions-dots reveal" id="actionsDots"></div>
-
-    <div class="actions-ctrl reveal" id="actionsCtrl" style="display:none;">
-      <div class="actions-ctrl-btn" id="acPrev" onclick="acPrev()" title="上一个">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </div>
-      <div class="actions-counter">
-        <span class="current" id="acCurrent">01</span> / <span id="acTotal">20</span>
-      </div>
-      <div class="actions-ctrl-btn" id="acNext" onclick="acNext()" title="下一个">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </div>
-    </div>
-
-    <div class="actions-final" id="actionsFinal">
-      <div class="actions-final-header">
-        <div class="actions-final-title">全部 <strong>20+</strong> 种动作功能</div>
-        <div class="actions-final-hint">
-          <span class="auto-dot"></span>
-          <span id="conveyorMode">AUTO</span>
-        </div>
-      </div>
-      <div class="actions-final-viewport" id="actionsFinalViewport">
-        <div class="actions-final-track auto-scroll" id="actionsFinalTrack"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Security Demo -->
-<section id="security" class="section">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">Security</div>
-      <h2 class="section-title">沙箱即安全</h2>
-      <p class="section-subtitle">所有 Lua 脚本运行在严格沙箱中，危险 API 自动拦截。下方演示将自动切换三个场景。</p>
-    </div>
-
-    <div class="lua-demo reveal">
-      <div class="lua-demo-bar">
-        <div class="lua-dot" style="background:#ff5f56;"></div>
-        <div class="lua-dot" style="background:#ffbd2e;"></div>
-        <div class="lua-dot" style="background:#27c93f;"></div>
-        <span class="lua-filename" id="luaFilename">backup.lua</span>
-        <span class="lua-status">Sandbox Active</span>
-      </div>
-      <div class="lua-demo-grid">
-        <div class="lua-code">
-          <pre><code class="language-lua" id="luaCode">-- USB 插入自动备份
--- 严格沙箱：禁用危险 API
-
-local backup_dir = "D:\\" .. os.date("%Y%m%d")
-os.mkdir(backup_dir)
-
-local files = {
-  "C:\\Users\\me\\Documents\\重要文档",
-  "C:\\Users\\me\\Desktop\\笔记"
-}
-
-local count = 0
-for _, src in ipairs(files) do
-  local name = string.match(src, "([^\\]+)$")
-  local dst = backup_dir .. "\\" .. name
-  if os.copy(src, dst) then
-    count = count + 1
-    log.info("已备份: " .. name)
-  end
-end
-
-toast:show("备份完成 · " .. count .. " 个文件")
-return { success = true, count = count }</code></pre>
-        </div>
-        <div class="lua-output" id="luaOutput"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Roadmap -->
-<section id="roadmap" class="section" style="background: var(--bg-layer);">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">Roadmap</div>
-      <h2 class="section-title">开发路线</h2>
-      <p class="section-subtitle">六阶段 MVP 优先策略，全部交付完成。</p>
-    </div>
-
-    <div class="roadmap">
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">01</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">核心调度 + 动作执行 <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">Rust 后端骨架、数据库、20+ 种动作执行器、触发器调度器、ChainEngine、Tauri 命令暴露</div>
-        </div>
-      </div>
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">02</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">UI 骨架 + 首页 Dashboard <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">前端骨架、Tailwind + shadcn/ui 配置、侧边栏 + 5 页面空骨架、首页 Dashboard 4 模块</div>
-        </div>
-      </div>
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">03</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">时间轴页面 <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">日/周/月三视图、拖拽编辑、长按菜单、临时调课、多周课表</div>
-        </div>
-      </div>
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">04</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">可视化编辑器 + 性能优化页 <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">React Flow 三栏编辑器、20 种动作节点、属性表单、CPU/内存监控、进程管理、一键优化</div>
-        </div>
-      </div>
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">05</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">Lua 脚本集成 <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">mlua 引擎（LuaJIT）、严格沙箱、变量系统、脚本市场直连 GitHub、动态参数表单</div>
-        </div>
-      </div>
-      <div class="roadmap-item done reveal">
-        <div class="roadmap-num">06</div>
-        <div class="roadmap-info">
-          <div class="roadmap-name">系统集成 + 主题 + 收尾 <span class="roadmap-tag">已完成</span></div>
-          <div class="roadmap-desc">托盘/自启/Toast、主题系统、动画、NSIS 打包、更新检查器、导入导出、课表初始化向导、URL 短域名别名</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section id="faq" class="section">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">FAQ</div>
-      <h2 class="section-title">常见问题</h2>
-    </div>
-
-    <div class="faq reveal">
-      <div class="faq-item active">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>Exero 是什么？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Exero 是一款面向 Windows 的桌面自动化管理工具，定位为"个人自动化助手"。借鉴 iOS 快捷指令设计理念，通过拖拽积木块组合动作链，配合多种触发器实现日常场景的自动化管理。</p></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>支持哪些操作系统？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>仅支持 Windows 10/11，x64 架构。需要全局管理员权限运行（UAC 已关闭）。不考虑跨平台，专注于 Windows 生态深度集成。</p></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>项目是开源的吗？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>完全开源，基于 MIT 协议发布。源代码托管在 <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener">GitHub</a>，欢迎 Star、Issue、PR。</p></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>Lua 脚本安全吗？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>默认严格沙箱，禁用 <code>os.execute</code> / <code>io.popen</code> / <code>loadfile</code> 等危险 API。用户可在设置中开启宽松沙箱（自负风险）。所有 Lua 脚本默认 10 秒超时。上方"沙箱即安全"区块有实时演示。</p></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>数据存储在哪里？是否便携？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>数据存储在程序安装目录下的 <code>data/exero.db</code>（SQLite）。便携式部署，支持 U 盘导入导出配置（<code>.exero</code> 格式，含 JSON 数据 + Lua 脚本）。</p></div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)"><span>当前进度如何？</span><span class="faq-chevron">+</span></div>
-        <div class="faq-a"><p>Phase 1-6 全部完成，当前处于 Beta 阶段。V0.4.0-Beta4：自动更新机制（强制/推荐更新 + NSIS 静默安装）、静默自启、全局滚动条 Fluent 样式、React Flow 控制按钮折叠、时间轴右键菜单修复、Vite 依赖预打包优化。Beta3：扩展包架构（类比 MC 模组加载器）+ 在线扩展市场 + 侧边栏拖拽排序。Beta2：时间轴重构 + 图标系统完善。Beta1：UI 优化 + 日志清空增强。完整计划见 <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>。</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Changelog -->
-<section id="changelog" class="section" style="background: var(--bg-layer);">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-label">Changelog</div>
-      <h2 class="section-title">更新日志</h2>
-      <p class="section-subtitle">版本迭代记录与未来计划。</p>
-    </div>
-
-    <div class="changelog reveal">
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version current">0.4.0-Beta4</span>
-          <span class="cl-date">2026-08-08</span>
-          <span class="cl-tag now">当前</span>
-        </div>
-        <div class="cl-title">UI 优化 + 自动更新机制 + 静默自启</div>
-        <ul class="cl-list">
-          <li>自动更新机制：GitHub/镜像下载 x64 .exe + NSIS /S 静默安装 + 强制更新全屏阻断 + 推荐更新弹窗（版本信息 + Release Note 可滚动）</li>
-          <li>强制更新保险措施：自动将 check_frequency 改为 startup，新版本启动后恢复原值</li>
-          <li>静默自启：自启时自动隐藏到托盘，用户可从托盘唤起主界面</li>
-          <li>全局滚动条 Fluent 样式（细条 + 半透明 + hover 加深，替换 Edge 默认风格）</li>
-          <li>React Flow 画布控制按钮折叠（圆形菜单按钮，点击展开放大/缩小/适应视图）</li>
-          <li>时间轴右键菜单位置修复（document 级事件监听替代 overlay）</li>
-          <li>Vite 依赖预打包优化（消除首次访问懒加载页面时的依赖优化重载）</li>
-          <li>updateStore.ts 重命名（避免与后端 update.rs 在 IDE 大纲中混淆）</li>
-          <li>新增 4 个 Tauri 命令：download_and_install_update / restore_check_frequency / prepare_force_update / cleanup_old_installers</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Beta3</span>
-          <span class="cl-date">2026-08-06</span>
-        </div>
-        <div class="cl-title">扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序</div>
-        <ul class="cl-list">
-          <li>扩展包架构（类比 MC 模组加载器）：base-pack 外置 + 三目录扫描 + 动态动作目录</li>
-          <li>在线扩展市场：GitHub 在线安装/更新/卸载 .exero-pack，网络后备（github.com → ghproxy → 离线）</li>
-          <li>侧边栏动态入口 + 拖拽排序（PointerSensor distance:5px 区分点击/拖拽）</li>
-          <li>窗口边框重构：decorations:false + 自定义 TitleBar 内嵌 Windows 三按钮</li>
-          <li>扩展包类型区分：pack_type=action/lua_scripts + 筛选 Tag + Lua 脚本包支持</li>
-          <li>骨架屏加载动画 + Win11 Fluent 动画曲线</li>
-          <li>统一市场目录：Market/action-packs/ + Market/lua-scripts/</li>
-          <li>侧边栏刷新修复：packVersion 计数器机制（安装/卸载后触发 Sidebar 重新拉取）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Beta2</span>
-          <span class="cl-date">2026-08-05</span>
-        </div>
-        <div class="cl-title">时间轴重构 + 图标系统完善 + UI 细节优化</div>
-        <ul class="cl-list">
-          <li>日时间轴重构：移除拖拽功能改为纯展示模式，保留点击编辑与右键菜单</li>
-          <li>图标系统完善：深浅双版本应用图标，主题联动切换 favicon 与任务栏图标</li>
-          <li>UI 细节优化：去除 Sidebar 标题重复 + EXERO Logo + 动画性能优化</li>
-          <li>快捷指令/关于页增强：属性面板自动折叠 + 执行日志按日期范围清空 + 关于页 Markdown 更新历史</li>
-          <li>构建日期 unknown 修复（build.rs 注入 BUILD_DATE）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Beta1</span>
-          <span class="cl-date">2026-08-04</span>
-        </div>
-        <div class="cl-title">UI 优化与日志清空增强（首个 Beta 版本）</div>
-        <ul class="cl-list">
-          <li>关于页更新历史支持 GitHub 风格 Markdown 渲染（react-markdown + remark-gfm，含粗体/列表/表格/代码块/引用等）</li>
-          <li>关于页技术栈和 License 分区默认折叠（点击展开）</li>
-          <li>快捷指令编辑属性面板支持自动折叠（默认折叠，点击节点自动展开，可手动切换）</li>
-          <li>左上角 Logo 文字改为 EXERO（Segoe UI 粗体）</li>
-          <li>执行日志新增清空按钮（Trash2 图标）+ 刷新按钮图标（RefreshCw）</li>
-          <li>清空日志支持弹窗选择时间范围（全部 / 1小时 / 24小时 / 7天 / 30天）</li>
-          <li>修复清空日志按时间范围不生效问题（SQL 比较方向修正）</li>
-          <li>修复日志空状态错位问题 + 按钮图标和描述动画</li>
-          <li>清理多处冗余技术性描述文案</li>
-          <li>性能优化：Layout 页面组件懒加载（React.lazy + Suspense）</li>
-          <li>性能优化：AboutSection changelog 内存缓存（10分钟TTL）</li>
-          <li>性能优化：UpdateSection 4次串行IPC改为并行</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-08-03</span>
-          <span class="cl-tag done">已完成</span>
-        </div>
-        <div class="cl-title">Phase 6 全部完成：系统集成 + 主题 + 收尾（最终交付）</div>
-        <ul class="cl-list">
-          <li>系统集成：系统托盘（显示/退出菜单 + 左键单击显示）+ 开机自启 + Toast 通知</li>
-          <li>关闭主窗口行为：弹窗询问 / 最小化到托盘 / 退出，记住选择，设置页可重置</li>
-          <li>主题系统：深浅模式（跟随系统 / 浅色 / 深色）+ 8 色 Win11 主题色板 + Mica 背景开关</li>
-          <li>动画系统 + Splash Screen（400×250 无边框 + 1.5 秒切换主窗口）</li>
-          <li>课表初始化引导向导：首次启动检测 + 欢迎页 + 4 步向导 + 演示模式 + 空状态设计</li>
-          <li>NSIS 打包配置完善（currentUser 安装模式 + LZMA 压缩 + 中英文双语）</li>
-          <li>更新检查器：GitHub Release latest API + 三级更新级别标记解析（强制/推荐/最低版本，SPEC 7.2/13.6）+ ghproxy 镜像后备 + SPEC 13.10 自定义 SemVer 版本号比较</li>
-          <li>关于页：应用信息 + 15 项技术栈 + MIT 许可 + 更新历史（云端优先）</li>
-          <li>帮助页：V0.4.0 占位嘲讽/自嘲文案</li>
-          <li>导入导出功能：.exero 格式（zip 含 meta.json + data.json + scripts/*.lua），4 范围 + 2 模式</li>
-          <li>URL 短域名别名配置：设置页可编辑映射表，OpenUrl 动作自动解析别名</li>
-          <li>设置页 5 分区完整（外观 / 通用 / 更新 / 关于 / 帮助）</li>
-          <li>9 个新 Tauri 命令（update / io / url_alias 三模块）</li>
-          <li>OpenUrl 动作集成 URL 别名解析（别名匹配 &gt; scheme 补全 &gt; 原样使用）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-08-03</span>
-        </div>
-        <div class="cl-title">Phase 5 完成：Lua 脚本集成</div>
-        <ul class="cl-list">
-          <li>mlua 引擎从 Lua 5.4 切换到 LuaJIT（vendored 源码编译）</li>
-          <li>严格沙箱（默认禁用 os.execute/io.popen/loadfile/require）+ 可选宽松沙箱（settings 持久化）</li>
-          <li>变量系统：Arc&lt;RwLock&lt;HashMap&gt;&gt; 实现 Lua 与 ExecutionContext 变量读写（局部/全局）</li>
-          <li>exero 安全库注入：log / notify / get_var / set_var / set_result</li>
-          <li>128MB 内存限制 + 指令计数 hook 超时检测（默认 10 秒）</li>
-          <li>V006 迁移：lua_scripts 表持久化已安装脚本元数据 + SHA256 内容哈希</li>
-          <li>Lua 脚本市场：GitHub Contents API 主源 + ghproxy 镜像后备 + 离线模式</li>
-          <li>6 个 Tauri 命令（list_installed/get_detail/list_market/install/uninstall/update）</li>
-          <li>动态参数表单：根据 manifest params_schema 生成 string/number/boolean/select</li>
-          <li>3 个示例脚本：hello-world / counter / system-info</li>
-          <li>P0 修复：WASAPI IAudioEndpointVolume 替代 waveOutSetVolume（音量+静音同步）</li>
-          <li>P0 修复：NotificationToast 应用内通知监听组件（右下角卡片 + 4 级颜色）</li>
-          <li>P0 修复：execution_logs 主键冲突（update_log 替代重复 insert）</li>
-          <li>P1 增强：URL scheme 自动补全（baidu.com -&gt; https://baidu.com）</li>
-          <li>P1 增强：模拟按键弹窗捕捉模式（KeyCaptureOverlay 按键组合识别）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-08-02</span>
-        </div>
-        <div class="cl-title">Phase 4 完成：可视化编辑器 + 性能优化页</div>
-        <ul class="cl-list">
-          <li>V005 迁移：actions 表加 position_x/position_y 字段</li>
-          <li>React Flow 三栏编辑器（节点库 / 画布 / 属性面板）</li>
-          <li>6 类 20 种 ActionType 全量节点 + 20 种属性表单</li>
-          <li>控制流多端口：IfElse（then/else）、Loop（body）</li>
-          <li>性能优化页：CPU/内存监控 + 进程列表 + 一键优化</li>
-          <li>sysinfo crate + Windows API（SetPriorityClass/TerminateProcess）</li>
-          <li>首页 SystemStatus 改为真实硬件数据（2 秒轮询）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-07-22</span>
-        </div>
-        <div class="cl-title">Phase 3 完成：时间轴页面</div>
-        <ul class="cl-list">
-          <li>V003/V004 迁移：4 张新表 + 示例学期与课表数据</li>
-          <li>models/semester.rs + models/course.rs + commands/courses.rs（18 命令）</li>
-          <li>时间轴三视图（日 / 周 / 月）+ 格点/自由双模式</li>
-          <li>@dnd-kit 拖拽编辑（Pointer + Touch + Keyboard 三传感器）</li>
-          <li>长按 500ms 操作菜单（编辑/复制/临时取消/临时调整/删除）</li>
-          <li>临时调课（cancel/move）+ 学期制多周课表（all/odd/even）</li>
-          <li>5 个新 shadcn/ui 组件（dialog/input/label/textarea/select）</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-07-22</span>
-        </div>
-        <div class="cl-title">Phase 2 完成：UI 骨架 + 首页 Dashboard</div>
-        <ul class="cl-list">
-          <li>前端骨架（Vite + React 18 + TypeScript + pnpm）</li>
-          <li>Tailwind v3 + shadcn/ui 配置（Win11 Fluent Design，8 色主题色板）</li>
-          <li>侧边栏布局（D Logo + 5 项导航 + 可折叠，触控目标 ≥ 48px）</li>
-          <li>5 页面骨架（首页 / 时间轴 / 快捷指令 / 性能优化 / 设置）</li>
-          <li>首页 Dashboard 4 模块（今日任务 / 最近记录 / 系统状态占位 / 快捷动作）</li>
-          <li>Zustand 状态管理 + Tauri 命令完整 TypeScript 封装</li>
-          <li>修复 Phase 1 遗留 bug：tokio::spawn 在 Tauri setup 中 panic</li>
-        </ul>
-      </div>
-      <div class="cl-item">
-        <div class="cl-header">
-          <span class="cl-version pending">0.4.0-Alpha1</span>
-          <span class="cl-date">2026-07-21</span>
-        </div>
-        <div class="cl-title">Phase 1 完成：核心调度 + 动作执行骨架</div>
-        <ul class="cl-list">
-          <li>Tauri v2 + Rust 后端项目初始化</li>
-          <li>数据库层（rusqlite + refinery，5 张核心表 + 默认设置种子）</li>
-          <li>20+ 种动作执行器（应用/媒体/系统/通知/控制流/Lua）</li>
-          <li>触发器调度器（Cron / 系统事件 / 手动三类）</li>
-          <li>动作链执行引擎 ChainEngine（顺序/分支/循环/容错）</li>
-          <li>Tauri 命令暴露（完整 CRUD）· 15 个 unit tests 通过</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta">
-  <div class="container">
-    <h2 class="cta-title reveal">开始探索</h2>
-    <p class="cta-desc reveal">源代码完全开源，欢迎 Star、Issue、PR。完整设计文档请见 SPEC.md。</p>
-    <div class="cta-actions reveal">
-      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="btn btn-accent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.8-1.6 8.2-6.1 8.2-11.4C24 5.9 18.6.5 12 .5z"/></svg>
-        GitHub 仓库
-      </a>
-      <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener" class="btn btn-outline">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        设计文档
+      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="btn-ghost">
+        <i class="fa-brands fa-github"></i>
+        <span>查看源码</span>
+        <i class="fa-solid fa-arrow-up-right-from-square btn-ext"></i>
       </a>
     </div>
   </div>
 </section>
 
-<!-- Footer -->
+<!-- Dashboard intro + window -->
+<section class="section section-demo" id="dashboard" style="padding-top:20px">
+  <div class="reveal">
+    <div class="demo-eyebrow">首页 Dashboard</div>
+    <h2 class="demo-title">一目了然的<br>自动化面板</h2>
+    <p class="demo-desc">系统状态实时监控、今日任务预览、快捷动作一键执行、最近执行记录回溯。所有关键信息，一屏呈现。</p>
+    <div class="demo-points">
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>CPU / 内存实时监控，三色阈值预警</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>已启用指令一目了然</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>快捷动作面板，一键触发</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>执行记录回溯，成功失败清晰可见</div>
+    </div>
+  </div>
+  <div class="app-window reveal" style="margin-top:40px">
+    <div class="app-titlebar">
+      <div class="app-tb-left"><div class="app-tb-logo">E</div><span class="app-tb-name">Exero</span><span class="app-tb-sub">首页</span></div>
+      <div class="app-tb-btns"><div class="tb-btn"></div><div class="tb-btn"></div><div class="tb-btn"></div></div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="sb-logo">E</div>
+        <div class="sb-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6"/></svg></div>
+      </div>
+      <div class="app-main">
+        <div class="app-header">
+          <div class="app-h-left">
+            <div class="app-h-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+            <span class="app-h-title">首页 Dashboard</span>
+            <span class="app-h-sub">2026年8月9日 星期六</span>
+          </div>
+          <div class="app-h-right"><div class="dash-live">实时</div></div>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <div class="dash-card-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="dash-card-title">今日任务预览</span><span class="dash-card-desc">已启用</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden">
+              <div class="task-item"><div class="task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="task-name">放学自动关机</span><span class="task-badge">已启用</span></div>
+              <div class="task-item"><div class="task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="task-name">上课静音</span><span class="task-badge">已启用</span></div>
+              <div class="task-item"><div class="task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="task-name">USB 插入备份</span><span class="task-badge">已启用</span></div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-card-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span class="dash-card-title">系统状态</span><div class="dash-live">实时</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div class="sys-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/></svg><span class="sys-label">CPU</span><span class="sys-val" id="cpuVal">--</span></div>
+              <div class="sys-bar"><div class="sys-fill" id="cpuBar"></div></div>
+              <div class="sys-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/></svg><span class="sys-label">内存</span><span class="sys-val" id="memVal">--</span></div>
+              <div class="sys-bar"><div class="sys-fill" id="memBar"></div></div>
+              <div class="sys-info">Intel Core i7 · 8 核心</div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-card-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span class="dash-card-title">快捷动作</span><span class="dash-card-desc">一键运行</span>
+            </div>
+            <div class="qa-grid">
+              <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>放学关机</span></div>
+              <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>上课静音</span></div>
+              <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>USB备份</span></div>
+              <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>启动环境</span></div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-card-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+              <span class="dash-card-title">最近执行记录</span><span class="dash-card-desc">最近 5 条</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden">
+              <div class="log-item"><div class="log-status success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><span class="log-name">放学自动关机</span><span class="log-time">14:30:22</span></div>
+              <div class="log-item"><div class="log-status success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><span class="log-name">上课静音</span><span class="log-time">13:45:10</span></div>
+              <div class="log-item"><div class="log-status fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><span class="log-name">USB 插入备份</span><span class="log-time">12:20:05</span></div>
+              <div class="log-item"><div class="log-status success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><span class="log-name">启动工作环境</span><span class="log-time">09:00:15</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Demo 2: 快捷指令编辑器 -->
+<section class="section section-demo" id="editor">
+  <div class="reveal">
+    <div class="demo-eyebrow">快捷指令 · 可视化编辑器</div>
+    <h2 class="demo-title">拖拽积木<br>组合你的自动化</h2>
+    <p class="demo-desc">无需写代码。从节点库拖入触发器、动作、控制块，连线即可组合完整工作流。所见即所得。</p>
+    <div class="demo-points">
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>6 大类 20 种节点，覆盖常见场景</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>实时属性编辑，摘要即时更新</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>一键执行，自动保存启用</div>
+    </div>
+  </div>
+  <div class="app-window reveal" style="margin-top:40px;position:relative">
+    <div class="app-titlebar">
+      <div class="app-tb-left"><div class="app-tb-logo">E</div><span class="app-tb-name">Exero</span><span class="app-tb-sub">快捷指令</span></div>
+      <div class="app-tb-btns"><div class="tb-btn"></div><div class="tb-btn"></div><div class="tb-btn"></div></div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="sb-logo">E</div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <div class="sb-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/></svg></div>
+      </div>
+      <div class="app-main">
+        <div class="app-header">
+          <div class="app-h-left">
+            <div class="app-h-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <span class="app-h-title">快捷指令</span>
+            <span class="app-h-sub" id="editorStateLabel">指令列表</span>
+          </div>
+          <div class="app-h-right" id="editorHeaderRight"><div class="dash-live">就绪</div></div>
+        </div>
+        <div class="app-main-body" id="editorStage" style="flex:1;display:flex;flex-direction:column;min-height:0;position:relative"></div>
+      </div>
+    </div>
+    <div class="demo-cursor" id="demoCursor"><svg viewBox="0 0 24 24" fill="white" stroke="rgba(0,0,0,0.35)" stroke-width="1.2" stroke-linejoin="round"><path d="M5 3l14 9-7 2-2 7z"/></svg></div>
+  </div>
+</section>
+
+<!-- Demo 3: 扩展市场 -->
+<section class="section section-demo" id="market">
+  <div class="reveal">
+    <div class="demo-eyebrow">扩展市场</div>
+    <h2 class="demo-title">社区扩展<br>无限可能</h2>
+    <p class="demo-desc">浏览动作包与 Lua 脚本，一键安装。让 Exero 的能力随社区成长。</p>
+    <div class="demo-points">
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>动作包 + Lua 脚本两种类型</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>GitHub 源 + 镜像加速 + 离线兜底</div>
+      <div class="demo-point"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>一键安装 / 更新 / 卸载</div>
+    </div>
+  </div>
+  <div class="app-window reveal" style="margin-top:40px">
+    <div class="app-titlebar">
+      <div class="app-tb-left"><div class="app-tb-logo">E</div><span class="app-tb-name">Exero</span><span class="app-tb-sub">扩展市场</span></div>
+      <div class="app-tb-btns"><div class="tb-btn"></div><div class="tb-btn"></div><div class="tb-btn"></div></div>
+    </div>
+    <div class="app-body">
+      <div class="app-sidebar">
+        <div class="sb-logo">E</div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="sb-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/></svg></div>
+      </div>
+      <div class="app-main">
+        <div class="app-header">
+          <div class="app-h-left">
+            <div class="app-h-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/></svg></div>
+            <span class="app-h-title">扩展市场</span>
+            <span class="app-h-sub">共 7 个扩展</span>
+          </div>
+          <div class="app-h-right"><div class="dash-live">实时</div></div>
+        </div>
+        <div class="market-grid" id="marketGrid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 特性网格 + FAQ + Footer -->
+<section class="section section-demo" id="features">
+  <div class="reveal">
+    <div class="demo-eyebrow">核心特性</div>
+    <h2 class="demo-title">为效率而生</h2>
+    <p class="demo-desc">Exero 把 Windows 自动化的复杂度降到最低，让你专注在想做的事上。</p>
+  </div>
+  <div class="feature-grid reveal" style="margin-top:32px">
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-cubes"></i></div><div class="feature-title">可视化积木</div><div class="feature-desc">拖拽连线组合工作流，无需写一行代码。6 大类 20 种节点覆盖常见场景。</div></div>
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-bolt"></i></div><div class="feature-title">实时监控</div><div class="feature-desc">CPU / 内存三色阈值预警，已启用任务、执行记录一屏掌握。</div></div>
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-puzzle-piece"></i></div><div class="feature-title">扩展市场</div><div class="feature-desc">社区动作包与 Lua 脚本，一键安装。GitHub 源 + 镜像加速 + 离线兜底。</div></div>
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-bell"></i></div><div class="feature-title">自动更新</div><div class="feature-desc">区分强制与推荐更新，开箱即用，始终用上最新版本。</div></div>
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-moon"></i></div><div class="feature-title">静默自启</div><div class="feature-desc">开机自启并隐藏到托盘，需要时才出现，不打扰你的工作流。</div></div>
+    <div class="feature-card"><div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div><div class="feature-title">本地优先</div><div class="feature-desc">Tauri v2 + Rust 后端，数据存 SQLite，WAL 模式，全离线可用。</div></div>
+  </div>
+</section>
+
+<section class="section" style="padding:60px 24px 20px">
+  <div class="reveal">
+    <div class="demo-eyebrow">常见问题</div>
+    <h2 class="demo-title">FAQ</h2>
+  </div>
+  <div class="reveal faq-list" style="margin-top:24px">
+    <div class="faq-item"><div class="faq-q"><span class="faq-num">01</span><span class="faq-q-text">Exero 是免费的吗？</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="faq-a"><div class="faq-a-inner">是，Exero 完全开源免费，代码托管在 GitHub，欢迎 Star 与贡献。</div></div></div>
+    <div class="faq-item"><div class="faq-q"><span class="faq-num">02</span><span class="faq-q-text">支持哪些 Windows 版本？</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="faq-a"><div class="faq-a-inner">Windows 10 及以上（x64），基于 Tauri v2 构建，体积小、资源占用低。</div></div></div>
+    <div class="faq-item"><div class="faq-q"><span class="faq-num">03</span><span class="faq-q-text">需要联网吗？</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="faq-a"><div class="faq-a-inner">核心功能完全离线可用。仅扩展市场下载与自动更新需要联网，且支持镜像加速与离线兜底。</div></div></div>
+    <div class="faq-item"><div class="faq-q"><span class="faq-num">04</span><span class="faq-q-text">数据存在哪里？会被上传吗？</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="faq-a"><div class="faq-a-inner">全部存储在本地 SQLite 数据库，启用 WAL 模式，不会上传任何数据。</div></div></div>
+    <div class="faq-item"><div class="faq-q"><span class="faq-num">05</span><span class="faq-q-text">不会写代码也能用吗？</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="faq-a"><div class="faq-a-inner">可以。可视化编辑器拖拽积木连线即可组合工作流，无需写一行代码。Lua 脚本面向进阶用户，非必需。</div></div></div>
+  </div>
+
+  <!-- FAQ 下方下载区 -->
+  <div class="reveal download-cta">
+    <div class="dc-eyebrow">准备好开始了吗</div>
+    <div class="dc-title">立即下载 Exero</div>
+    <div class="dc-desc">Windows 10 及以上 · 约 8MB · 开源免费</div>
+    <div class="dc-actions">
+      <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener" class="dc-btn-primary">
+        <i class="fa-solid fa-arrow-down-to-line"></i>
+        <span>下载 Windows</span>
+        <span class="dc-meta">Beta4</span>
+      </a>
+      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="dc-btn-ghost">
+        <i class="fa-brands fa-github"></i>
+        <span>查看源码</span>
+      </a>
+      <a href="https://github.com/ansoukin/Exero/issues" target="_blank" rel="noopener" class="dc-btn-ghost">
+        <i class="fa-solid fa-comment-dots"></i>
+        <span>问题反馈</span>
+      </a>
+    </div>
+  </div>
+</section>
+
 <footer class="footer">
-  <div class="container">
-    <div class="hitokoto" id="hitokoto">
-      <div class="hitokoto-divider"></div>
-      <div class="hitokoto-text" id="hitokotoText">载入中…</div>
-      <div class="hitokoto-from" id="hitokotoFrom">—— Hitokoto</div>
-    </div>
-    <div class="footer-inner">
-      <div class="footer-brand">
-        <div class="footer-logo">D</div>
-        <div>
-          <div class="footer-name">Exero</div>
-          <div class="footer-sub">个人自动化助手 · MIT License</div>
-        </div>
-      </div>
-      <div class="footer-links">
-        <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/ansoukin/Exero/blob/main/docs/SPEC.md" target="_blank" rel="noopener">SPEC.md</a>
-        <a href="https://github.com/ansoukin/Exero/blob/main/README.md" target="_blank" rel="noopener">README</a>
-        <a href="https://developer.hitokoto.cn/" target="_blank" rel="noopener">Hitokoto</a>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>Built with Tauri v2 · Rust · React</p>
-      <p style="margin-top:4px;">© 2026 Exero. All rights reserved.</p>
+  <div class="footer-inner">
+    <div class="footer-brand"><div class="nav-logo">E</div><span>Exero · 让自动化像搭积木一样简单</span></div>
+    <div class="footer-links">
+      <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener">下载</a>
+      <a href="https://github.com/ansoukin/Exero/issues" target="_blank" rel="noopener">反馈</a>
     </div>
   </div>
 </footer>
 
 <script>
-// ===== Theme =====
-function toggleTheme() {
-  const html = document.documentElement;
-  html.classList.toggle('dark');
-  localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
-  if (window.Prism) Prism.highlightAll();
+function toggleTheme(){const h=document.documentElement;h.classList.toggle('dark');localStorage.setItem('theme',h.classList.contains('dark')?'dark':'light')}
+(function(){const s=localStorage.getItem('theme');const d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s==='light'||(!s&&!d))document.documentElement.classList.remove('dark')})();
+const revealObs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')})},{threshold:.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(x=>revealObs.observe(x));
+let dashAnimId=null;
+function animateDash(){
+  const cv=document.getElementById('cpuVal'),cb=document.getElementById('cpuBar');
+  const mv=document.getElementById('memVal'),mb=document.getElementById('memBar');
+  if(!cv)return;
+  const cpu=Math.round(15+Math.random()*55),mem=Math.round(35+Math.random()*40);
+  const cc=cpu<50?'#34c759':cpu<80?'#ff9500':'#ff3b30',mc=mem<50?'#34c759':mem<80?'#ff9500':'#ff3b30';
+  cv.textContent=cpu+'%';cv.style.color=cc;cb.style.width=cpu+'%';cb.style.background=cc;
+  mv.textContent=mem+'%';mv.style.color=mc;mb.style.width=mem+'%';mb.style.background=mc;
 }
-(function init() {
-  const saved = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  if (saved === 'light' || (!saved && !prefersDark)) {
-    document.documentElement.classList.remove('dark');
+const dashObs=new IntersectionObserver(e=>{
+  if(e[0].isIntersecting){if(!dashAnimId){animateDash();dashAnimId=setInterval(animateDash,2000)}}
+  else{if(dashAnimId){clearInterval(dashAnimId);dashAnimId=null}}
+},{threshold:.2});
+const dashSection=document.getElementById('dashboard');
+if(dashSection)dashObs.observe(dashSection);
+
+// Hero background: cursor drags nodes and connects them
+(function(){
+  const heroBg=document.querySelector('.hero-bg');
+  const cursor=document.getElementById('bgCursor');
+  const svg=document.getElementById('heroSvg');
+  if(!heroBg||!cursor||!svg)return;
+  const nodes=[0,1,2,3,4].map(i=>document.getElementById('bgNode'+i));
+  // nodes[0] = Cron 触发器，固定为起点
+  // nodes[1-4] = 其余积木，在各自区域内随机
+  // 中心安全区 x:28-72% y:32-68% 留给标题/诗句/按钮
+
+  // 5 种布局模式，每次循环随机切换，避免"C 形"死板感
+  // 中心安全区 x:22-78% y:28-74% 留给标题/诗句/按钮，积木分布在外围
+  const LAYOUTS=['bottomRow','topRow','leftCol','rightCol','scatter'];
+  let running=false;
+
+  function getNodeCenter(node){
+    const r=node.getBoundingClientRect();
+    const bg=heroBg.getBoundingClientRect();
+    return{x:r.left+r.width/2-bg.left, y:r.top+r.height/2-bg.top};
   }
-})();
-
-// ===== Typewriter =====
-const phrases = ['放学自动关机','上课一键静音','USB 插入自动备份','定时清理临时文件','一键启动工作环境','进程监控与优化'];
-let pi = 0, ci = 0, del = false;
-const tw = document.getElementById('typewriter');
-function type() {
-  const cur = phrases[pi];
-  if (del) {
-    tw.textContent = cur.substring(0, ci - 1); ci--;
-    if (ci === 0) { del = false; pi = (pi + 1) % phrases.length; setTimeout(type, 500); return; }
-    setTimeout(type, 40);
-  } else {
-    tw.textContent = cur.substring(0, ci + 1); ci++;
-    if (ci === cur.length) { del = true; setTimeout(type, 2000); return; }
-    setTimeout(type, 100);
+  function toSvg(x,y){
+    // SVG 无 viewBox，使用原生像素坐标系，坐标与鼠标像素 1:1 对应
+    return{x:x, y:y};
   }
-}
-type();
-
-// ===== FAQ =====
-function toggleFaq(el) {
-  const item = el.parentElement;
-  const isActive = item.classList.contains('active');
-  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-  if (!isActive) item.classList.add('active');
-}
-
-// ===== Scroll Reveal =====
-const ro = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) e.target.classList.add('visible');
-  });
-}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
-
-// ===== Progress Bar =====
-const pb = document.getElementById('progressBar');
-window.addEventListener('scroll', () => {
-  const h = document.documentElement.scrollHeight - window.innerHeight;
-  pb.style.width = h > 0 ? (window.scrollY / h * 100) + '%' : '0%';
-});
-
-// ===== Card Glow (Win11 Reveal) =====
-function cardGlow(e, card) {
-  const rect = card.getBoundingClientRect();
-  card.style.setProperty('--mx', (e.clientX - rect.left) + 'px');
-  card.style.setProperty('--my', (e.clientY - rect.top) + 'px');
-}
-
-// ===== Action Carousel (3-Phase Showcase) =====
-const acData = [
-  { type:'LaunchProgram', icon:'🚀', color:'#FFC131', tint:'rgba(255,193,49,0.12)', cat:'应用', desc:'启动指定程序，支持参数、工作目录、提权与等待退出' },
-  { type:'KillProcess', icon:'❌', color:'#CE422B', tint:'rgba(206,66,43,0.12)', cat:'应用', desc:'按名称或 PID 结束进程，支持模糊匹配与强制终止' },
-  { type:'OpenUrl', icon:'🌐', color:'#0078D4', tint:'rgba(0,120,212,0.12)', cat:'应用', desc:'在默认浏览器中打开网址，支持指定浏览器' },
-  { type:'OpenFile', icon:'📁', color:'#22c55e', tint:'rgba(34,197,94,0.12)', cat:'应用', desc:'用关联程序打开文件，或显示打开方式对话框' },
-  { type:'SetVolume', icon:'🔊', color:'#a855f7', tint:'rgba(168,85,247,0.12)', cat:'媒体', desc:'设置系统主音量（0-100），或静音/取消静音' },
-  { type:'PlaySound', icon:'🔔', color:'#ec4899', tint:'rgba(236,72,153,0.12)', cat:'媒体', desc:'播放本地音频文件或系统提示音，可循环' },
-  { type:'SimulateKey', icon:'⌨️', color:'#06b6d4', tint:'rgba(6,182,212,0.12)', cat:'媒体', desc:'模拟键盘按键，支持组合键与按键序列' },
-  { type:'Shutdown', icon:'⏻', color:'#CE422B', tint:'rgba(206,66,43,0.12)', cat:'系统', desc:'关闭计算机，支持延迟与强制关闭应用程序' },
-  { type:'Reboot', icon:'🔄', color:'#FFC131', tint:'rgba(255,193,49,0.12)', cat:'系统', desc:'重启计算机，支持延迟与强制重启' },
-  { type:'LockScreen', icon:'🔒', color:'#0078D4', tint:'rgba(0,120,212,0.12)', cat:'系统', desc:'锁定屏幕，立即生效' },
-  { type:'Hibernate', icon:'💤', color:'#6366f1', tint:'rgba(99,102,241,0.12)', cat:'系统', desc:'使计算机进入休眠状态，保留内存到硬盘' },
-  { type:'Logoff', icon:'👋', color:'#0ea5e9', tint:'rgba(14,165,233,0.12)', cat:'系统', desc:'注销当前用户' },
-  { type:'CleanTempFiles', icon:'🧹', color:'#22c55e', tint:'rgba(34,197,94,0.12)', cat:'系统', desc:'清理系统临时文件，释放磁盘空间' },
-  { type:'SwitchPowerPlan', icon:'⚡', color:'#FFC131', tint:'rgba(255,193,49,0.12)', cat:'系统', desc:'切换电源计划（平衡/高性能/节能）' },
-  { type:'ShowToast', icon:'💬', color:'#a855f7', tint:'rgba(168,85,247,0.12)', cat:'通知', desc:'显示 Windows 原生 Toast 通知，支持标题、正文与图标' },
-  { type:'ShowInAppNotification', icon:'📢', color:'#ec4899', tint:'rgba(236,72,153,0.12)', cat:'通知', desc:'显示应用内通知横幅，不打扰系统通知中心' },
-  { type:'IfElse', icon:'🔀', color:'#22c55e', tint:'rgba(34,197,94,0.12)', cat:'控制流', desc:'条件判断，根据变量值选择执行分支' },
-  { type:'Loop', icon:'🔁', color:'#06b6d4', tint:'rgba(6,182,212,0.12)', cat:'控制流', desc:'循环执行子动作，支持计数循环与条件循环' },
-  { type:'SetVariable', icon:'📝', color:'#0078D4', tint:'rgba(0,120,212,0.12)', cat:'控制流', desc:'设置或更新执行上下文中的变量，支持类型推断' },
-  { type:'LuaScript', icon:'📜', color:'#a855f7', tint:'rgba(168,85,247,0.12)', cat:'脚本', desc:'运行 Lua 脚本，严格沙箱隔离，支持自定义系统 API' }
-];
-
-let acIndex = 0;
-let acTimer = null;
-let acUserInteracted = false;
-let acUserInteractTimeout = null;
-let acPhase = 0; // 0=未开始, 1=慢速横切, 2=传送带
-
-function buildActionCard(item, idx, phaseClass = '') {
-  const card = document.createElement('div');
-  card.className = 'action-card ' + phaseClass;
-  card.style.setProperty('--card-tint', item.tint);
-  card.style.setProperty('--card-color', item.color);
-  const num = String((idx ?? 0) + 1).padStart(2, '0');
-  card.innerHTML = `
-    <div class="action-card-watermark">${num}</div>
-    <div class="action-card-corner">ACTION ${num} / 20</div>
-    <div class="action-card-header">
-      <div class="action-card-icon">${item.icon}</div>
-      <div class="action-card-meta">
-        <div class="action-card-type">${item.cat} · ${item.type}</div>
-        <div class="action-card-name">${item.type}</div>
-      </div>
-    </div>
-    <div class="action-card-desc">${item.desc}</div>
-  `;
-  return card;
-}
-
-function buildMiniCard(item, idx) {
-  const card = document.createElement('div');
-  card.className = 'mini-card';
-  card.style.setProperty('--mini-color', item.color);
-  card.style.setProperty('--mini-tint', item.tint);
-  const num = String(idx + 1).padStart(2, '0');
-  card.innerHTML = `
-    <div class="mini-card-header">
-      <div class="mini-card-icon">${item.icon}</div>
-      <span class="mini-card-num">${num}</span>
-    </div>
-    <div class="mini-card-name">${item.type}</div>
-    <div class="mini-card-desc">${item.desc}</div>
-  `;
-  return card;
-}
-
-function buildDots() {
-  const dots = document.getElementById('actionsDots');
-  dots.innerHTML = '';
-  acData.forEach((_, i) => {
-    const dot = document.createElement('div');
-    dot.className = 'actions-dot';
-    dot.onclick = () => { if (acPhase === 2) acGoto(i); };
-    dots.appendChild(dot);
-  });
-  document.getElementById('acTotal').textContent = String(acData.length).padStart(2, '0');
-}
-
-function updateCounter(idx) {
-  const el = document.getElementById('acCurrent');
-  el.textContent = String(idx + 1).padStart(2, '0');
-  el.classList.remove('flip');
-  void el.offsetWidth;
-  el.classList.add('flip');
-}
-
-function updateDots(idx) {
-  document.querySelectorAll('.actions-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === idx);
-    d.classList.toggle('done', acPhase > 1 || (acPhase === 1 && i < idx));
-  });
-}
-
-function setPhase(n) {
-  acPhase = n;
-  document.querySelectorAll('.actions-phase-item').forEach(el => {
-    const p = parseInt(el.dataset.phase);
-    el.classList.toggle('active', p === n);
-    el.classList.toggle('done', p < n);
-  });
-}
-
-function clearTrack() {
-  const track = document.getElementById('actionsTrack');
-  const current = track.querySelector('.action-card');
-  if (current) current.remove();
-}
-
-async function transitionTo(card, inAnim, outAnim, inDuration, outDuration) {
-  const track = document.getElementById('actionsTrack');
-  const current = track.querySelector('.action-card');
-  if (current) {
-    current.classList.remove('active');
-    if (outAnim) {
-      current.classList.add(outAnim);
-      await new Promise(r => setTimeout(r, outDuration));
-    }
-    current.remove();
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+  function getNodeColor(node){
+    return (node.style.getPropertyValue('--node-c')||'#2b9dff').trim();
   }
-  if (card) {
-    if (inAnim) card.classList.add(inAnim);
-    card.classList.add('active');
-    track.appendChild(card);
-    if (inAnim) {
-      await new Promise(r => setTimeout(r, inDuration));
-      card.classList.remove(inAnim);
-    }
+  function rand(min,max){return min+Math.random()*(max-min)}
+
+  function moveCursor(x,y){
+    cursor.style.left=x+'px';
+    cursor.style.top=y+'px';
   }
-}
-
-async function runPhase1() {
-  // Stage 1: 慢速横切 - 400ms / 张
-  setPhase(1);
-
-  for (let i = 0; i < acData.length; i++) {
-    const card = buildActionCard(acData[i], i, 'phase-slow');
-    await transitionTo(card, 'slow-in', 'slow-out', 350, 350);
-    updateCounter(i);
-    updateDots(i);
-    await new Promise(r => setTimeout(r, 50));
-  }
-  await new Promise(r => setTimeout(r, 300));
-}
-
-async function runPhase2() {
-  // Stage 2: 传送带式无限滚动
-  setPhase(2);
-
-  // 清空舞台
-  const track = document.getElementById('actionsTrack');
-  const current = track.querySelector('.action-card');
-  if (current) {
-    current.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    current.style.opacity = '0';
-    current.style.transform = 'scale(0.9)';
-    await new Promise(r => setTimeout(r, 400));
-    current.remove();
-  }
-
-  // 隐藏阶段指示器和计数器
-  document.getElementById('actionsPhase').style.opacity = '0';
-  document.getElementById('actionsDots').style.opacity = '0';
-  document.getElementById('actionsCtrl').style.display = 'none';
-  document.getElementById('actionsStage').style.height = '0';
-  document.getElementById('actionsStage').style.margin = '0';
-
-  // 显示最终展示区
-  const finalEl = document.getElementById('actionsFinal');
-  const conveyorTrack = document.getElementById('actionsFinalTrack');
-  conveyorTrack.innerHTML = '';
-
-  // 复制两份卡片实现无缝循环
-  for (let dup = 0; dup < 2; dup++) {
-    acData.forEach((item, i) => {
-      const mini = buildMiniCard(item, i);
-      mini.style.opacity = '0';
-      mini.style.transform = 'translateY(20px)';
-      conveyorTrack.appendChild(mini);
-    });
-  }
-
-  finalEl.classList.add('visible');
-
-  // 级联淡入第一批
-  const firstBatch = Array.from(conveyorTrack.children).slice(0, acData.length);
-  firstBatch.forEach((mini, i) => {
-    setTimeout(() => {
-      mini.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-      mini.style.opacity = '1';
-      mini.style.transform = 'translateY(0)';
-    }, i * 40);
-  });
-  // 第二批直接显示
-  const secondBatch = Array.from(conveyorTrack.children).slice(acData.length);
-  setTimeout(() => {
-    secondBatch.forEach(mini => {
-      mini.style.opacity = '1';
-      mini.style.transform = 'translateY(0)';
-    });
-  }, acData.length * 40 + 200);
-
-  await new Promise(r => setTimeout(r, 500));
-
-  acPhase = 4;
-  document.querySelectorAll('.actions-phase-item').forEach(el => {
-    el.classList.remove('active');
-    el.classList.add('done');
-  });
-
-  // 启动滚轮接管逻辑
-  setupConveyorControl();
-}
-
-// 传送带滚轮控制
-let conveyorUserOffset = 0;
-let conveyorAutoStartTime = 0;
-let conveyorAutoPaused = false;
-let conveyorUserControlTimer = null;
-let conveyorIsUserControlling = false;
-
-function setupConveyorControl() {
-  const viewport = document.getElementById('actionsFinalViewport');
-  const track = document.getElementById('actionsFinalTrack');
-  const modeIndicator = document.getElementById('conveyorMode');
-
-  // 计算单组宽度（用于无缝循环重置）
-  const getGroupWidth = () => {
-    if (track.children.length < 2) return 0;
-    const first = track.children[0];
-    const second = track.children[acData.length] || track.children[1];
-    return second.getBoundingClientRect().left - first.getBoundingClientRect().left;
-  };
-
-  // 滚轮接管
-  viewport.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const delta = e.deltaY || e.deltaX;
-
-    if (!conveyorIsUserControlling) {
-      // 从自动切换到用户控制
-      conveyorIsUserControlling = true;
-      track.classList.remove('auto-scroll');
-      track.classList.add('user-control');
-      modeIndicator.textContent = 'MANUAL';
-
-      // 获取当前自动动画的偏移量作为起点
-      const computedStyle = window.getComputedStyle(track);
-      const matrix = new DOMMatrix(computedStyle.transform);
-      conveyorUserOffset = matrix.m41;
-    }
-
-    // 累加偏移（从左向右读，滚轮向下 = 向左移动）
-    conveyorUserOffset -= delta * 1.5;
-    track.style.transform = `translateX(${conveyorUserOffset}px)`;
-
-    // 重置用户控制计时器
-    clearTimeout(conveyorUserControlTimer);
-    conveyorUserControlTimer = setTimeout(() => {
-      // 5秒无操作恢复自动
-      conveyorIsUserControlling = false;
-      track.classList.remove('user-control');
-      track.classList.add('auto-scroll');
-      track.style.transform = '';
-      modeIndicator.textContent = 'AUTO';
-    }, 5000);
-  }, { passive: false });
-}
-
-async function initActionsCarousel() {
-  buildDots();
-  await new Promise(r => setTimeout(r, 300)); // 等待 reveal
-
-  // 等待 actions section 可见时启动
-  const section = document.getElementById('actions');
-  const observer = new IntersectionObserver(async (entries) => {
-    if (entries[0].isIntersecting && acPhase === 0) {
-      observer.disconnect();
-      await runPhase1();
-      await runPhase2();
-    }
-  }, { threshold: 0.3 });
-  observer.observe(section);
-}
-
-// 用户控制（仅在 Phase 2 有效）
-function acNext() {
-  if (acPhase !== 2) return;
-  const scrollEl = document.getElementById('actionsFinalScroll');
-  scrollEl.scrollBy({ left: 220, behavior: 'smooth' });
-}
-
-function acPrev() {
-  if (acPhase !== 2) return;
-  const scrollEl = document.getElementById('actionsFinalScroll');
-  scrollEl.scrollBy({ left: -220, behavior: 'smooth' });
-}
-
-function acGoto(idx) {
-  if (acPhase !== 2) return;
-  const scrollEl = document.getElementById('actionsFinalScroll');
-  const target = scrollEl.children[idx];
-  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-}
-
-// 延迟初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initActionsCarousel);
-} else {
-  initActionsCarousel();
-}
-
-// ===== Lua Demo =====
-const scenarios = [
-  {
-    f: 'backup.lua',
-    code: `-- USB 插入自动备份
--- 严格沙箱：禁用危险 API
-
-local backup_dir = "D:\\" .. os.date("%Y%m%d")
-os.mkdir(backup_dir)
-
-local files = {
-  "C:\\Users\\me\\Documents\\重要文档",
-  "C:\\Users\\me\\Desktop\\笔记"
-}
-
-local count = 0
-for _, src in ipairs(files) do
-  local name = string.match(src, "([^\\]+)$")
-  local dst = backup_dir .. "\\" .. name
-  if os.copy(src, dst) then
-    count = count + 1
-    log.info("已备份: " .. name)
-  end
-end
-
-toast:show("备份完成 · " .. count .. " 个文件")
-return { success = true, count = count }`,
-    lines: [
-      {c:'info',t:'[INFO] 加载脚本: backup.lua'},
-      {c:'info',t:'[INFO] 沙箱模式: strict · 超时: 10000ms'},
-      {c:'',t:''},
-      {c:'info',t:'[INFO] 已备份: 重要文档'},
-      {c:'info',t:'[INFO] 已备份: 笔记'},
-      {c:'success',t:'[INFO] 脚本执行完成 · 耗时 847ms'},
-      {c:'',t:''},
-      {c:'ret',t:'return { success = true, count = 2 }'}
-    ]
-  },
-  {
-    f: 'dangerous.lua',
-    code: `-- ⚠ 尝试调用危险 API
--- 沙箱模式会拒绝执行
-
-os.execute("del /f /s /q C:\\*")
-local f = io.popen("type C:\\Windows\\System32\\config\\SAM")
-local content = f:read("*a")
-f:close()
-
-toast:show("备份完成")
-return { success = true }`,
-    lines: [
-      {c:'info',t:'[INFO] 加载脚本: dangerous.lua'},
-      {c:'info',t:'[INFO] 沙箱模式: strict · 扫描中...'},
-      {c:'',t:''},
-      {c:'error',t:'[ERROR] 危险 API 被拦截: os.execute'},
-      {c:'error',t:'[ERROR] 危险 API 被拦截: io.popen'},
-      {c:'',t:''},
-      {c:'error',t:'[EXIT] code = 1 (sandbox_violation)'},
-      {c:'',t:''},
-      {c:'warn',t:'[WARN] 脚本已终止，未执行任何操作'}
-    ]
-  },
-  {
-    f: 'cleanup.lua',
-    code: `-- 系统清理：定时清理临时文件
--- 每天凌晨 3 点执行
-
-local targets = {
-  os.getenv("TEMP"),
-  "C:\\Windows\\Temp",
-  "C:\\Users\\me\\AppData\\Local\\pip\\cache"
-}
-
-local total = 0
-for _, dir in ipairs(targets) do
-  local size = system.get_dir_size(dir)
-  if system.clean_dir(dir) then
-    total = total + size
-    log.info("已清理: " .. dir .. " (" .. size .. " MB)")
-  end
-end
-
-toast:show("清理完成 · 释放 " .. total .. " MB")
-return { cleaned = #targets, size_mb = total }`,
-    lines: [
-      {c:'info',t:'[INFO] 加载脚本: cleanup.lua'},
-      {c:'info',t:'[INFO] 沙箱模式: strict · 超时: 10000ms'},
-      {c:'',t:''},
-      {c:'info',t:'[INFO] 已清理: Temp (456 MB)'},
-      {c:'info',t:'[INFO] 已清理: Windows\\Temp (128 MB)'},
-      {c:'info',t:'[INFO] 已清理: pip\\cache (89 MB)'},
-      {c:'success',t:'[INFO] 脚本执行完成 · 耗时 3210ms'},
-      {c:'',t:''},
-      {c:'ret',t:'return { cleaned = 3, size_mb = 673 }'}
-    ]
-  }
-];
-
-let si = 0, demoRunning = false;
-
-async function runDemo() {
-  if (demoRunning) return;
-  demoRunning = true;
-  while (true) {
-    const s = scenarios[si];
-    const codeEl = document.getElementById('luaCode');
-    const outEl = document.getElementById('luaOutput');
-    document.getElementById('luaFilename').textContent = s.f;
-
-    // Type code
-    codeEl.textContent = '';
-    const start = performance.now();
-    const dur = 1800;
-    await new Promise(resolve => {
-      function step(now) {
-        const p = Math.min(1, (now - start) / dur);
-        const e = p < 0.5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3)/2;
-        codeEl.textContent = s.code.substring(0, Math.floor(e * s.code.length));
-        if (p < 1) requestAnimationFrame(step);
-        else { codeEl.textContent = s.code; resolve(); }
+  function animateCursor(fromX,fromY,toX,toY,dur,onProgress){
+    return new Promise(res=>{
+      const start=performance.now();
+      function step(now){
+        const t=Math.min((now-start)/dur,1);
+        const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+        const x=fromX+(toX-fromX)*e, y=fromY+(toY-fromY)*e;
+        moveCursor(x,y);
+        if(onProgress)onProgress(x,y);
+        if(t<1)requestAnimationFrame(step);else res();
       }
       requestAnimationFrame(step);
     });
-    if (window.Prism) Prism.highlightElement(codeEl);
+  }
 
-    await new Promise(r => setTimeout(r, 500));
+  // 更新触发器时间为系统当前时间
+  function updateTriggerTime(){
+    const now=new Date();
+    const h=String(now.getHours()).padStart(2,'0');
+    const m=String(now.getMinutes()).padStart(2,'0');
+    const label=nodes[0].querySelector('.bg-node-label');
+    if(label) label.textContent=`Cron ${h}:${m}`;
+  }
 
-    // Output lines
-    outEl.innerHTML = '';
-    for (const line of s.lines) {
-      const div = document.createElement('div');
-      div.className = 'lua-line' + (line.c ? ' ' + line.c : '');
-      if (!line.t) { div.style.height = '8px'; div.style.border = 'none'; }
-      else if (line.c === 'ret') { div.classList.add('ret'); div.textContent = line.t; }
-      else {
-        const now = new Date();
-        const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-        div.innerHTML = `<span class="ts">[${ts}]</span><span>${line.t}</span>`;
+  // 根据布局模式计算 count 个积木的位置（百分比，含随机抖动）
+  // 返回 {top, left, right}，right 非 null 时用 right 定位（防右侧积木溢出被裁剪）
+  function computePositions(layout, count){
+    const pos=[];
+    const jitter=(v,amp)=>v+(Math.random()-0.5)*amp;
+    // 小屏幕检测：<1024px 收紧分布范围，避免散布过开
+    const small=window.innerWidth<1024;
+    if(layout==='bottomRow'){
+      const y=small?82:85;
+      const start=small?18:15, end=small?82:85;
+      const step=count>1?(end-start)/(count-1):0;
+      for(let i=0;i<count;i++) pos.push({top:jitter(y,2), left:jitter(count>1?start+step*i:50,3), right:null});
+    }else if(layout==='topRow'){
+      const y=small?9:11;
+      const start=small?18:15, end=small?82:85;
+      const step=count>1?(end-start)/(count-1):0;
+      for(let i=0;i<count;i++) pos.push({top:jitter(y,2), left:jitter(count>1?start+step*i:50,3), right:null});
+    }else if(layout==='leftCol'){
+      const x=small?3:4;
+      const start=small?18:15, end=small?78:82;
+      const step=count>1?(end-start)/(count-1):0;
+      for(let i=0;i<count;i++) pos.push({top:jitter(count>1?start+step*i:48,3), left:jitter(x,1.5), right:null});
+    }else if(layout==='rightCol'){
+      // 右侧用 right 定位，避免 left:94% 导致积木溢出被 section-hero overflow:hidden 裁剪
+      const right=small?3:4;
+      const start=small?18:15, end=small?78:82;
+      const step=count>1?(end-start)/(count-1):0;
+      for(let i=0;i<count;i++) pos.push({top:jitter(count>1?start+step*i:48,3), left:null, right:jitter(right,1.5)});
+    }else{
+      // 散布：4 外围区域轮流分配，范围收紧防过散
+      const zones=['top','bottom','left','right'];
+      const xR=small?[28,72]:[22,78];   // 上下区域 x 范围
+      const yR=small?[32,66]:[28,70];   // 左右区域 y 范围
+      for(let i=0;i<count;i++){
+        const zone=zones[i%4];
+        let top,left,right=null;
+        if(zone==='top'){top=rand(7,15); left=rand(xR[0],xR[1])}
+        else if(zone==='bottom'){top=rand(83,90); left=rand(xR[0],xR[1])}
+        else if(zone==='left'){top=rand(yR[0],yR[1]); left=rand(3,8)}
+        else{top=rand(yR[0],yR[1]); right=rand(3,6); left=null}  // 右侧用 right
+        pos.push({top,left,right});
       }
-      outEl.appendChild(div);
-      requestAnimationFrame(() => div.classList.add('visible'));
-      await new Promise(r => setTimeout(r, 300));
     }
-    await new Promise(r => setTimeout(r, 3000));
-    outEl.innerHTML = '';
-    si = (si + 1) % scenarios.length;
-    await new Promise(r => setTimeout(r, 400));
+    return pos;
   }
-}
 
-const luaObs = new IntersectionObserver((entries) => {
-  entries.forEach(e => { if (e.isIntersecting) runDemo(); });
-}, { threshold: 0.3 });
-const sec = document.getElementById('security');
-if (sec) luaObs.observe(sec);
-
-if (window.Prism) Prism.highlightAll();
-
-// ===== Hitokoto 一言 =====
-async function loadHitokoto() {
-  const textEl = document.getElementById('hitokotoText');
-  const fromEl = document.getElementById('hitokotoFrom');
-  const container = document.getElementById('hitokoto');
-  if (!textEl || !fromEl || !container) return;
-  container.classList.add('loading');
-  try {
-    const res = await fetch('https://v1.hitokoto.cn/?encode=json', { cache: 'no-store' });
-    const data = await res.json();
-    setTimeout(() => {
-      textEl.textContent = data.hitokoto;
-      const fromArr = [];
-      if (data.from_who) fromArr.push(data.from_who);
-      if (data.from) fromArr.push('《' + data.from + '》');
-      fromEl.textContent = fromArr.length ? '—— ' + fromArr.join(' · ') : '—— Hitokoto';
-      container.classList.remove('loading');
-    }, 350);
-  } catch (e) {
-    setTimeout(() => {
-      textEl.textContent = '愿你的代码永远编译通过，永不报错。';
-      fromEl.textContent = '—— Exero';
-      container.classList.remove('loading');
-    }, 350);
+  // 布局：随机选模式，随机积木数量 3-5，触发器固定起点，关机固定终点
+  function layoutNodes(){
+    const small=window.innerWidth<1024;
+    // 小屏幕只用散布+竖排（横排会叠积木），大屏全模式
+    // scatter 权重×3（用户偏好散布）
+    const pool=small?['leftCol','rightCol','scatter','scatter','scatter']:['bottomRow','topRow','leftCol','rightCol','scatter','scatter','scatter'];
+    const layout=pool[Math.floor(Math.random()*pool.length)];
+    let count=3+Math.floor(Math.random()*3); // 3-5
+    // 小屏幕 + 竖排时封顶 4，防间距过窄
+    if(small && (layout==='leftCol'||layout==='rightCol')) count=Math.min(count,4);
+    // 触发器(nodes[0])固定第一，关机(nodes[3])固定最后，中间从 nodes[1,2,4] 打乱选 count-2 个
+    const middles=[1,2,4];
+    for(let i=middles.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [middles[i],middles[j]]=[middles[j],middles[i]];
+    }
+    const selected=[nodes[0]];
+    for(let i=0;i<count-2;i++) selected.push(nodes[middles[i]]);
+    selected.push(nodes[3]); // 关机固定最后
+    // 隐藏未选中的积木
+    [0,1,2,3,4].forEach(i=>{
+      if(!selected.includes(nodes[i])) nodes[i].classList.remove('visible','active');
+    });
+    // 计算并应用位置（right 非 null 时用 right 定位）
+    const positions=computePositions(layout, count);
+    selected.forEach((n,i)=>{
+      const p=positions[i];
+      n.style.top=p.top+'%';
+      if(p.right!=null){
+        n.style.right=p.right+'%';
+        n.style.left='auto';
+      }else{
+        n.style.left=p.left+'%';
+        n.style.right='auto';
+      }
+    });
+    return selected;
   }
-}
-loadHitokoto();
-setInterval(loadHitokoto, 30000);
+
+  // 直线连线：起点实时重算（防 resize 错位），终点实时=鼠标位置
+  // 每条线存 {path, fromNode, toNode, complete}，complete 后 resize 时重绘两端
+  const lines=[];
+  function createLine(fromNode, toNode){
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','hero-bg-line');
+    path.setAttribute('stroke', getNodeColor(toNode));
+    const a=getNodeCenter(fromNode);
+    path.setAttribute('d',`M ${a.x} ${a.y} L ${a.x} ${a.y}`);
+    svg.appendChild(path);
+    requestAnimationFrame(()=>path.classList.add('drawn'));
+    const line={path, fromNode, toNode, complete:false};
+    lines.push(line);
+    return line;
+  }
+  function updateLineEnd(line, curPx, curPy){
+    // 起点每帧重算 fromNode 中心，防 resize 后起点错位
+    const a=getNodeCenter(line.fromNode);
+    const cur=toSvg(curPx,curPy);
+    line.path.setAttribute('d',`M ${a.x} ${a.y} L ${cur.x} ${cur.y}`);
+  }
+  // 连线完成：固定两端=节点中心，标记 complete
+  function finalizeLine(line){
+    const a=getNodeCenter(line.fromNode);
+    const b=getNodeCenter(line.toNode);
+    line.path.setAttribute('d',`M ${a.x} ${a.y} L ${b.x} ${b.y}`);
+    line.complete=true;
+  }
+  // resize 时重绘所有已完成的线（起终点重算）
+  function redrawLines(){
+    lines.forEach(line=>{
+      if(line.complete){
+        const a=getNodeCenter(line.fromNode);
+        const b=getNodeCenter(line.toNode);
+        line.path.setAttribute('d',`M ${a.x} ${a.y} L ${b.x} ${b.y}`);
+      }
+    });
+  }
+  let resizeTimer=null;
+  window.addEventListener('resize',()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(redrawLines,80);
+  });
+
+  async function runHeroAnim(){
+    if(running)return;running=true;
+    // 1. 清场：连线淡出，积木隐藏
+    svg.querySelectorAll('.hero-bg-line').forEach(p=>p.classList.remove('drawn'));
+    nodes.forEach(n=>{n.classList.remove('visible','active')});
+    cursor.classList.remove('visible');
+    await sleep(450);
+    svg.innerHTML='';
+    lines.length=0;
+    await sleep(150);
+
+    // 2. 更新触发器时间为系统时间 + 随机布局
+    updateTriggerTime();
+    const ordered=layoutNodes();
+    await sleep(80);
+
+    // 3. 积木依次弹入（触发器第一个出现，数量随机 3-5）
+    ordered.forEach((n,i)=>setTimeout(()=>n.classList.add('visible'), i*180));
+    await sleep(ordered.length*180+600);
+
+    // 4. 假鼠标入场，移到触发器
+    cursor.classList.add('visible');
+    const bg=heroBg.getBoundingClientRect();
+    const first=getNodeCenter(ordered[0]);
+    await animateCursor(bg.width*0.5, bg.height*0.5, first.x, first.y, 700);
+
+    // 5. 依次连线：激活当前→直线生长到下一个（终点实时跟随鼠标）
+    for(let i=0;i<ordered.length;i++){
+      const node=ordered[i];
+      cursor.classList.add('clicking');
+      node.classList.add('active');
+      await sleep(230);
+      cursor.classList.remove('clicking');
+
+      if(i<ordered.length-1){
+        const nextNode=ordered[i+1];
+        const nextTarget=getNodeCenter(nextNode);
+        const start=getNodeCenter(node);
+        const line=createLine(node, nextNode);
+        await sleep(120);
+        // 拖拽鼠标到下一个积木，连线终点严格=鼠标位置
+        await animateCursor(start.x, start.y, nextTarget.x, nextTarget.y, 950, (x,y)=>updateLineEnd(line, x, y));
+        // 连线完成：固定两端=节点中心
+        finalizeLine(line);
+        cursor.classList.add('clicking');
+        nextNode.classList.add('active');
+        await sleep(220);
+        cursor.classList.remove('clicking');
+        await sleep(300);
+        node.classList.remove('active');
+      }else{
+        await sleep(450);
+        node.classList.remove('active');
+      }
+    }
+
+    // 6. 鼠标离场，停留后循环
+    cursor.classList.remove('visible');
+    await sleep(3200);
+    running=false;
+    runHeroAnim();
+  }
+
+  const heroObs=new IntersectionObserver(e=>{
+    if(e[0].isIntersecting&&!running){heroObs.disconnect();setTimeout(runHeroAnim,500)}
+  },{threshold:.2});
+  heroObs.observe(document.querySelector('.section-hero'));
+})();
+
+/* ===== Demo 2: 快捷指令编辑器自动播放 ===== */
+(function(){
+  const stage=document.getElementById('editorStage');
+  const cursor=document.getElementById('demoCursor');
+  const stateLabel=document.getElementById('editorStateLabel');
+  const headerRight=document.getElementById('editorHeaderRight');
+  if(!stage||!cursor)return;
+  const win=cursor.parentElement;
+  let running=false;
+
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function rect(el){return el.getBoundingClientRect()}
+  function winRect(){return win.getBoundingClientRect()}
+  // 元素相对 app-window 的中心坐标
+  function centerOf(el){
+    const r=rect(el),wr=winRect();
+    return{x:r.left+r.width/2-wr.left, y:r.top+r.height/2-wr.top};
+  }
+  function moveCursor(x,y){cursor.style.left=x+'px';cursor.style.top=y+'px'}
+  function animateMove(fromX,fromY,toX,toY,dur){
+    if(dur<=0){moveCursor(toX,toY);return Promise.resolve()}
+    return new Promise(res=>{
+      const start=performance.now();
+      function step(now){
+        const t=Math.min((now-start)/dur,1);
+        const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+        moveCursor(fromX+(toX-fromX)*e, fromY+(toY-fromY)*e);
+        if(t<1)requestAnimationFrame(step);else res();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+  async function clickAt(el,dur=600){
+    const c=centerOf(el);
+    const sx=parseFloat(cursor.style.left)||c.x, sy=parseFloat(cursor.style.top)||c.y;
+    await animateMove(sx,sy,c.x,c.y,dur);
+    cursor.classList.add('clicking');
+    await sleep(160);
+    cursor.classList.remove('clicking');
+    await sleep(120);
+  }
+
+  // 节点配色（app=blue）
+  const NODE_C='#2b9dff',NODE_BG='rgba(43,157,255,0.14)';
+
+  // 状态1: 列表页
+  function renderList(){
+    stateLabel.textContent='指令列表';
+    headerRight.innerHTML='<div class="dash-live">就绪</div>';
+    stage.innerHTML=`
+      <div class="flow-list">
+        <div class="flow-card"><div class="flow-card-head"><div class="flow-card-icon"><i class="fa-solid fa-power-off"></i></div><span class="flow-card-title">放学自动关机</span></div><div class="flow-card-meta"><span class="flow-card-badge">已启用</span><span>3 节点</span></div></div>
+        <div class="flow-card"><div class="flow-card-head"><div class="flow-card-icon"><i class="fa-solid fa-volume-xmark"></i></div><span class="flow-card-title">上课静音</span></div><div class="flow-card-meta"><span class="flow-card-badge">已启用</span><span>2 节点</span></div></div>
+        <div class="flow-card"><div class="flow-card-head"><div class="flow-card-icon"><i class="fa-solid fa-rotate"></i></div><span class="flow-card-title">USB 插入备份</span></div><div class="flow-card-meta"><span class="flow-card-badge">已启用</span><span>4 节点</span></div></div>
+        <div class="flow-card new" id="newCard"><i class="fa-solid fa-plus"></i><span>新建指令</span></div>
+      </div>`;
+  }
+
+  // 状态2: 编辑器
+  function renderEditor(){
+    stateLabel.textContent='新建指令 · 编辑器';
+    headerRight.innerHTML='';
+    stage.innerHTML=`
+      <div class="editor-toolbar">
+        <div class="tb-left"><i class="fa-solid fa-file-circle-plus"></i><span class="name">未命名指令</span></div>
+        <div class="tb-btn-run" id="runBtn"><i class="fa-solid fa-play"></i>执行</div>
+      </div>
+      <div class="editor-body">
+        <div class="node-palette">
+          <div class="palette-title">应用</div>
+          <div class="palette-item" id="palLaunch"><div class="palette-icon" style="background:rgba(43,157,255,0.14)"><i class="fa-solid fa-window-restore" style="color:#2b9dff"></i></div><span class="palette-name">启动程序</span></div>
+          <div class="palette-item"><div class="palette-icon" style="background:rgba(43,157,255,0.14)"><i class="fa-solid fa-xmark" style="color:#2b9dff"></i></div><span class="palette-name">关闭程序</span></div>
+          <div class="palette-title">媒体</div>
+          <div class="palette-item"><div class="palette-icon" style="background:rgba(168,85,247,0.14)"><i class="fa-solid fa-volume-high" style="color:#a855f7"></i></div><span class="palette-name">设置音量</span></div>
+          <div class="palette-title">系统</div>
+          <div class="palette-item"><div class="palette-icon" style="background:rgba(255,149,0,0.14)"><i class="fa-solid fa-power-off" style="color:#ff9500"></i></div><span class="palette-name">关机</span></div>
+          <div class="palette-title">通知</div>
+          <div class="palette-item"><div class="palette-icon" style="background:rgba(236,72,153,0.14)"><i class="fa-solid fa-bell" style="color:#ec4899"></i></div><span class="palette-name">显示通知</span></div>
+        </div>
+        <div class="canvas" id="canvas"></div>
+        <div class="property-panel collapsed" id="propPanel">
+          <div class="pp-title"><i class="fa-solid fa-sliders"></i>属性</div>
+          <div class="pp-field"><span class="pp-label">节点名称</span><div class="pp-input" id="propName"></div></div>
+          <div class="pp-field"><span class="pp-label">程序路径</span><div class="pp-input" id="propPath"></div></div>
+          <div class="pp-field"><span class="pp-label">参数</span><div class="pp-input" id="propArgs"></div></div>
+        </div>
+      </div>`;
+  }
+
+  // 在画布添加节点
+  function addNode(){
+    const canvas=document.getElementById('canvas');
+    if(!canvas)return null;
+    const node=document.createElement('div');
+    node.className='flow-node';
+    node.id='flowNode';
+    node.style.cssText=`left:50%;top:42%;margin-left:-60px;--node-c:${NODE_C};--node-bg:${NODE_BG}`;
+    node.innerHTML=`
+      <div class="flow-port in"></div>
+      <div class="flow-node-head"><div class="flow-node-icon"><i class="fa-solid fa-window-restore"></i></div><div class="flow-node-title">启动程序</div></div>
+      <div class="flow-node-summary" id="nodeSummary">未配置</div>
+      <div class="flow-port out"></div>`;
+    canvas.appendChild(node);
+    requestAnimationFrame(()=>node.classList.add('visible'));
+    return node;
+  }
+
+  // 打字效果
+  async function typeText(el,text,delay=55){
+    el.innerHTML='';
+    for(let i=0;i<=text.length;i++){
+      el.innerHTML=text.slice(0,i)+(i<text.length?'<span class="caret"></span>':'');
+      await sleep(delay);
+    }
+  }
+
+  // 假记事本
+  function showNotepad(){
+    const fw=document.createElement('div');
+    fw.className='fake-window';
+    fw.id='fakeNotepad';
+    fw.style.cssText='right:18px;top:40px;width:240px';
+    fw.innerHTML=`
+      <div class="fw-titlebar"><div class="tb-btn"></div><div class="tb-btn"></div><div class="tb-btn"></div><span class="fw-name">无标题 - 记事本</span></div>
+      <div class="fw-body"><div class="ln">Exero 自动化启动成功</div><div class="ln">2026-08-09 14:30</div><div class="ln">&nbsp;</div><div class="ln">Hello from Exero!</div></div>`;
+    stage.appendChild(fw);
+    requestAnimationFrame(()=>fw.classList.add('visible'));
+    return fw;
+  }
+
+  async function runEditorAnim(){
+    if(running)return;running=true;
+
+    // 1. 列表页
+    renderList();
+    cursor.classList.remove('visible');
+    await sleep(900);
+    cursor.classList.add('visible');
+    // 移到列表中央
+    const list=stage.querySelector('.flow-list');
+    const lc=centerOf(list);
+    moveCursor(lc.x, lc.y);
+    await sleep(500);
+
+    // 2. 点击"新建指令"
+    const newCard=document.getElementById('newCard');
+    if(newCard){
+      newCard.classList.add('highlight');
+      await clickAt(newCard,650);
+      newCard.classList.remove('highlight');
+    }
+    await sleep(250);
+
+    // 3. 切换到编辑器（空白）
+    renderEditor();
+    cursor.classList.remove('visible');
+    await sleep(600);
+    cursor.classList.add('visible');
+    // 鼠标停在左栏启动程序项
+    const pal=document.getElementById('palLaunch');
+    if(pal){
+      const pc=centerOf(pal);
+      moveCursor(pc.x,pc.y);
+      await sleep(400);
+      // 拖拽态
+      pal.classList.add('dragging');
+      cursor.classList.add('clicking');
+      await sleep(250);
+      // 移到画布中心
+      const canvas=document.getElementById('canvas');
+      const cc=centerOf(canvas);
+      await animateMove(pc.x,pc.y,cc.x,cc.y-10,750);
+      cursor.classList.remove('clicking');
+      pal.classList.remove('dragging');
+      // 节点出现
+      const node=addNode();
+      await sleep(500);
+      // 4. 点击节点 -> 属性面板展开
+      await clickAt(node,550);
+      node.classList.add('active');
+      const panel=document.getElementById('propPanel');
+      panel.classList.remove('collapsed');
+      await sleep(450);
+      // 5. 打字填写属性
+      const nameEl=document.getElementById('propName');
+      const pathEl=document.getElementById('propPath');
+      const argsEl=document.getElementById('propArgs');
+      const summary=document.getElementById('nodeSummary');
+      await typeText(nameEl,'打开记事本',60);
+      await sleep(150);
+      await typeText(pathEl,'notepad.exe',70);
+      summary.textContent='notepad.exe';
+      await sleep(150);
+      await typeText(argsEl,'(空)',60);
+      await sleep(300);
+      node.classList.remove('active');
+      // 6. 点击执行
+      const runBtn=document.getElementById('runBtn');
+      runBtn.classList.add('highlight');
+      await clickAt(runBtn,600);
+      runBtn.classList.remove('highlight');
+      stateLabel.textContent='执行中…';
+      headerRight.innerHTML='<div class="dash-live" style="background:rgba(255,149,0,0.12);color:#ff9500">运行</div>';
+      await sleep(400);
+      // 7. 假记事本弹出
+      showNotepad();
+      stateLabel.textContent='执行成功';
+      headerRight.innerHTML='<div class="dash-live">完成</div>';
+      await sleep(2400);
+    }
+    // 清场循环
+    cursor.classList.remove('visible');
+    await sleep(400);
+    const fw=document.getElementById('fakeNotepad');
+    if(fw){fw.classList.remove('visible');await sleep(300);fw.remove()}
+    running=false;
+    runEditorAnim();
+  }
+
+  const editorObs=new IntersectionObserver(e=>{
+    if(e[0].isIntersecting&&!running){editorObs.disconnect();setTimeout(runEditorAnim,400)}
+  },{threshold:.15});
+  editorObs.observe(document.getElementById('editor'));
+})();
+
+/* ===== Demo 3: 扩展市场 ===== */
+(function(){
+  const grid=document.getElementById('marketGrid');
+  if(!grid)return;
+  const EXT=[
+    {name:'DevToolkit',ver:'1.2.0',type:'动作包',desc:'开发环境一键启动：VSCode、终端、Docker、文档站。',count:8,size:'24KB',author:'ansoukin',icon:'fa-code',installed:false},
+    {name:'AudioMaster',ver:'0.9.1',type:'动作包',desc:'音量控制、静音切换、音频设备切换、播放控制。',count:6,size:'18KB',author:'community',icon:'fa-volume-high',installed:false},
+    {name:'BackupHelper',ver:'2.0.3',type:'动作包',desc:'USB 插入自动备份、定时增量备份、云同步触发。',count:12,size:'42KB',author:'ansoukin',icon:'fa-database',installed:false},
+    {name:'SysGuard',ver:'1.0.0',type:'动作包',desc:'CPU/内存阈值监控、自动清理、进程守护、告警通知。',count:9,size:'31KB',author:'community',icon:'fa-shield-halved',installed:false},
+    {name:'LuaSnippets',ver:'0.4.2',type:'Lua 脚本',desc:'常用 Lua 代码片段集合：字符串、时间、文件、网络请求。',count:24,size:'12KB',author:'lua-dev',icon:'fa-code',installed:false},
+    {name:'NetTools',ver:'1.1.0',type:'动作包',desc:'网络测速、DNS 切换、IP 查询、连通性检测。',count:7,size:'28KB',author:'community',icon:'fa-network-wired',installed:false},
+    {name:'ThemePack',ver:'0.3.0',type:'Lua 脚本',desc:'动态主题切换、时段配色、壁纸轮换、聚焦模式。',count:5,size:'9KB',author:'lua-dev',icon:'fa-palette',installed:false}
+  ];
+  let running=false;
+
+  function render(){
+    grid.innerHTML=EXT.map((e,i)=>`
+      <div class="ext-card" data-i="${i}">
+        <div class="ext-card-head">
+          <div class="ext-icon"><i class="fa-solid ${e.icon}"></i></div>
+          <span class="ext-name">${e.name}</span>
+          <span class="ext-ver">v${e.ver}</span>
+        </div>
+        <div class="ext-desc">${e.desc}</div>
+        <div class="ext-meta"><span><i class="fa-solid fa-cube"></i>${e.count}</span><span><i class="fa-solid fa-weight-hanging"></i>${e.size}</span><span><i class="fa-solid fa-user"></i>${e.author}</span><span style="margin-left:auto;padding:1px 6px;border-radius:3px;background:var(--bg-subtle);color:var(--text-secondary)">${e.type}</span></div>
+        <div class="ext-actions">
+          <div class="ext-btn install" data-i="${i}"><i class="fa-solid fa-download"></i>安装</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+  async function runMarketAnim(){
+    if(running)return;running=true;
+    render();
+    await sleep(900);
+    // 依次"安装"前 3 个
+    for(let i=0;i<3;i++){
+      const btn=grid.querySelector(`.ext-btn[data-i="${i}"]`);
+      if(!btn)continue;
+      btn.classList.remove('install');
+      btn.classList.add('loading');
+      btn.innerHTML='<i class="fa-solid fa-circle-notch"></i>安装中';
+      await sleep(1100);
+      btn.classList.remove('loading');
+      btn.classList.add('installed');
+      btn.innerHTML='<i class="fa-solid fa-check"></i>已安装';
+      EXT[i].installed=true;
+      await sleep(500);
+    }
+    await sleep(1800);
+    running=false;
+    runMarketAnim();
+  }
+
+  const mObs=new IntersectionObserver(e=>{
+    if(e[0].isIntersecting&&!running){mObs.disconnect();setTimeout(runMarketAnim,400)}
+  },{threshold:.15});
+  mObs.observe(document.getElementById('market'));
+})();
+
+/* ===== FAQ 手风琴（一次只展开一个） ===== */
+(function(){
+  const items=document.querySelectorAll('.faq-item');
+  items.forEach(item=>{
+    item.querySelector('.faq-q').addEventListener('click',()=>{
+      const isOpen=item.classList.contains('open');
+      items.forEach(i=>i.classList.remove('open'));
+      if(!isOpen)item.classList.add('open');
+    });
+  });
+})();
 </script>
 </body>
 </html>
