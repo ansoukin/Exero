@@ -165,10 +165,12 @@ export function ExtensionPackSection() {
         setSidebarOrder(newOrder);
         // 持久化清理后的排序到 settings
         try {
-          await settingCommands.set(
-            "extension_pack.sidebar_order",
-            JSON.stringify(newOrder),
-          );
+          const setting: Setting = {
+            key: "extension_pack.sidebar_order",
+            value: JSON.stringify(newOrder),
+            value_type: "json",
+          };
+          await settingCommands.set(setting);
         } catch {
           // 持久化失败不阻塞，下次启动会重新拉取
         }
