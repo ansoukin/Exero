@@ -155,12 +155,14 @@ export function Sidebar() {
         }));
         setDynamicNavEntries(navEntries);
 
-        // 解析已保存的排序
+        // 解析已保存的排序，过滤掉已不存在的 pack_id（卸载后残留清理）
+        const validPackIds = new Set(entries.map((e) => e.pack_id));
         if (orderSetting) {
           try {
             const order: string[] = JSON.parse(orderSetting.value);
             if (Array.isArray(order)) {
-              setSidebarOrder(order);
+              const filtered = order.filter((id) => validPackIds.has(id));
+              setSidebarOrder(filtered);
             }
           } catch {
             // 排序数据损坏，忽略使用默认顺序

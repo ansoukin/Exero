@@ -1,8 +1,8 @@
 # Exero V0.4.0 设计规格文档
 
-> **版本**：V0.4.0-Beta4 · SPEC V2.3 修订版
-> **状态**：Beta 测试阶段（Beta3 已交付，Beta4 开发中）
-> **日期**：2026-07-18（初版）/ 2026-07-23（V2 修订）/ 2026-08-08（V2.3 修订）
+> **版本**：V0.4.0-Beta5 · SPEC V2.4 修订版
+> **状态**：Beta 测试阶段（Beta4 已交付，Beta5 已交付）
+> **日期**：2026-07-18（初版）/ 2026-07-23（V2 修订）/ 2026-08-08（V2.3 修订）/ 2026-08-09（V2.4 修订）
 > **作者**：AI 协作生成（基于需求讨论）
 
 > **⚠️ AI 协作开发必读**：所有对话（P1-P6 及后续迭代）在开始开发前，**必须先阅读 [9.6 AI 协作开发规则](#96-ai-协作开发规则重点)**。该节定义了 TraeWork 规则、CLAUDE.local.md 四大准则、规则优先级和临时记忆机制，是预防 AI 胡思乱想/过度设计/擅自改动的核心约束。**不读 9.6 节就开始写代码 = 违规操作。不读 CLAUDE.local.md = 违规操作。不认真读 SPEC 有关章节 = 违规操作。**
@@ -540,7 +540,7 @@ Market/
 ├── market-index.json          # 元数据索引（list_market_packs 只下载此文件）
 ├── action-packs/              # 动作包 .exero-pack
 │   ├── base-pack.exero-pack
-│   └── demo-pack.exero-pack
+│   └── lua-scripts-pack.exero-pack
 └── plugins/                   # 插件 .exero-pack（Phase 3 新增）
     └── hello-plugin.exero-pack
 ```
@@ -1107,7 +1107,7 @@ tmemory.md
 
 ## 十、开发历史归档
 
-> P1-P6 全部完成，V0.4.0-Alpha1 已交付。V0.4.0-Beta3 已交付（扩展包架构 + 扩展市场 + UI 优化）。V0.4.0-Beta4 已交付（自动更新 + 静默自启 + UI 优化）。当前版本 V0.4.0-Beta5，Beta5 开发中。
+> P1-P6 全部完成，V0.4.0-Alpha1 已交付。V0.4.0-Beta3 已交付（扩展包架构 + 扩展市场 + UI 优化）。V0.4.0-Beta4 已交付（自动更新 + 静默自启 + UI 优化）。V0.4.0-Beta5 已交付（市场-扩展机制重设计 + 插件系统 + Rust .dll 动态加载）。当前版本 V0.4.0-Beta5。
 > 以下为开发阶段历史摘要，详细交付记录见 `project_memory.md`。
 
 | Phase | 状态 | 核心交付 |

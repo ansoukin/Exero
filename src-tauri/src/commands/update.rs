@@ -59,7 +59,7 @@ pub struct TechStackItem {
 /// GitHub Release 资产（下载文件）
 #[derive(Debug, Deserialize)]
 struct GithubAsset {
-    /// 文件名（如 Exero_0.4.0-Beta4_x64-setup.exe）
+    /// 文件名（如 Exero_0.4.0-Beta5_x64-setup.exe）
     name: String,
     /// 浏览器下载链接
     browser_download_url: String,

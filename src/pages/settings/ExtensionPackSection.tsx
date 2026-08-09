@@ -91,6 +91,7 @@ export function ExtensionPackSection() {
   const dynamicNavEntries = useAppStore((s) => s.dynamicNavEntries);
   const sidebarOrder = useAppStore((s) => s.sidebarOrder);
   const setSidebarOrder = useAppStore((s) => s.setSidebarOrder);
+  const bumpPackVersion = useAppStore((s) => s.bumpPackVersion);
 
   /** 加载扩展包列表 + 自定义目录 */
   const loadData = useCallback(async () => {
@@ -154,9 +155,26 @@ export function ExtensionPackSection() {
     setUninstalling(true);
     setError(null);
     try {
-      await extensionPackCommands.uninstallPack(uninstallTarget.id);
+      const uninstalledId = uninstallTarget.id;
+      await extensionPackCommands.uninstallPack(uninstalledId);
       showToast(`扩展包「${uninstallTarget.name}」已卸载`);
       setUninstallTarget(null);
+      // 清理 sidebarOrder 中已卸载的 pack_id，避免侧边栏残留占位
+      if (sidebarOrder.includes(uninstalledId)) {
+        const newOrder = sidebarOrder.filter((id) => id !== uninstalledId);
+        setSidebarOrder(newOrder);
+        // 持久化清理后的排序到 settings
+        try {
+          await settingCommands.set(
+            "extension_pack.sidebar_order",
+            JSON.stringify(newOrder),
+          );
+        } catch {
+          // 持久化失败不阻塞，下次启动会重新拉取
+        }
+      }
+      // 触发 Sidebar 重新拉取侧边栏入口（移除已卸载插件的入口）
+      bumpPackVersion();
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

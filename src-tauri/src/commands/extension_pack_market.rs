@@ -33,8 +33,6 @@ const GITHUB_OWNER: &str = "ansoukin";
 const GITHUB_REPO: &str = "Exero";
 /// 市场索引文件路径
 const MARKET_INDEX_PATH: &str = "Market/market-index.json";
-/// ghproxy 镜像前缀
-const GHPROXY_BASE: &str = "https://ghproxy.com";
 
 /// 在线市场扩展包摘要
 ///
@@ -85,7 +83,9 @@ struct MarketIndexEntry {
     author: String,
     #[serde(default)]
     exero_api_version: String,
-    pack_type: String,
+    /// 扩展包类型：action | plugin（旧索引可能为 null，视为 action）
+    #[serde(default)]
+    pack_type: Option<String>,
     file_name: String,
     #[serde(default)]
     size: u64,
@@ -144,7 +144,7 @@ pub async fn list_market_packs(
                     description: opt_str(entry.description.clone()),
                     author: opt_str(entry.author.clone()),
                     exero_api_version: entry.exero_api_version.clone(),
-                    pack_type: entry.pack_type.clone(),
+                    pack_type: entry.pack_type.clone().unwrap_or_else(|| "action".to_string()),
                     action_count: entry.action_count,
                     has_sidebar: entry.has_sidebar,
                     download_url: entry.download_url.clone(),
@@ -218,13 +218,33 @@ pub async fn install_pack_from_github(
         .timeout(std::time::Duration::from_secs(60))
         .build()?;
 
-    // 主源下载
-    let downloaded = download_to_file(&client, &download_url, &temp_path).await;
-    if downloaded.is_err() {
-        // 镜像后备
-        let mirror = mirror_url(&download_url);
-        tracing::info!("主源下载失败，尝试镜像: {}", mirror);
-        download_to_file(&client, &mirror, &temp_path).await?;
+    // 下载候选源：主源 + 多镜像（应对国内访问不稳定）
+    let mirror1 = format!("https://ghfast.top/{}", download_url);
+    let mirror2 = format!("https://gh-proxy.com/{}", download_url);
+    let candidates = [download_url.clone(), mirror1, mirror2];
+
+    let mut last_err: Option<String> = None;
+    let mut downloaded = false;
+    for (i, url) in candidates.iter().enumerate() {
+        match download_to_file(&client, url, &temp_path).await {
+            Ok(()) => {
+                downloaded = true;
+                break;
+            }
+            Err(e) => {
+                tracing::warn!("扩展包下载源 {} 失败: {}", url, e);
+                last_err = Some(format!("{}", e));
+                if i + 1 < candidates.len() {
+                    tracing::info!("切换到下一个下载源...");
+                }
+            }
+        }
+    }
+    if !downloaded {
+        return Err(AppError::Other(format!(
+            "所有下载源均失败，最后错误: {}",
+            last_err.unwrap_or_else(|| "未知错误".into())
+        )));
     }
 
     tracing::info!("扩展包下载完成，开始安装: {}", temp_path.display());
@@ -258,40 +278,79 @@ async fn fetch_market_index() -> Result<MarketIndex> {
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
 
-    // 主源下载
-    let bytes = match client.get(&raw_url).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            match resp.bytes().await {
-                Ok(b) if !b.is_empty() => b.to_vec(),
-                _ => return Err(AppError::Other("市场索引主源返回空内容".into())),
+    // 候选源列表：主源 raw.githubusercontent.com + 多个镜像（应对国内访问不稳定）
+    let mirror1 = format!(
+        "https://ghfast.top/https://raw.githubusercontent.com/{}/{}/main/{}",
+        GITHUB_OWNER, GITHUB_REPO, MARKET_INDEX_PATH
+    );
+    let mirror2 = format!(
+        "https://gh-proxy.com/https://raw.githubusercontent.com/{}/{}/main/{}",
+        GITHUB_OWNER, GITHUB_REPO, MARKET_INDEX_PATH
+    );
+    let candidates = [raw_url.clone(), mirror1, mirror2];
+
+    let mut last_err: Option<String> = None;
+    for (i, url) in candidates.iter().enumerate() {
+        match client.get(url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                match resp.bytes().await {
+                    Ok(b) if !b.is_empty() => {
+                        let mut bytes = b.to_vec();
+                        // 剥离 UTF-8 BOM（PowerShell Out-File -Encoding utf8 默认带 BOM）
+                        if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+                            bytes.drain(..3);
+                        }
+                        // 校验首字符是否为 JSON 起始（{ 或 [），避免 HTML 劫持页被当 JSON 解析
+                        if bytes.first().map(|c| *c == b'{' || *c == b'[').unwrap_or(false) {
+                            match serde_json::from_slice::<MarketIndex>(&bytes) {
+                                Ok(index) => return Ok(index),
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "市场索引源 {} 解析失败: {}（内容前缀: {:?}）",
+                                        url,
+                                        e,
+                                        String::from_utf8_lossy(&bytes[..bytes.len().min(80)])
+                                    );
+                                    last_err = Some(format!("索引解析失败: {}", e));
+                                }
+                            }
+                        } else {
+                            tracing::warn!(
+                                "市场索引源 {} 返回非 JSON 内容（前缀: {:?}）",
+                                url,
+                                String::from_utf8_lossy(&bytes[..bytes.len().min(80)])
+                            );
+                            last_err = Some("索引内容非 JSON 格式".into());
+                        }
+                    }
+                    Ok(_) => {
+                        tracing::warn!("市场索引源 {} 返回空内容", url);
+                        last_err = Some("索引内容为空".into());
+                    }
+                    Err(e) => {
+                        tracing::warn!("市场索引源 {} 读取失败: {}", url, e);
+                        last_err = Some(format!("索引读取失败: {}", e));
+                    }
+                }
+            }
+            Ok(resp) => {
+                tracing::warn!("市场索引源 {} 返回非 200: {}", url, resp.status());
+                last_err = Some(format!("HTTP {}", resp.status()));
+            }
+            Err(e) => {
+                tracing::warn!("市场索引源 {} 请求失败: {}", url, e);
+                last_err = Some(format!("请求失败: {}", e));
             }
         }
-        _ => {
-            // 镜像后备
-            let mirror = mirror_url(&raw_url);
-            tracing::info!("市场索引主源失败，尝试镜像: {}", mirror);
-            let resp = client
-                .get(&mirror)
-                .send()
-                .await
-                .map_err(|e| AppError::Other(format!("镜像请求失败: {}", e)))?;
-            if !resp.status().is_success() {
-                return Err(AppError::Other(format!(
-                    "镜像返回 {}",
-                    resp.status()
-                )));
-            }
-            resp.bytes()
-                .await
-                .map_err(|e| AppError::Other(format!("镜像读取失败: {}", e)))?
-                .to_vec()
+        if i + 1 < candidates.len() {
+            tracing::info!("市场索引切换到下一个源...");
         }
-    };
+    }
 
-    let index: MarketIndex = serde_json::from_slice(&bytes)
-        .map_err(|e| AppError::Other(format!("市场索引解析失败: {}", e)))?;
-
-    Ok(index)
+    Err(AppError::Other(format!(
+        "所有市场索引源均失败，最后错误: {}",
+        last_err.unwrap_or_else(|| "未知错误".into())
+    )))
 }
 
 /// 下载 URL 内容到文件
@@ -317,11 +376,6 @@ async fn download_to_file(
         .map_err(|e| AppError::Other(format!("下载读取失败: {}", e)))?;
     std::fs::write(dest, &bytes)?;
     Ok(())
-}
-
-/// 构造 ghproxy 镜像 URL
-fn mirror_url(raw: &str) -> String {
-    format!("{}/{}", GHPROXY_BASE, raw)
 }
 
 /// 空字符串转 None，非空转 Some

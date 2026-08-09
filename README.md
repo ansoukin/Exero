@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Beta4-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta5-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,7 +14,17 @@
 
 ## 当前状态
 
-**V0.4.0 Beta4** - UI 优化 + 自动更新机制 + 静默自启：
+**V0.4.0 Beta5** - 市场-扩展机制重设计 + 插件系统 + Rust .dll 动态加载：
+
+**Beta5**：
+
+- 市场扩展机制重设计：pack_type 统一为 `action | plugin`（原 `lua_scripts` 合并进 `action`），市场结构 `Market/action-packs/` + `Market/plugins/` + `market-index.json` 元数据索引
+- Rust 动作动态加载（.dll + C ABI）：libloading 加载扩展包 .dll，`exero-plugin-sdk` 提供 `declare_actions!` 声明式宏，4 个 C ABI 导出函数（`exero_pack_init` / `exero_pack_cleanup` / `exero_execute_action` / `exero_last_error`）
+- 插件系统（Phase 3）：Tauri `plugin` URI scheme + iframe + postMessage 桥接 API（`window.exero.invoke`），侧边栏入口为插件独占，HTML 自动注入桥接脚本
+- Hello Plugin 示例插件：完整可运行的最小插件（Cargo.toml + lib.rs + manifest.json + index.html），演示 say_hello 动作调用链
+- 开发者文档：`docs/action-pack-guide.md` + `docs/plugin-guide.md`（Vue 文档风格 HTML 版本在 `docs/docs/`）
+- 修复：插件 iframe 显示宽度异常（PluginPage 容器改为 h-full）；卸载插件后侧边栏残留占位（Sidebar 过滤不存在的 pack_id）
+- 删除旧示例扩展包 demo-pack（B3 老链路，已被 Hello Plugin 替代）
 
 **Beta4**：
 

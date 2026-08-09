@@ -154,7 +154,7 @@ Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack" | ForEach-Object {
                 description = $manifest.description
                 author = $manifest.author
                 exero_api_version = $manifest.exero_api_version
-                pack_type = $manifest.pack_type
+                pack_type = if ($manifest.pack_type) { $manifest.pack_type } else { "action" }
                 file_name = $fileName
                 size = $fileSize
                 action_count = $manifest.actions.Count
@@ -194,7 +194,7 @@ Get-ChildItem -Path $marketPlugins -Filter "*.exero-pack" -ErrorAction SilentlyC
                 description = $manifest.description
                 author = $manifest.author
                 exero_api_version = $manifest.exero_api_version
-                pack_type = $manifest.pack_type
+                pack_type = if ($manifest.pack_type) { $manifest.pack_type } else { "action" }
                 file_name = $fileName
                 size = $fileSize
                 action_count = $manifest.actions.Count
@@ -216,7 +216,10 @@ $index = @{
 }
 
 $indexPath = Join-Path $root "Market\market-index.json"
-$index | ConvertTo-Json -Depth 10 | Out-File -FilePath $indexPath -Encoding utf8
+# 使用 .NET StreamWriter 写入无 BOM 的 UTF-8（PowerShell 5.1 的 Out-File -Encoding utf8 默认带 BOM，会导致 Rust serde_json 解析失败）
+$jsonContent = $index | ConvertTo-Json -Depth 10
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($indexPath, $jsonContent, $utf8NoBom)
 Write-Host "[5/5] Generated: market-index.json ($($actionEntries.Count) actions, $($pluginEntries.Count) plugins)" -ForegroundColor Green
 
 Write-Host ""

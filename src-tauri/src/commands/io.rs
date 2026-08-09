@@ -16,7 +16,7 @@
 //! │   ├── hello-world.lua
 //! │   └── ...
 //! └── packs/            # 扩展包文件（可选）
-//!     ├── demo-pack/
+//!     ├── hello-plugin/
 //!     │   └── manifest.json
 //!     └── ...
 //! ```

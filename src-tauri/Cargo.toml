@@ -1,6 +1,6 @@
 [package]
 name = "exero"
-version = "0.4.0-Beta4"
+version = "0.4.0-Beta5"
 description = "Exero - 个人自动化助手"
 authors = ["Exero"]
 license = "MIT"

@@ -1,5 +1,56 @@
 # 更新历史
 
+## V0.4.0-Beta5
+
+**[强制更新] 市场-扩展机制重设计 + 插件系统 + Rust .dll 动态加载**
+
+> 本版本重构了扩展包架构，引入插件系统与 Rust 动态加载机制，与 Beta4 不兼容。所有用户必须升级。
+
+### 重大变更
+
+- **pack_type 统一**：原 `action | lua_scripts` 合并为 `action`（Lua 脚本包归入动作包，通过 `executor_type: Lua` 区分），新增 `plugin` 类型。旧 manifest 需迁移
+- **市场结构重构**：`Market/action-packs/`（动作包）+ `Market/plugins/`（插件）+ `market-index.json`（元数据索引，`list_market_packs` 只下载此文件）
+- **示例扩展包 demo-pack 删除**：使用 B3 老链路，演示已由 Hello Plugin 替代
+
+### 新增
+
+- **Rust 动作动态加载**（SPEC 6.5）：
+  - libloading 加载扩展包 .dll，C ABI 接口（`exero_pack_init` / `exero_pack_cleanup` / `exero_execute_action` / `exero_last_error`）
+  - `exero-plugin-sdk` crate 提供 `declare_actions!` 声明式宏，自动生成 4 个 C ABI 导出函数
+  - `RustLibraryRegistry` 管理 .dll 生命周期，支持同步全链卸载/重载
+  - `ActionType::Extension(String)` 变体（格式 `pack_id:action_id`），base-pack Rust 动作不走 .dll
+- **插件系统**（SPEC 6.5.3）：
+  - Tauri `plugin` URI scheme 注册（Windows 路径格式 `http://plugin.localhost/{pack_id}/{file}`）
+  - iframe 加载插件前端 + postMessage 桥接 API `window.exero.invoke(actionId, params)`
+  - HTML 文件自动注入桥接脚本，插件开发者无需手动集成
+  - 侧边栏入口为插件独占（`get_sidebar_entries` 加 `PackType::Plugin` 判断），动作包不再支持
+  - `execute_plugin_action` 命令直连 .dll，不走 ActionExecutorRegistry
+- **Hello Plugin 示例插件**（`examples/hello-plugin/`）：
+  - 完整可运行最小插件：Cargo.toml + lib.rs（`say_hello` 动作）+ manifest.json + index.html
+  - 暗色主题与主界面一致，"Call Rust" 按钮演示完整调用链
+- **开发者文档**：
+  - `docs/action-pack-guide.md`：动作包开发指南（Manifest 参考 + Lua API + 打包发布）
+  - `docs/plugin-guide.md`：插件开发指南（SDK + 桥接 API + Hello Plugin 完整示例）
+  - `docs/docs/`：Vue 文档风格 HTML 版本（GitHub Pages 在线浏览）
+
+### 优化
+
+- **build-packs.ps1 重写**：生成 `market-index.json` 元数据索引，新增 Hello Plugin 打包步骤（步骤 4/5）
+- **manifest.rs 精简**：移除 `PackScriptManifest` / `LuaScripts`，`ActionManifest` 增加 `description` / `permissions` / `params` 字段
+- **市场前端**：`ExtensionMarketTab.tsx` 移除 `lua_scripts` 相关逻辑，`pack_type=plugin` 显示紫色徽章 + "插件"筛选 Tag
+
+### 修复
+
+- **插件 iframe 显示宽度异常**：`PluginPage.tsx` 根容器从 `flex-1` 改为 `h-full`，标题栏 `shrink-0`，iframe 容器 `min-h-0`
+- **卸载插件后侧边栏残留占位**：`ExtensionPackSection.tsx` 卸载时过滤 `sidebarOrder` 中不存在的 `pack_id` 并持久化；`Sidebar.tsx` reload 时过滤非存在 `pack_id`
+- **市场类型筛选缺少"插件"Tag**：`FilterType` 添加 `"plugin"`，`PackTypeBadge` 按 `packType` 区分显示（插件紫色 / 动作包蓝色）
+
+### 后端命令
+
+- 新增 1 个 Tauri 命令：`execute_plugin_action`（直连 .dll 执行插件动作）
+
+---
+
 ## V0.4.0-Beta4
 
 **UI 优化 + 自动更新机制 + 静默自启**

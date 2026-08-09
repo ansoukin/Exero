@@ -147,9 +147,9 @@ export function PluginPage({ packId }: PluginPageProps) {
   const iframeSrc = `http://plugin.localhost/${packId}/${entry}`;
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* 标题栏 */}
-      <div className="flex items-center justify-between border-b bg-card px-6 py-4">
+      <div className="flex shrink-0 items-center justify-between border-b bg-card px-6 py-4">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -180,8 +180,8 @@ export function PluginPage({ packId }: PluginPageProps) {
         </div>
       </div>
 
-      {/* iframe 区：加载插件前端资源 */}
-      <div className="flex-1 overflow-hidden bg-background">
+      {/* iframe 区：加载插件前端资源（min-h-0 确保 flex 子项可收缩，iframe 撑满剩余高度） */}
+      <div className="min-h-0 flex-1 overflow-hidden bg-background">
         <iframe
           src={iframeSrc}
           title={pack.manifest.name}
