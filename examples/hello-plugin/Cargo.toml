@@ -1,0 +1,12 @@
+[package]
+name = "hello-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "Exero 官方示例插件 - 演示插件系统完整链路"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
+serde_json = "1"

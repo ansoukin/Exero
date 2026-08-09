@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Exero 开发者文档</title>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --bg-card: #0d1320;
+    --text: #e5e7eb;
+    --text-muted: #9ca3af;
+    --border: #1f2937;
+    --primary: #42b883;
+    --heading: #f3f4f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    height: 56px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 24px;
+  }
+  .topbar .logo {
+    font-weight: 700; font-size: 18px; color: var(--primary);
+    letter-spacing: -0.02em; text-decoration: none;
+  }
+  .topbar .logo span { color: var(--text); }
+  .hero {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 64px 24px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 48px; font-weight: 700; color: var(--heading);
+    letter-spacing: -0.03em; margin-bottom: 16px;
+  }
+  .hero h1 .accent { color: var(--primary); }
+  .hero p {
+    font-size: 18px; color: var(--text-muted);
+    max-width: 560px; margin-bottom: 48px;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    max-width: 880px;
+    width: 100%;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.25s ease;
+    display: flex; flex-direction: column;
+    text-align: left;
+  }
+  .card:hover {
+    border-color: var(--primary);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(66, 184, 131, 0.12);
+  }
+  .card .icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: rgba(66, 184, 131, 0.12);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+  }
+  .card h2 {
+    font-size: 22px; font-weight: 600; color: var(--heading);
+    margin-bottom: 8px; letter-spacing: -0.01em;
+  }
+  .card p {
+    font-size: 14px; color: var(--text-muted);
+    margin-bottom: 16px; flex: 1;
+  }
+  .card .arrow {
+    color: var(--primary); font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .footer {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+  .footer a { color: var(--primary); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 32px; }
+    .hero p { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="logo">Exero<span> Docs</span></a>
+</div>
+
+<section class="hero">
+  <h1>Exero <span class="accent">开发者文档</span></h1>
+  <p>Exero 是面向 Windows 的桌面自动化管理工具，支持动作包与插件两种扩展形态。选择下方指南开始开发。</p>
+
+  <div class="cards">
+    <a href="action-pack-guide.html" class="card">
+      <div class="icon">📦</div>
+      <h2>动作包开发指南</h2>
+      <p>通过 manifest.json 声明动作，注册到 Flow 编辑器作为可视化积木。支持 Rust 和 Lua 两种执行器，5 分钟快速入门。</p>
+      <div class="arrow">阅读指南 →</div>
+    </a>
+
+    <a href="plugin-guide.html" class="card">
+      <div class="icon">🧩</div>
+      <h2>插件开发指南</h2>
+      <p>提供完整功能页面：iframe UI + 侧边栏入口 + Rust .dll 动作。通过桥接 API 与主程序通信，打造独立功能模块。</p>
+      <div class="arrow">阅读指南 →</div>
+    </a>
+  </div>
+</section>
+
+<div class="footer">
+  Exero V0.4.0-Beta5 · <a href="https://github.com/ansoukin/Exero">GitHub</a> · <a href="../SPEC.md">SPEC.md</a>
+</div>
+
+</body>
+</html>

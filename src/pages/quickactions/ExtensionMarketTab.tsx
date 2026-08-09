@@ -71,12 +71,12 @@ const SEARCH_DEBOUNCE_MS = 500;
 const BANNER_MIN_WIDTH = 640;
 
 /** 类型筛选选项 */
-type FilterType = "all" | "action" | "lua_scripts";
+type FilterType = "all" | "action" | "plugin";
 
 const FILTER_TAGS: { value: FilterType; label: string }[] = [
   { value: "all", label: "全部" },
   { value: "action", label: "动作包" },
-  { value: "lua_scripts", label: "Lua 脚本" },
+  { value: "plugin", label: "插件" },
 ];
 
 /** 格式化文件大小 */
@@ -499,13 +499,9 @@ export function ExtensionMarketTab() {
               {/* 元数据 */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-md bg-muted/40 p-2">
-                  <span className="text-muted-foreground">
-                    {detail.pack_type === "lua_scripts" ? "脚本数量" : "动作数量"}
-                  </span>
+                  <span className="text-muted-foreground">动作数量</span>
                   <p className="mt-0.5 font-medium">
-                    {detail.pack_type === "lua_scripts"
-                      ? `${detail.script_count} 个`
-                      : `${detail.action_count} 个`}
+                    {detail.action_count} 个
                   </p>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
@@ -555,18 +551,19 @@ export function ExtensionMarketTab() {
   );
 }
 
-/** 类型徽章 */
+/** 类型徽章（根据 pack_type 区分动作包/插件） */
 function PackTypeBadge({ packType }: { packType: string }) {
+  const isPlugin = packType === "plugin";
   return (
     <span
       className={cn(
         "inline-block rounded px-2 py-0.5 text-[10px] font-medium",
-        packType === "lua_scripts"
-          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        isPlugin
+          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
           : "bg-primary/10 text-primary",
       )}
     >
-      {packType === "lua_scripts" ? "Lua 脚本" : "动作包"}
+      {isPlugin ? "插件" : "动作包"}
     </span>
   );
 }
@@ -657,9 +654,7 @@ function PackBannerCard({
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
           <span>
-            {pack.pack_type === "lua_scripts"
-              ? `${pack.script_count} 个脚本`
-              : `${pack.action_count} 个动作`}
+            {pack.action_count} 个动作
           </span>
           <span>·</span>
           <span>{formatSize(pack.size)}</span>
@@ -771,9 +766,7 @@ function PackGridCard({
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
           <PackTypeBadge packType={pack.pack_type} />
           <span>
-            {pack.pack_type === "lua_scripts"
-              ? `${pack.script_count} 个脚本`
-              : `${pack.action_count} 个动作`}
+            {pack.action_count} 个动作
           </span>
           <span>·</span>
           <span>{formatSize(pack.size)}</span>

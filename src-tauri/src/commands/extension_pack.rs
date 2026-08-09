@@ -21,7 +21,7 @@ use tauri::State;
 use crate::db::Repository;
 use crate::error::{AppError, Result};
 use crate::extension_pack::{
-    ActionManifest, ExtensionPackManifest, PackSource, PackType, SidebarManifest,
+    ActionManifest, ExecutorType, ExtensionPackManifest, PackSource, PackType, SidebarManifest,
 };
 use crate::models::{ScriptManifest, Setting};
 use crate::state::AppState;
@@ -41,12 +41,10 @@ pub struct PackSummary {
     pub author: String,
     /// 所需 Exero API 版本
     pub exero_api_version: String,
-    /// 扩展包类型：action / lua_scripts
+    /// 扩展包类型：action
     pub pack_type: String,
     /// 动作数量
     pub action_count: usize,
-    /// Lua 脚本数量
-    pub script_count: usize,
     /// 是否注册侧边栏入口
     pub has_sidebar: bool,
     /// 来源目录类型：builtin / user / custom
@@ -86,7 +84,7 @@ fn source_str(source: PackSource) -> &'static str {
 fn pack_type_str(t: PackType) -> &'static str {
     match t {
         PackType::Action => "action",
-        PackType::LuaScripts => "lua_scripts",
+        PackType::Plugin => "plugin",
     }
 }
 
@@ -101,7 +99,6 @@ fn pack_to_summary(pack: &crate::extension_pack::LoadedExtensionPack) -> PackSum
         exero_api_version: pack.manifest.exero_api_version.clone(),
         pack_type: pack_type_str(pack.manifest.pack_type).to_string(),
         action_count: pack.manifest.actions.len(),
-        script_count: pack.manifest.scripts.len(),
         has_sidebar: pack.manifest.sidebar.is_some(),
         source: source_str(pack.source).to_string(),
     }
@@ -169,7 +166,14 @@ pub async fn reload_packs(state: State<'_, Arc<AppState>>) -> Result<usize> {
             .filter(|v| !v.trim().is_empty())
             .map(PathBuf::from)
     };
-    state.extension_pack_registry.load_with_custom_dir(custom_dir)
+    let count = state
+        .extension_pack_registry
+        .load_with_custom_dir(custom_dir)?;
+
+    // 重新加载 Rust .dll（Beta5 Phase 2）
+    state.reload_rust_libraries();
+
+    Ok(count)
 }
 
 /// 获取用户自定义扩展包目录
@@ -310,8 +314,12 @@ pub async fn install_pack_from_file(
     // 重新加载扩展包注册表
     reload_registry(&state)?;
 
-    // Lua 脚本包：注册脚本到数据库（复制 .lua 文件 + 写入 lua_scripts 表）
-    if manifest.pack_type == PackType::LuaScripts {
+    // Lua 动作注册：检查 actions[] 中是否有 executor_type = Lua 的动作
+    let has_lua_actions = manifest
+        .actions
+        .iter()
+        .any(|a| a.executor_type == ExecutorType::Lua);
+    if has_lua_actions {
         register_pack_scripts(&state, &manifest, &target_dir)?;
     }
 
@@ -339,9 +347,20 @@ pub async fn uninstall_pack(
         .get_pack(&pack_id)
         .ok_or_else(|| AppError::NotFound(format!("扩展包 {} 不存在", pack_id)))?;
 
-    // Lua 脚本包：卸载前先注销脚本（删除 .lua 文件 + 从 lua_scripts 表删除记录）
-    if pack.manifest.pack_type == PackType::LuaScripts {
+    // Lua 动作注销：检查是否有 Lua 动作需要从数据库清理
+    let has_lua_actions = pack
+        .manifest
+        .actions
+        .iter()
+        .any(|a| a.executor_type == ExecutorType::Lua);
+    if has_lua_actions {
         unregister_pack_scripts(&state, &pack.manifest)?;
+    }
+
+    // Rust .dll 卸载：先 FreeLibrary 再删除目录，避免文件占用（Beta5 Phase 2）
+    if pack.manifest.rust_library.is_some() {
+        state.rust_library_registry.unload(&pack_id)?;
+        state.registry.unregister_extension_pack(&pack_id);
     }
 
     let custom_dir = read_custom_dir(&state);
@@ -404,6 +423,30 @@ pub async fn open_packs_dir(dir_type: String) -> Result<()> {
     Ok(())
 }
 
+/// 执行插件动作（Phase 3 新增）
+///
+/// 供插件 iframe 通过桥接 API 调用，路由到 .dll 的 `exero_execute_action`。
+/// 与 Flow 编辑器中的动作执行不同，此命令直接调用 .dll，不走 ActionExecutorRegistry。
+#[tauri::command]
+pub async fn execute_plugin_action(
+    state: State<'_, Arc<AppState>>,
+    pack_id: String,
+    action_id: String,
+    params: serde_json::Value,
+) -> Result<serde_json::Value> {
+    let params_json = serde_json::to_string(&params)?;
+    let result_json = state
+        .rust_library_registry
+        .execute(&pack_id, &action_id, &params_json)?;
+    let output: serde_json::Value = serde_json::from_str(&result_json).map_err(|e| {
+        AppError::ActionExecution(format!(
+            "插件动作返回值 JSON 解析失败 (pack_id={} action_id={}): {}",
+            pack_id, action_id, e
+        ))
+    })?;
+    Ok(output)
+}
+
 // ============================================================
 // 内部辅助函数
 // ============================================================
@@ -420,14 +463,17 @@ fn read_custom_dir(state: &State<'_, Arc<AppState>>) -> Option<PathBuf> {
 }
 
 /// 重新加载扩展包注册表（读取自定义目录 + 扫描三目录）
+///
+/// 同时重新加载 Rust .dll（Beta5 Phase 2）。
 fn reload_registry(state: &State<'_, Arc<AppState>>) -> Result<()> {
     let custom_dir = read_custom_dir(state);
     state.extension_pack_registry.load_with_custom_dir(custom_dir)?;
+    state.reload_rust_libraries();
     Ok(())
 }
 
 // ============================================================
-// Lua 脚本包：脚本注册 / 注销（pack_type = lua_scripts 时调用）
+// Lua 动作注册 / 注销（actions[] 中 executor_type = Lua 的条目）
 // ============================================================
 
 /// 获取 Lua 脚本目录 `<exe>/data/scripts/`，不存在则创建
@@ -441,9 +487,10 @@ fn scripts_dir() -> Result<PathBuf> {
     Ok(dir)
 }
 
-/// 注册 Lua 脚本包内的脚本到数据库
+/// 注册 Lua 动作到数据库
 ///
-/// 将包内 .lua 文件复制到 scripts 目录，并在 lua_scripts 表中插入/更新记录。
+/// 遍历 actions[] 中 executor_type = Lua 的条目，
+/// 将 .lua 文件复制到 scripts 目录，并在 lua_scripts 表中插入/更新记录。
 fn register_pack_scripts(
     state: &State<'_, Arc<AppState>>,
     manifest: &ExtensionPackManifest,
@@ -453,42 +500,50 @@ fn register_pack_scripts(
     let scripts_dir = scripts_dir()?;
     let source_url = format!("pack://{}", manifest.id);
 
-    for script in &manifest.scripts {
-        let lua_path = pack_dir.join(&script.file);
+    for action in &manifest.actions {
+        if action.executor_type != ExecutorType::Lua {
+            continue;
+        }
+
+        let lua_path = pack_dir.join(&action.executor_id);
         let lua_content = std::fs::read_to_string(&lua_path).map_err(|e| {
             AppError::Other(format!("读取脚本文件失败 {}: {}", lua_path.display(), e))
         })?;
 
         // 复制到 scripts 目录
-        let dest_path = scripts_dir.join(format!("{}.lua", script.id));
+        let dest_path = scripts_dir.join(format!("{}.lua", action.id));
         std::fs::write(&dest_path, &lua_content)?;
 
         let content_hash = sha256_hex(&lua_content);
 
-        // 转换 PackScriptManifest → ScriptManifest（去掉 file 字段）
+        // 从 ActionManifest + 包级信息构造 ScriptManifest
         let script_manifest = ScriptManifest {
-            id: script.id.clone(),
-            name: script.name.clone(),
-            author: script.author.clone(),
-            version: script.version.clone(),
-            description: script.description.clone(),
-            permissions: script.permissions.clone(),
-            params: script.params.clone(),
+            id: action.id.clone(),
+            name: action.label.clone(),
+            author: manifest.author.clone(),
+            version: manifest.version.clone(),
+            description: if action.description.is_empty() {
+                manifest.description.clone()
+            } else {
+                action.description.clone()
+            },
+            permissions: action.permissions.clone(),
+            params: action.params.clone(),
         };
 
         // 已存在则更新，否则插入
-        if repo.get_installed_script(&script.id)?.is_some() {
+        if repo.get_installed_script(&action.id)?.is_some() {
             repo.update_installed_script(&script_manifest, &content_hash)?;
         } else {
             repo.insert_installed_script(&script_manifest, &source_url, &content_hash)?;
         }
 
-        tracing::info!("已注册脚本: {} (来自扩展包 {})", script.id, manifest.id);
+        tracing::info!("已注册脚本: {} (来自扩展包 {})", action.id, manifest.id);
     }
     Ok(())
 }
 
-/// 注销 Lua 脚本包内的脚本
+/// 注销 Lua 动作
 ///
 /// 从 lua_scripts 表删除记录，并删除 scripts 目录中的 .lua 文件。
 fn unregister_pack_scripts(
@@ -498,15 +553,19 @@ fn unregister_pack_scripts(
     let repo = Repository::new(&state.db);
     let scripts_dir = scripts_dir()?;
 
-    for script in &manifest.scripts {
-        if let Err(e) = repo.delete_installed_script(&script.id) {
-            tracing::warn!("删除脚本记录失败 {}: {}", script.id, e);
+    for action in &manifest.actions {
+        if action.executor_type != ExecutorType::Lua {
+            continue;
         }
-        let lua_path = scripts_dir.join(format!("{}.lua", script.id));
+
+        if let Err(e) = repo.delete_installed_script(&action.id) {
+            tracing::warn!("删除脚本记录失败 {}: {}", action.id, e);
+        }
+        let lua_path = scripts_dir.join(format!("{}.lua", action.id));
         if lua_path.exists() {
             let _ = std::fs::remove_file(&lua_path);
         }
-        tracing::info!("已注销脚本: {} (来自扩展包 {})", script.id, manifest.id);
+        tracing::info!("已注销脚本: {} (来自扩展包 {})", action.id, manifest.id);
     }
     Ok(())
 }

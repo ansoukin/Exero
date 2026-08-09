@@ -48,7 +48,10 @@ export type ActionTypeKind =
   | "IfElse"
   | "Loop"
   | "SetVariable"
-  | "LuaScript";
+  | "LuaScript"
+  // 扩展包动作（V0.4.0-Beta5 Phase 2 新增）
+  // variant 格式："pack_id:action_id"（如 "my-pack:my_action"）
+  | "Extension";
 
 /** 触发器类型 kind 标签（镜像 TriggerType） */
 export type TriggerTypeKind =
@@ -896,10 +899,16 @@ export interface ActionManifest {
   default_params: Record<string, unknown>;
   ports: PortsManifest;
   summarize_template: string;
+  /** 动作描述（Lua 动作注册到数据库时使用） */
+  description?: string;
+  /** Lua 沙箱权限声明（仅 executor_type = "Lua" 时有意义） */
+  permissions?: string[];
+  /** Lua 脚本参数定义（仅 executor_type = "Lua" 时有意义） */
+  params?: ScriptParam[];
 }
 
 /** 页面类型（镜像 PageType） */
-export type PageType = "detail" | "declarative";
+export type PageType = "detail" | "declarative" | "web";
 
 /** 侧边栏入口声明（镜像 SidebarManifest） */
 export interface SidebarManifest {
@@ -907,6 +916,12 @@ export interface SidebarManifest {
   label: string;
   icon: string;
   page_type: PageType;
+}
+
+/** 插件 UI 声明（镜像 UiManifest，Phase 3 新增） */
+export interface UiManifest {
+  /** 前端入口文件相对路径（如 "index.html"） */
+  entry: string;
 }
 
 /** 扩展包 manifest（镜像 ExtensionPackManifest） */
@@ -917,8 +932,14 @@ export interface ExtensionPackManifest {
   description: string;
   author: string;
   exero_api_version: string;
+  /** 扩展包类型：action（动作包）或 plugin（插件） */
+  pack_type: string;
+  /** Rust 动态库文件相对路径（可选，插件必填） */
+  rust_library?: string | null;
   actions: ActionManifest[];
   sidebar?: SidebarManifest | null;
+  /** 插件 UI 声明（仅 plugin 类型，Phase 3 新增） */
+  ui?: UiManifest | null;
 }
 
 /** 已安装扩展包摘要 */
@@ -929,11 +950,9 @@ export interface PackSummary {
   description: string;
   author: string;
   exero_api_version: string;
-  /** 扩展包类型：action / lua_scripts */
+  /** 扩展包类型：action */
   pack_type: string;
   action_count: number;
-  /** Lua 脚本数量（pack_type = lua_scripts 时有意义） */
-  script_count: number;
   has_sidebar: boolean;
   /** 来源目录类型：builtin / user / custom */
   source: string;
@@ -991,6 +1010,13 @@ export const extensionPackCommands = {
   /** 在文件管理器中打开扩展包目录（dirType: "user" / "builtin"） */
   openPacksDir: (dirType: "user" | "builtin") =>
     invoke<void>("open_packs_dir", { dirType }),
+  /** 执行插件动作（Phase 3 · 供 iframe 桥接 API 调用） */
+  executePluginAction: (
+    packId: string,
+    actionId: string,
+    params: Record<string, unknown>,
+  ) =>
+    invoke<unknown>("execute_plugin_action", { packId, actionId, params }),
 };
 
 // ============================================================
@@ -1011,12 +1037,10 @@ export interface MarketPack {
   author: string | null;
   /** exero_api_version */
   exero_api_version: string;
-  /** 扩展包类型：action / lua_scripts */
+  /** 扩展包类型：action */
   pack_type: string;
   /** 动作数量 */
   action_count: number;
-  /** Lua 脚本数量 */
-  script_count: number;
   /** 是否注册侧边栏入口 */
   has_sidebar: boolean;
   /** 下载 URL（raw.githubusercontent.com，离线模式为空） */

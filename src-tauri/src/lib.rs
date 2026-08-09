@@ -44,6 +44,65 @@ pub fn run() {
             Some(vec!["--autostart"]),
         ))
         .plugin(tauri_plugin_dialog::init())
+        // 插件 iframe 自定义协议（Phase 3 · SPEC 6.5.3）
+        // 注册 `plugin` URI scheme，服务插件安装目录下的前端文件。
+        // iframe 通过 `http://plugin.localhost/{pack_id}/{file}` 加载（Windows）。
+        .register_uri_scheme_protocol("plugin", |ctx, request| {
+            // 路径格式：/{pack_id}/{file_path}
+            let path = request.uri().path();
+            let path = path.strip_prefix('/').unwrap_or(path);
+            let (pack_id, file_path) = match path.split_once('/') {
+                Some((id, rest)) => (id, rest),
+                None => {
+                    return plugin_protocol_response(
+                        tauri::http::StatusCode::BAD_REQUEST,
+                        "Invalid plugin path",
+                    )
+                }
+            };
+
+            // 通过 UriSchemeContext.app_handle() 获取 AppHandle，再取 AppState
+            // （UriSchemeContext 本身不实现 Manager，需先转 AppHandle）
+            let app_handle = ctx.app_handle();
+            let state = app_handle.state::<Arc<AppState>>();
+            let pack = state.extension_pack_registry.get_pack(pack_id);
+            let pack = match pack {
+                Some(p) => p,
+                None => {
+                    return plugin_protocol_response(
+                        tauri::http::StatusCode::NOT_FOUND,
+                        "Plugin not found",
+                    )
+                }
+            };
+
+            // 读取插件前端文件
+            let file_path = pack.pack_dir.join(file_path);
+            match std::fs::read(&file_path) {
+                Ok(data) => {
+                    let content_type = guess_content_type(&file_path);
+                    // HTML 文件自动注入桥接脚本（提供 window.exero.invoke）
+                    // 用 clone 避免 data 被消费后非 HTML 分支无法使用
+                    if file_path.extension().and_then(|e| e.to_str()) == Some("html") {
+                        if let Ok(html) = String::from_utf8(data.clone()) {
+                            let injected = inject_bridge_script(&html);
+                            return tauri::http::Response::builder()
+                                .header(tauri::http::header::CONTENT_TYPE, content_type)
+                                .body(injected.into_bytes())
+                                .unwrap();
+                        }
+                    }
+                    tauri::http::Response::builder()
+                        .header(tauri::http::header::CONTENT_TYPE, content_type)
+                        .body(data)
+                        .unwrap()
+                }
+                Err(_) => plugin_protocol_response(
+                    tauri::http::StatusCode::NOT_FOUND,
+                    "File not found",
+                ),
+            }
+        })
         .setup(|app| {
             tracing::info!("执行 setup 回调");
             // 初始化应用状态
@@ -279,7 +338,69 @@ pub fn run() {
             // 扩展包在线市场（阶段 c · GitHub 在线安装）
             commands::extension_pack_market::list_market_packs,
             commands::extension_pack_market::install_pack_from_github,
+            // 插件动作执行（Phase 3 · 供 iframe 桥接 API 调用）
+            commands::extension_pack::execute_plugin_action,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");
+}
+
+// ============================================================
+// 插件自定义协议辅助函数（Phase 3）
+// ============================================================
+
+/// 构造插件协议错误响应
+fn plugin_protocol_response(
+    status: tauri::http::StatusCode,
+    message: &str,
+) -> tauri::http::Response<Vec<u8>> {
+    tauri::http::Response::builder()
+        .status(status)
+        .header(tauri::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .body(message.as_bytes().to_vec())
+        .unwrap()
+}
+
+/// 根据文件扩展名猜测 Content-Type
+fn guess_content_type(path: &std::path::Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
+        "html" | "htm" => "text/html; charset=utf-8",
+        "js" => "application/javascript; charset=utf-8",
+        "css" => "text/css; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "svg" => "image/svg+xml",
+        "ico" => "image/x-icon",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
+/// 插件桥接脚本（注入到插件 HTML 的 `<head>` 中）
+///
+/// 提供 `window.exero.invoke(actionId, params)` 接口：
+/// - iframe 内调用 -> 通过 postMessage 向主窗口发送请求
+/// - 主窗口接收后调用 Tauri 命令 execute_plugin_action
+/// - 结果通过 postMessage 返回 iframe
+const PLUGIN_BRIDGE_SCRIPT: &str = r#"<script>
+window.exero={invoke:function(a,p){return new Promise(function(r,j){var i=Math.random().toString(36).slice(2);var h=function(e){if(e.data&&e.data.type==='exero-result'&&e.data.id===i){window.removeEventListener('message',h);if(e.data.error)j(new Error(e.data.error));else r(e.data.result);}};window.addEventListener('message',h);window.parent.postMessage({type:'exero-invoke',id:i,actionId:a,params:p||{}},'*');});}};
+</script>"#;
+
+/// 向插件 HTML 注入桥接脚本
+///
+/// 在 `</head>` 前插入，若无 `</head>` 则在文件开头插入。
+fn inject_bridge_script(html: &str) -> String {
+    if html.contains("</head>") {
+        html.replacen("</head>", &format!("{PLUGIN_BRIDGE_SCRIPT}</head>"), 1)
+    } else {
+        format!("{PLUGIN_BRIDGE_SCRIPT}\n{html}")
+    }
 }

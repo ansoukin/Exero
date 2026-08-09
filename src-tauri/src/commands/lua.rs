@@ -2,7 +2,7 @@
 //!
 //! 提供已安装脚本的查询能力（list_installed_scripts / get_script_detail）。
 //! 市场分发已迁移至扩展市场（commands/extension_pack_market.rs），
-//! Lua 脚本通过 .exero-pack（pack_type=lua_scripts）分发，安装后注册到数据库。
+//! Lua 脚本通过 .exero-pack（pack_type=action, executor_type=Lua）分发，安装后注册到数据库。
 
 use std::sync::Arc;
 

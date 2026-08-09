@@ -1,16 +1,22 @@
-//! 扩展包在线市场命令（Beta3 阶段 c · 扩展市场）
+//! 扩展包在线市场命令（Beta5 · 扩展机制重设计）
 //!
 //! 对接 GitHub 仓库 `ansoukin/Exero` 的 `Market/` 目录，
 //! 提供 .exero-pack 扩展包的在线浏览 / 安装 / 更新 / 卸载能力。
 //!
-//! 市场目录结构（统一存放于 `Market/` 下）：
-//! - `Market/action-packs/`：动作包（pack_type=action）
-//! - `Market/lua-scripts/`：Lua 脚本包（pack_type=lua_scripts）
+//! V0.4.0-Beta5 变更：
+//! - 市场列表从"逐个下载 zip 读 manifest"优化为"只下载 market-index.json 索引"
+//! - 目录结构：Market/action-packs/（原路径保持不变）+ Market/plugins/（Phase 3 新增）
+//! - pack_type 统一为 action（lua_scripts 已合并）
 //!
-//! 网络策略（与 lua.rs 一致）：github.com 主 → ghproxy 镜像后备 → 离线模式（仅已安装）。
+//! 市场目录结构（统一存放于 `Market/` 下）：
+//! - `Market/market-index.json`：元数据索引（list_market_packs 只下载此文件）
+//! - `Market/action-packs/`：动作包 .exero-pack
+//! - `Market/plugins/`：插件 .exero-pack（Phase 3 新增）
+//!
+//! 网络策略：github.com 主 → ghproxy 镜像后备 → 离线模式（仅已安装）。
 //!
 //! 与 commands/extension_pack.rs 的关系：
-//! - 本模块负责在线市场（GitHub 拉取列表 + 下载安装）
+//! - 本模块负责在线市场（GitHub 拉取索引 + 下载安装）
 //! - commands/extension_pack.rs 负责本地管理（已安装列表 / 本地文件安装 / 卸载 / 目录）
 
 use std::sync::Arc;
@@ -19,27 +25,23 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::error::{AppError, Result};
-use crate::extension_pack::PackType;
 use crate::state::AppState;
 
 /// GitHub 仓库所有者
 const GITHUB_OWNER: &str = "ansoukin";
 /// GitHub 仓库名
 const GITHUB_REPO: &str = "Exero";
-/// 动作包目录（存放 pack_type=action 的 .exero-pack 文件）
-const ACTION_PACKS_PATH: &str = "Market/action-packs";
-/// Lua 脚本包目录（存放 pack_type=lua_scripts 的 .exero-pack 文件）
-const LUA_SCRIPTS_PATH: &str = "Market/lua-scripts";
+/// 市场索引文件路径
+const MARKET_INDEX_PATH: &str = "Market/market-index.json";
 /// ghproxy 镜像前缀
 const GHPROXY_BASE: &str = "https://ghproxy.com";
 
 /// 在线市场扩展包摘要
 ///
-/// 由 GitHub Contents API 列出 Market/action-packs/ + Market/lua-scripts/ 目录下的 .exero-pack 文件，
-/// 再逐个下载 zip 内的 manifest.json 提取元数据。
+/// 由 market-index.json 索引文件提供元数据，不再逐个下载 zip。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketPack {
-    /// 扩展包 id（来自 manifest）
+    /// 扩展包 id
     pub id: String,
     /// 显示名
     pub name: String,
@@ -51,19 +53,17 @@ pub struct MarketPack {
     pub author: Option<String>,
     /// exero_api_version
     pub exero_api_version: String,
-    /// 扩展包类型：action / lua_scripts
+    /// 扩展包类型：action
     pub pack_type: String,
-    /// 动作数量（pack_type = action 时有意义）
+    /// 动作数量
     pub action_count: usize,
-    /// Lua 脚本数量（pack_type = lua_scripts 时有意义）
-    pub script_count: usize,
     /// 是否注册侧边栏入口
     pub has_sidebar: bool,
     /// 下载 URL（raw.githubusercontent.com）
     pub download_url: String,
     /// 文件名（如 base-pack.exero-pack）
     pub file_name: String,
-    /// 文件大小（字节，来自 GitHub API size 字段）
+    /// 文件大小（字节）
     pub size: u64,
     /// 是否已安装
     pub installed: bool,
@@ -73,27 +73,50 @@ pub struct MarketPack {
     pub update_available: bool,
 }
 
-/// GitHub Contents API 返回的文件项
-#[derive(Deserialize)]
-struct GithubContent {
-    /// 文件名（如 "base-pack.exero-pack"）
+/// market-index.json 中的单个条目
+#[derive(Debug, Deserialize)]
+struct MarketIndexEntry {
+    id: String,
+    version: String,
     name: String,
-    /// 文件大小（字节）
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    author: String,
+    #[serde(default)]
+    exero_api_version: String,
+    pack_type: String,
+    file_name: String,
+    #[serde(default)]
     size: u64,
-    /// 下载 URL（raw.githubusercontent.com）
-    download_url: Option<String>,
+    #[serde(default)]
+    action_count: usize,
+    #[serde(default)]
+    has_sidebar: bool,
+    #[serde(default)]
+    download_url: String,
+}
+
+/// market-index.json 根结构
+#[derive(Debug, Deserialize)]
+struct MarketIndex {
+    #[serde(default)]
+    actions: Vec<MarketIndexEntry>,
+    #[serde(default)]
+    plugins: Vec<MarketIndexEntry>,
 }
 
 // ============ Tauri 命令 ============
 
 /// 列出在线市场可用扩展包
 ///
+/// 下载 market-index.json 索引文件（1 次请求），解析后与本地已安装列表对比。
 /// 网络失败时进入离线模式，仅返回已安装扩展包（无更新检查）。
 #[tauri::command]
 pub async fn list_market_packs(
     state: State<'_, Arc<AppState>>,
 ) -> Result<Vec<MarketPack>> {
-    // 已安装扩展包 id → version 映射
+    // 已安装扩展包 id -> version 映射
     let installed: std::collections::HashMap<String, String> = state
         .extension_pack_registry
         .list_packs()
@@ -101,92 +124,66 @@ pub async fn list_market_packs(
         .map(|p| (p.manifest.id, p.manifest.version))
         .collect();
 
-    // 拉取 Market/action-packs/ + Market/lua-scripts/ 两个目录合并
-    let mut files: Vec<GithubContent> = Vec::new();
-    match fetch_github_contents(ACTION_PACKS_PATH).await {
-        Ok(f) => files.extend(f),
-        Err(e) => tracing::warn!("action-packs 目录拉取失败: {}", e),
-    }
-    match fetch_github_contents(LUA_SCRIPTS_PATH).await {
-        Ok(f) => files.extend(f),
-        Err(e) => tracing::warn!("lua-scripts 目录拉取失败: {}", e),
-    }
+    // 下载 market-index.json
+    match fetch_market_index().await {
+        Ok(index) => {
+            let mut market: Vec<MarketPack> = Vec::new();
 
-    if !files.is_empty() {
-        // 筛选 .exero-pack 文件
-        let pack_files: Vec<&GithubContent> = files
-            .iter()
-            .filter(|f| f.name.ends_with(".exero-pack"))
-            .collect();
-
-        let mut market: Vec<MarketPack> = Vec::new();
-        for file in pack_files {
-            // 下载 .exero-pack 并读取 manifest.json（失败则跳过）
-            match fetch_pack_manifest(&file.download_url.clone().unwrap_or_default()).await {
-                Ok(manifest) => {
-                    let installed_info = installed.get(&manifest.id);
-                    let installed_version = installed_info.cloned();
-                    let update_available = match &installed_version {
-                        Some(v) => version_gt(&manifest.version, v),
-                        None => false,
-                    };
-                    market.push(MarketPack {
-                        id: manifest.id.clone(),
-                        name: manifest.name,
-                        version: manifest.version,
-                        description: opt_str(manifest.description),
-                        author: opt_str(manifest.author),
-                        exero_api_version: manifest.exero_api_version,
-                        pack_type: pack_type_str(manifest.pack_type).to_string(),
-                        action_count: manifest.actions.len(),
-                        script_count: manifest.scripts.len(),
-                        has_sidebar: manifest.sidebar.is_some(),
-                        download_url: file.download_url.clone().unwrap_or_default(),
-                        file_name: file.name.clone(),
-                        size: file.size,
-                        installed: installed_info.is_some(),
-                        installed_version,
-                        update_available,
-                    });
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "扩展包 {} manifest 读取失败，跳过: {}",
-                        file.name,
-                        e
-                    );
-                }
-            }
-        }
-        Ok(market)
-    } else {
-        tracing::warn!("两个市场目录均拉取失败，进入离线模式");
-        // 离线模式：仅返回已安装扩展包（无 download_url）
-        let mut market: Vec<MarketPack> = Vec::new();
-        for (id, version) in installed {
-            // 尝试从注册表获取完整信息
-            if let Some(pack) = state.extension_pack_registry.get_pack(&id) {
+            // 合并 actions + plugins 条目
+            for entry in index.actions.iter().chain(index.plugins.iter()) {
+                let installed_info = installed.get(&entry.id);
+                let installed_version = installed_info.cloned();
+                let update_available = match &installed_version {
+                    Some(v) => version_gt(&entry.version, v),
+                    None => false,
+                };
                 market.push(MarketPack {
-                    id: pack.manifest.id,
-                    name: pack.manifest.name,
-                    version: pack.manifest.version,
-                    description: opt_str(pack.manifest.description),
-                    author: opt_str(pack.manifest.author),
-                    exero_api_version: pack.manifest.exero_api_version,
-                    pack_type: pack_type_str(pack.manifest.pack_type).to_string(),
-                    action_count: pack.manifest.actions.len(),
-                    script_count: pack.manifest.scripts.len(),
-                    has_sidebar: pack.manifest.sidebar.is_some(),
-                    download_url: String::new(),
-                    file_name: String::new(),
-                    size: 0,
-                    installed: true,
-                    installed_version: Some(version),
-                    update_available: false,
+                    id: entry.id.clone(),
+                    name: entry.name.clone(),
+                    version: entry.version.clone(),
+                    description: opt_str(entry.description.clone()),
+                    author: opt_str(entry.author.clone()),
+                    exero_api_version: entry.exero_api_version.clone(),
+                    pack_type: entry.pack_type.clone(),
+                    action_count: entry.action_count,
+                    has_sidebar: entry.has_sidebar,
+                    download_url: entry.download_url.clone(),
+                    file_name: entry.file_name.clone(),
+                    size: entry.size,
+                    installed: installed_info.is_some(),
+                    installed_version,
+                    update_available,
                 });
             }
+            Ok(market)
         }
-        Ok(market)
+        Err(e) => {
+            tracing::warn!("市场索引下载失败，进入离线模式: {}", e);
+            // 离线模式：仅返回已安装扩展包（无 download_url）
+            let mut market: Vec<MarketPack> = Vec::new();
+            for (id, version) in installed {
+                if let Some(pack) = state.extension_pack_registry.get_pack(&id) {
+                    market.push(MarketPack {
+                        id: pack.manifest.id,
+                        name: pack.manifest.name,
+                        version: pack.manifest.version,
+                        description: opt_str(pack.manifest.description),
+                        author: opt_str(pack.manifest.author),
+                        exero_api_version: pack.manifest.exero_api_version,
+                        pack_type: "action".to_string(),
+                        action_count: pack.manifest.actions.len(),
+                        has_sidebar: pack.manifest.sidebar.is_some(),
+                        download_url: String::new(),
+                        file_name: String::new(),
+                        size: 0,
+                        installed: true,
+                        installed_version: Some(version),
+                        update_available: false,
+                    });
+                }
+            }
+            Ok(market)
+        }
     }
 }
 
@@ -247,57 +244,32 @@ pub async fn install_pack_from_github(
 
 // ============ 内部辅助函数 ============
 
-/// 拉取 GitHub Contents API 列出指定目录
-async fn fetch_github_contents(path: &str) -> Result<Vec<GithubContent>> {
-    let api_url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        GITHUB_OWNER, GITHUB_REPO, path
+/// 下载并解析 market-index.json
+///
+/// 主源 raw.githubusercontent.com，失败走 ghproxy 镜像。
+async fn fetch_market_index() -> Result<MarketIndex> {
+    let raw_url = format!(
+        "https://raw.githubusercontent.com/{}/{}/main/{}",
+        GITHUB_OWNER, GITHUB_REPO, MARKET_INDEX_PATH
     );
+
     let client = reqwest::Client::builder()
         .user_agent("Exero-App")
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
-    let resp = client
-        .get(&api_url)
-        .send()
-        .await
-        .map_err(|e| AppError::Other(format!("GitHub API 请求失败: {}", e)))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Other(format!(
-            "GitHub API 返回 {}",
-            resp.status()
-        )));
-    }
-    let files: Vec<GithubContent> = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Other(format!("GitHub API 解析失败: {}", e)))?;
-    Ok(files)
-}
-
-/// 下载 .exero-pack 并读取其中的 manifest.json
-///
-/// 下载到内存后用 Cursor 读取 zip，仅提取 manifest（不保留字节）。
-async fn fetch_pack_manifest(
-    download_url: &str,
-) -> Result<crate::extension_pack::ExtensionPackManifest> {
-    let client = reqwest::Client::builder()
-        .user_agent("Exero-App")
-        .timeout(std::time::Duration::from_secs(30))
-        .build()?;
 
     // 主源下载
-    let bytes = match client.get(download_url).send().await {
+    let bytes = match client.get(&raw_url).send().await {
         Ok(resp) if resp.status().is_success() => {
             match resp.bytes().await {
                 Ok(b) if !b.is_empty() => b.to_vec(),
-                _ => return Err(AppError::Other("主源返回空内容".into())),
+                _ => return Err(AppError::Other("市场索引主源返回空内容".into())),
             }
         }
         _ => {
             // 镜像后备
-            let mirror = mirror_url(download_url);
-            tracing::info!("manifest 主源失败，尝试镜像: {}", mirror);
+            let mirror = mirror_url(&raw_url);
+            tracing::info!("市场索引主源失败，尝试镜像: {}", mirror);
             let resp = client
                 .get(&mirror)
                 .send()
@@ -316,20 +288,10 @@ async fn fetch_pack_manifest(
         }
     };
 
-    // 从内存读 zip，提取 manifest.json
-    let cursor = std::io::Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| AppError::Other(format!("zip 解析失败: {}", e)))?;
+    let index: MarketIndex = serde_json::from_slice(&bytes)
+        .map_err(|e| AppError::Other(format!("市场索引解析失败: {}", e)))?;
 
-    let manifest_file = archive
-        .by_name("manifest.json")
-        .map_err(|e| AppError::Other(format!("zip 内未找到 manifest.json: {}", e)))?;
-
-    let manifest: crate::extension_pack::ExtensionPackManifest =
-        serde_json::from_reader(manifest_file)
-            .map_err(|e| AppError::Other(format!("manifest 解析失败: {}", e)))?;
-
-    Ok(manifest)
+    Ok(index)
 }
 
 /// 下载 URL 内容到文件
@@ -368,14 +330,6 @@ fn opt_str(s: String) -> Option<String> {
         None
     } else {
         Some(s)
-    }
-}
-
-/// PackType 转字符串标识
-fn pack_type_str(t: PackType) -> &'static str {
-    match t {
-        PackType::Action => "action",
-        PackType::LuaScripts => "lua_scripts",
     }
 }
 

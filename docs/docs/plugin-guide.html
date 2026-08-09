@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>插件开发指南 · Exero</title>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --bg-sidebar: #0d1320;
+    --bg-content: #0a0f1a;
+    --bg-code: #131a2a;
+    --bg-code-inline: #1a2236;
+    --text: #e5e7eb;
+    --text-muted: #9ca3af;
+    --text-dim: #6b7280;
+    --border: #1f2937;
+    --primary: #42b883;
+    --primary-dim: #2c8a65;
+    --heading: #f3f4f6;
+    --link: #42b883;
+    --code-text: #a5b4fc;
+    --table-head: #131a2a;
+    --table-stripe: #0d1320;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 100;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 24px;
+  }
+  .topbar .logo {
+    font-weight: 700; font-size: 18px; color: var(--primary);
+    letter-spacing: -0.02em; text-decoration: none;
+  }
+  .topbar .logo span { color: var(--text); }
+  .topbar nav { margin-left: 32px; display: flex; gap: 20px; }
+  .topbar nav a {
+    color: var(--text-muted); text-decoration: none; font-size: 14px;
+    transition: color 0.2s;
+  }
+  .topbar nav a:hover, .topbar nav a.active { color: var(--primary); }
+  .menu-btn {
+    display: none; background: none; border: none; color: var(--text);
+    font-size: 20px; cursor: pointer; margin-right: 12px;
+  }
+  .sidebar {
+    position: fixed; top: 56px; left: 0; bottom: 0; width: 260px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 24px 16px;
+  }
+  .sidebar .group-title {
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 8px 12px; margin-top: 16px;
+  }
+  .sidebar .group-title:first-child { margin-top: 0; }
+  .sidebar a {
+    display: block; padding: 6px 12px; color: var(--text-muted);
+    text-decoration: none; font-size: 14px; border-radius: 6px;
+    transition: all 0.15s; line-height: 1.5;
+  }
+  .sidebar a:hover { color: var(--primary); background: rgba(66, 184, 131, 0.08); }
+  .sidebar a.active { color: var(--primary); background: rgba(66, 184, 131, 0.12); font-weight: 500; }
+  .content {
+    margin-left: 260px; margin-top: 56px; padding: 48px 64px 80px;
+    max-width: 920px;
+  }
+  h1 { font-size: 36px; font-weight: 700; color: var(--heading); margin-bottom: 12px; letter-spacing: -0.02em; }
+  h2 { font-size: 26px; font-weight: 600; color: var(--heading); margin-top: 56px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); letter-spacing: -0.01em; }
+  h3 { font-size: 20px; font-weight: 600; color: var(--heading); margin-top: 36px; margin-bottom: 12px; }
+  h4 { font-size: 16px; font-weight: 600; color: var(--primary); margin-top: 24px; margin-bottom: 8px; }
+  p { margin-bottom: 16px; color: var(--text); }
+  ul, ol { margin: 0 0 16px 24px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+    background: var(--bg-code-inline); padding: 2px 6px; border-radius: 4px;
+    font-size: 0.88em; color: var(--code-text);
+  }
+  pre {
+    background: var(--bg-code); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px; overflow-x: auto;
+    margin: 16px 0 24px; font-size: 14px; line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  blockquote {
+    border-left: 4px solid var(--primary); padding: 12px 20px;
+    background: rgba(66, 184, 131, 0.06); border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  blockquote p { margin: 0; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
+  th { background: var(--table-head); text-align: left; padding: 10px 14px; font-weight: 600; color: var(--heading); border: 1px solid var(--border); }
+  td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text); }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+  td code { font-size: 0.85em; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  .lead { font-size: 18px; color: var(--text-muted); margin-bottom: 32px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 12px; font-weight: 600; margin-left: 8px; vertical-align: middle;
+  }
+  .badge-required { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+  .badge-optional { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+  @media (max-width: 900px) {
+    .menu-btn { display: inline-block; }
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s; z-index: 99; }
+    .sidebar.open { transform: translateX(0); }
+    .content { margin-left: 0; padding: 32px 24px 64px; }
+    .topbar nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+  <a href="index.html" class="logo">Exero<span> Docs</span></a>
+  <nav>
+    <a href="action-pack-guide.html">动作包</a>
+    <a href="plugin-guide.html" class="active">插件</a>
+  </nav>
+</div>
+
+<aside class="sidebar">
+  <div class="group-title">入门</div>
+  <a href="#quick-start">快速入门</a>
+  <a href="#manifest">Manifest 字段参考</a>
+  <div class="group-title">Rust .dll</div>
+  <a href="#sdk">exero-plugin-sdk</a>
+  <a href="#params">Params 结构</a>
+  <a href="#macro">declare_actions! 宏</a>
+  <a href="#c-abi">C ABI 接口</a>
+  <div class="group-title">前端</div>
+  <a href="#iframe">iframe 开发</a>
+  <a href="#bridge">桥接 API</a>
+  <div class="group-title">发布</div>
+  <a href="#packaging">打包与发布</a>
+  <a href="#example">Hello Plugin 完整示例</a>
+</aside>
+
+<main class="content">
+
+<h1>插件开发指南</h1>
+<p class="lead">插件提供完整功能页面：iframe UI + 侧边栏入口 + Rust .dll 动作。通过 Tauri 自定义协议加载前端，桥接 API 与主程序通信。</p>
+
+<blockquote>
+<p>Exero V0.4.0-Beta5 · 插件（<code>pack_type: plugin</code>）开发文档</p>
+</blockquote>
+
+<h2 id="quick-start">快速入门</h2>
+<p>创建一个最小可用的插件，包含侧边栏入口、iframe 页面、Rust 动作。</p>
+
+<h3>1. 创建项目结构</h3>
+<pre><code>my-plugin/
+├── Cargo.toml          # Rust crate 配置
+├── src/
+│   └── lib.rs          # Rust 动作（.dll）
+├── manifest.json       # 插件 manifest
+└── index.html          # 插件前端页面</code></pre>
+
+<h3>2. 编写 Cargo.toml</h3>
+<pre><code>[package]
+name = "my-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
+serde_json = "1"</code></pre>
+
+<h3>3. 编写 Rust 动作</h3>
+<pre><code>use exero_plugin_sdk::{declare_actions, Params};
+use serde_json::json;
+
+fn say_hello(_params: Params) -> Result&lt;serde_json::Value, String&gt; {
+    Ok(json!({ "message": "Hello from Rust!" }))
+}
+
+declare_actions! {
+    "say_hello" => say_hello,
+}</code></pre>
+
+<h3>4. 编写 manifest.json</h3>
+<pre><code>{
+  "id": "my-plugin",
+  "version": "0.1.0",
+  "name": "My Plugin",
+  "description": "我的第一个 Exero 插件",
+  "author": "Your Name",
+  "exero_api_version": "0.4.0",
+  "pack_type": "plugin",
+  "rust_library": "my_plugin.dll",
+  "sidebar": {
+    "id": "my-plugin",
+    "label": "My Plugin",
+    "icon": "Puzzle",
+    "page_type": "web"
+  },
+  "ui": { "entry": "index.html" },
+  "actions": [
+    {
+      "id": "say_hello",
+      "executor_type": "rust",
+      "executor_id": "say_hello",
+      "label": "Say Hello",
+      "category": "lua",
+      "icon": "Code",
+      "default_params": {},
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "Say Hello"
+    }
+  ]
+}</code></pre>
+
+<h3>5. 编写前端页面</h3>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;meta charset="UTF-8" /&gt;&lt;/head&gt;
+&lt;body&gt;
+  &lt;button id="btn"&gt;Call Rust&lt;/button&gt;
+  &lt;div id="result"&gt;&lt;/div&gt;
+  &lt;script&gt;
+    document.getElementById('btn').addEventListener('click', async () =&gt; {
+      const result = await window.exero.invoke('say_hello', {});
+      document.getElementById('result').textContent = JSON.stringify(result);
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h3>6. 编译打包</h3>
+<pre><code># 编译 .dll
+cargo build --release
+
+# 打包为 .exero-pack（zip 格式，manifest.json 位于根目录）
+Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force</code></pre>
+<p>安装后在 Exero 侧边栏出现 "My Plugin" 入口，点击进入插件页面，"Call Rust" 按钮调用 .dll 返回结果。</p>
+
+<h2 id="manifest">Manifest 字段参考</h2>
+
+<h3>ExtensionPackManifest（根结构）</h3>
+<table>
+<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>id</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>插件唯一标识</td></tr>
+<tr><td><code>version</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>SemVer 版本号</td></tr>
+<tr><td><code>name</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>显示名</td></tr>
+<tr><td><code>description</code></td><td>string</td><td><span class="badge badge-optional">可选</span></td><td>描述</td></tr>
+<tr><td><code>author</code></td><td>string</td><td><span class="badge badge-optional">可选</span></td><td>作者</td></tr>
+<tr><td><code>exero_api_version</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>所需 Exero API 版本（<code>0.4.0</code>）</td></tr>
+<tr><td><code>pack_type</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td><strong>必须为 <code>plugin</code></strong></td></tr>
+<tr><td><code>rust_library</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>Rust .dll 相对路径（如 <code>my_plugin.dll</code>）</td></tr>
+<tr><td><code>actions</code></td><td>ActionManifest[]</td><td><span class="badge badge-optional">可选</span></td><td>动作声明（同时注册为 Flow 积木）</td></tr>
+<tr><td><code>sidebar</code></td><td>SidebarManifest</td><td><span class="badge badge-required">必填</span></td><td>侧边栏入口声明</td></tr>
+<tr><td><code>ui</code></td><td>UiManifest</td><td><span class="badge badge-required">必填</span></td><td>前端入口声明</td></tr>
+</tbody>
+</table>
+
+<h3>SidebarManifest（侧边栏入口）</h3>
+<pre><code>{
+  "id": "my-plugin",
+  "label": "My Plugin",
+  "icon": "Puzzle",
+  "page_type": "web"
+}</code></pre>
+<table>
+<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>id</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>入口唯一标识（建议与插件 id 一致）</td></tr>
+<tr><td><code>label</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>入口显示名</td></tr>
+<tr><td><code>icon</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>lucide-react 图标名（如 <code>Puzzle</code>）</td></tr>
+<tr><td><code>page_type</code></td><td>string</td><td><span class="badge badge-optional">可选</span></td><td>插件固定为 <code>web</code>（iframe 页面）</td></tr>
+</tbody>
+</table>
+
+<h3>UiManifest（前端入口）</h3>
+<pre><code>{ "entry": "index.html" }</code></pre>
+<table>
+<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>entry</code></td><td>string</td><td><span class="badge badge-required">必填</span></td><td>前端入口文件相对路径</td></tr>
+</tbody>
+</table>
+
+<h2 id="sdk">exero-plugin-sdk</h2>
+<p>exero-plugin-sdk 提供 <code>Params</code> 参数封装和 <code>declare_actions!</code> 宏，自动生成 C ABI 导出函数。</p>
+
+<h3 id="params">Params 结构</h3>
+<p><code>Params</code> 封装 Exero 传入的 JSON 参数，提供类型安全的访问方法。</p>
+<pre><code>use exero_plugin_sdk::Params;
+
+fn my_action(params: Params) -> Result&lt;serde_json::Value, String&gt; {
+    // 获取必填参数（缺失或类型错误时返回 Err）
+    let name: String = params.get("name")?;
+
+    // 获取可选参数（缺失或类型错误时返回 None）
+    let count: Option&lt;i64&gt; = params.get_optional("count");
+
+    // 获取原始 JSON
+    let raw = params.raw();
+
+    Ok(serde_json::json!({ "echo": name }))
+}</code></pre>
+<table>
+<thead><tr><th>方法</th><th>签名</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>get&lt;T&gt;</code></td><td><code>(&amp;self, key: &amp;str) -&gt; Result&lt;T, String&gt;</code></td><td>获取必填参数</td></tr>
+<tr><td><code>get_optional&lt;T&gt;</code></td><td><code>(&amp;self, key: &amp;str) -&gt; Option&lt;T&gt;</code></td><td>获取可选参数</td></tr>
+<tr><td><code>raw</code></td><td><code>(&amp;self) -&gt; &amp;serde_json::Value</code></td><td>获取原始 JSON</td></tr>
+</tbody>
+</table>
+
+<h3 id="macro">declare_actions! 宏</h3>
+<p>声明动作注册表，自动生成 C ABI 导出函数。</p>
+<pre><code>use exero_plugin_sdk::{declare_actions, Params};
+use serde_json::json;
+
+fn say_hello(_params: Params) -> Result&lt;serde_json::Value, String&gt; {
+    Ok(json!({ "message": "Hello from Rust!" }))
+}
+
+fn add(params: Params) -> Result&lt;serde_json::Value, String&gt; {
+    let a: i64 = params.get("a")?;
+    let b: i64 = params.get("b")?;
+    Ok(json!({ "sum": a + b }))
+}
+
+declare_actions! {
+    "say_hello" => say_hello,
+    "add" => add,
+}</code></pre>
+<p><strong>语法</strong>：</p>
+<pre><code>declare_actions! {
+    "action_id" => handler_fn,
+    ...
+}</code></pre>
+<ul>
+<li>键：动作 id（字符串字面量，对应 manifest <code>actions[].id</code>）</li>
+<li>值：处理函数路径，签名为 <code>fn(Params) -&gt; Result&lt;serde_json::Value, String&gt;</code></li>
+</ul>
+
+<h3 id="c-abi">生成的 C ABI 函数</h3>
+<p>宏自动生成以下 4 个导出函数，无需手动编写：</p>
+<table>
+<thead><tr><th>函数</th><th>签名</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>exero_pack_init</code></td><td><code>() -&gt; i32</code></td><td>加载时调用，返回 0 表示成功</td></tr>
+<tr><td><code>exero_pack_cleanup</code></td><td><code>()</code></td><td>卸载时调用</td></tr>
+<tr><td><code>exero_execute_action</code></td><td><code>(action_id, params_json) -&gt; *const c_char</code></td><td>执行动作，返回 JSON 字符串，NULL 表示出错</td></tr>
+<tr><td><code>exero_last_error</code></td><td><code>() -&gt; *const c_char</code></td><td>获取最近一次错误信息，NULL 表示无错误</td></tr>
+</tbody>
+</table>
+
+<h4>返回值约定</h4>
+<ul>
+<li><strong>成功</strong>：返回 <code>Ok(serde_json::Value)</code>，序列化为 JSON 字符串返回给 Exero</li>
+<li><strong>失败</strong>：返回 <code>Err(String)</code>，错误信息通过 <code>exero_last_error</code> 获取</li>
+</ul>
+
+<h4>线程安全</h4>
+<p>返回字符串通过 <code>thread_local</code> 存储，Exero 在调用后立即复制为 Rust String，下次调用会覆盖旧值。跨线程调用时每个线程有独立的 thread_local 缓冲区。</p>
+
+<h4>编译</h4>
+<pre><code># 设置 CARGO_TARGET_DIR（防止污染回收站）
+$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
+
+# 编译为 .dll
+cargo build --release</code></pre>
+<p>产物位于 <code>C:\cargo-target-dominate\release\my_plugin.dll</code>。</p>
+
+<h2 id="iframe">前端 iframe 开发</h2>
+
+<h3>加载机制</h3>
+<p>Exero 通过 Tauri 自定义协议加载插件前端：</p>
+<ul>
+<li>协议：<code>plugin</code> URI scheme</li>
+<li>访问格式（Windows）：<code>http://plugin.localhost/{pack_id}/{file_path}</code></li>
+<li>示例：<code>http://plugin.localhost/my-plugin/index.html</code></li>
+</ul>
+<p>插件前端文件位于插件安装目录，由 Exero 主程序通过协议服务。所有相对路径的资源（CSS/JS/图片）都通过同一协议加载。</p>
+
+<h3>桥接脚本注入</h3>
+<p>Exero 在返回 HTML 文件时，<strong>自动在 <code>&lt;/head&gt;</code> 前注入桥接脚本</strong>，提供 <code>window.exero.invoke</code> 接口。插件开发者无需手动引入任何脚本。</p>
+
+<h3>iframe 沙箱权限</h3>
+<p>插件 iframe 的 sandbox 配置：</p>
+<pre><code>allow-scripts allow-forms allow-popups allow-modals</code></pre>
+<ul>
+<li>允许执行脚本、表单提交、弹窗、模态框</li>
+<li><strong>不</strong>允许 <code>allow-same-origin</code>（防止插件访问 Exero 主窗口 DOM）</li>
+<li><strong>不</strong>允许 <code>allow-top-navigation</code>（防止插件篡改主窗口）</li>
+</ul>
+
+<h2 id="bridge">桥接 API</h2>
+
+<h3>window.exero.invoke(actionId, params)</h3>
+<p>调用插件 Rust .dll 中的动作。</p>
+<p><strong>参数</strong>：</p>
+<ul>
+<li><code>actionId</code>：string，动作 id（对应 <code>declare_actions!</code> 注册的 id）</li>
+<li><code>params</code>：object，传递给动作的参数</li>
+</ul>
+<p><strong>返回</strong>：<code>Promise&lt;any&gt;</code>，解析为动作返回的 JSON 结果</p>
+
+<h4>示例</h4>
+<pre><code>// 调用无参数动作
+const result = await window.exero.invoke('say_hello', {});
+console.log(result); // { message: "Hello from Rust!" }
+
+// 调用带参数动作
+const sum = await window.exero.invoke('add', { a: 1, b: 2 });
+console.log(sum); // { sum: 3 }</code></pre>
+
+<h4>错误处理</h4>
+<pre><code>try {
+  const result = await window.exero.invoke('my_action', { ... });
+} catch (e) {
+  console.error('动作执行失败:', e.message);
+}</code></pre>
+
+<h3>通信协议</h3>
+<p>桥接 API 基于 <code>postMessage</code> 实现跨域通信：</p>
+<pre><code>iframe -> 主窗口：
+  postMessage({ type: 'exero-invoke', id, actionId, params })
+
+主窗口 -> iframe：
+  postMessage({ type: 'exero-result', id, result | error })</code></pre>
+<ul>
+<li><code>id</code>：随机生成的请求 ID，用于关联请求与响应</li>
+<li>支持并发调用，每个请求独立 Promise</li>
+</ul>
+
+<h2 id="packaging">打包与发布</h2>
+
+<h3>打包</h3>
+<p>将插件所有文件压缩为 <code>.exero-pack</code>（zip 格式），要求 <code>manifest.json</code> 位于压缩包根目录。</p>
+<pre><code>Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force</code></pre>
+
+<h3>发布到市场</h3>
+<ol>
+<li>将 <code>.exero-pack</code> 文件放入仓库 <code>Market/plugins/</code> 目录</li>
+<li>运行 <code>scripts/build-packs.ps1</code> 重新生成 <code>market-index.json</code></li>
+<li>推送到 GitHub 仓库</li>
+</ol>
+<pre><code>powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1</code></pre>
+
+<h3>安装方式</h3>
+<ul>
+<li><strong>市场安装</strong>：Exero 内「扩展市场」页面，切换到"插件"筛选标签安装</li>
+<li><strong>本地导入</strong>：「设置 → 扩展包」导入本地 <code>.exero-pack</code> 文件</li>
+</ul>
+<p>安装后插件自动出现在侧边栏（icon + label），点击进入插件 iframe 页面。</p>
+
+<h2 id="example">Hello Plugin 完整示例</h2>
+<p>完整示例位于 <code>examples/hello-plugin/</code>。</p>
+
+<h3>Cargo.toml</h3>
+<pre><code>[package]
+name = "hello-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
+serde_json = "1"</code></pre>
+
+<h3>src/lib.rs</h3>
+<pre><code>use exero_plugin_sdk::{declare_actions, Params};
+use serde_json::json;
+
+fn say_hello(_params: Params) -> Result&lt;serde_json::Value, String&gt; {
+    Ok(json!({ "message": "Hello from Rust!" }))
+}
+
+declare_actions! {
+    "say_hello" => say_hello,
+}</code></pre>
+
+<h3>manifest.json</h3>
+<pre><code>{
+  "id": "hello-plugin",
+  "version": "0.1.0",
+  "name": "Hello Plugin",
+  "description": "Exero 官方示例插件",
+  "author": "Exero",
+  "exero_api_version": "0.4.0",
+  "pack_type": "plugin",
+  "rust_library": "hello_plugin.dll",
+  "sidebar": {
+    "id": "hello-plugin",
+    "label": "Hello",
+    "icon": "Puzzle",
+    "page_type": "web"
+  },
+  "ui": { "entry": "index.html" },
+  "actions": [
+    {
+      "id": "say_hello",
+      "executor_type": "rust",
+      "executor_id": "say_hello",
+      "label": "Say Hello",
+      "category": "lua",
+      "icon": "Code",
+      "default_params": {},
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "Say Hello"
+    }
+  ]
+}</code></pre>
+
+<h3>index.html</h3>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;&lt;meta charset="UTF-8" /&gt;&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Hello Plugin&lt;/h1&gt;
+  &lt;button id="btn"&gt;Call Rust&lt;/button&gt;
+  &lt;div id="result"&gt;等待调用...&lt;/div&gt;
+  &lt;script&gt;
+    document.getElementById('btn').addEventListener('click', async () =&gt; {
+      const resultEl = document.getElementById('result');
+      try {
+        const result = await window.exero.invoke('say_hello', {});
+        resultEl.textContent = JSON.stringify(result);
+      } catch (e) {
+        resultEl.textContent = '错误: ' + e.message;
+      }
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h3>编译与打包</h3>
+<pre><code># 1. 设置 CARGO_TARGET_DIR
+$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
+
+# 2. 编译 .dll
+cd examples\hello-plugin
+cargo build --release
+
+# 3. 打包（项目根目录执行）
+cd e:\Project\Exero
+powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1</code></pre>
+<p>打包后生成 <code>Market/plugins/hello-plugin.exero-pack</code>，包含 manifest.json + index.html + hello_plugin.dll。</p>
+
+<hr>
+<p>下一步：<a href="action-pack-guide.html">动作包开发指南</a> · <a href="../SPEC.md">SPEC.md</a></p>
+
+</main>
+
+<script>
+  const sidebarLinks = document.querySelectorAll('.sidebar a');
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 900) {
+        document.querySelector('.sidebar').classList.remove('open');
+      }
+    });
+  });
+  const sections = document.querySelectorAll('h2[id]');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => {
+      if (window.scrollY >= sec.offsetTop - 80) current = sec.id;
+    });
+    sidebarLinks.forEach(link => {
+      link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+
+</body>
+</html>

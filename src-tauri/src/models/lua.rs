@@ -1,7 +1,7 @@
 //! Lua 脚本模型
 //!
 //! 定义脚本 manifest（脚本元数据）与已安装脚本（数据库记录）结构。
-//! 市场分发通过 .exero-pack（pack_type=lua_scripts），见 extension_pack 模块。
+//! 市场分发通过 .exero-pack（pack_type=action, executor_type=Lua），见 extension_pack 模块。
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

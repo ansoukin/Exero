@@ -9,6 +9,7 @@
 //! - TriggerScheduler（触发器调度器）
 //! - GlobalVariables（跨动作链共享的全局变量池）
 //! - ExtensionPackRegistry（扩展包注册表，Beta3）
+//! - RustLibraryRegistry（Rust .dll 动态库注册表，Beta5 Phase 2）
 
 use std::sync::Arc;
 
@@ -20,7 +21,8 @@ use crate::db::Database;
 use crate::db::Repository;
 use crate::error::Result;
 use crate::executor::ChainEngine;
-use crate::extension_pack::ExtensionPackRegistry;
+use crate::extension_pack::{ExtensionPackRegistry, NativeDllExecutor, RustLibraryRegistry};
+use crate::extension_pack::ExecutorType;
 use crate::triggers::TriggerScheduler;
 
 /// 应用全局状态
@@ -39,6 +41,8 @@ pub struct AppState {
     pub global_variables: GlobalVariables,
     /// 扩展包注册表（Beta3 · 扩展包架构）
     pub extension_pack_registry: Arc<ExtensionPackRegistry>,
+    /// Rust .dll 动态库注册表（Beta5 Phase 2）
+    pub rust_library_registry: Arc<RustLibraryRegistry>,
     /// 是否已完成初始化
     pub initialized: RwLock<bool>,
 }
@@ -116,6 +120,44 @@ impl AppState {
             tracing::warn!("扩展包加载失败（不影响运行）: {}", e);
         }
 
+        // 11. 创建 Rust 动态库注册表并加载 .dll（Beta5 · Phase 2）
+        // 遍历已加载的扩展包，对声明了 rust_library 的包加载 .dll，
+        // 并为其中 executor_type=Rust 的动作注册 NativeDllExecutor。
+        // base-pack 的 Rust 动作无 rust_library 字段，走内置 ActionType 映射，不在此处理。
+        let rust_library_registry = Arc::new(RustLibraryRegistry::new());
+        for pack in extension_pack_registry.list_packs() {
+            if let Some(rust_lib_rel) = &pack.manifest.rust_library {
+                let dll_path = pack.pack_dir.join(rust_lib_rel);
+                match rust_library_registry.load(&pack.manifest.id, &dll_path) {
+                    Ok(()) => {
+                        // 注册 Rust 动作执行器
+                        for action in &pack.manifest.actions {
+                            if action.executor_type == ExecutorType::Rust {
+                                let executor = Arc::new(NativeDllExecutor::new(
+                                    rust_library_registry.clone(),
+                                    pack.manifest.id.clone(),
+                                    action.id.clone(),
+                                ));
+                                registry.register_extension(executor.extension_key(), executor);
+                                tracing::debug!(
+                                    "已注册 Rust 动作执行器: {}:{}",
+                                    pack.manifest.id,
+                                    action.id
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Rust 动态库加载失败 (pack_id={}): {}",
+                            pack.manifest.id,
+                            e
+                        );
+                    }
+                }
+            }
+        }
+
         tracing::info!("应用状态初始化完成");
 
         Ok(Self {
@@ -126,6 +168,7 @@ impl AppState {
             scheduler,
             global_variables,
             extension_pack_registry,
+            rust_library_registry,
             initialized: RwLock::new(true),
         })
     }
@@ -135,5 +178,51 @@ impl AppState {
     /// 当触发器或 Flow 启用状态变更时调用。
     pub fn reload_triggers(&self) -> Result<()> {
         self.scheduler.reload()
+    }
+
+    /// 重新加载所有 Rust .dll（Beta5 Phase 2）
+    ///
+    /// 在 `reload_packs` 重新加载扩展包注册表后调用：
+    /// 1. 卸载所有已加载的 .dll（FreeLibrary）
+    /// 2. 注销所有扩展动作执行器
+    /// 3. 遍历扩展包，重新加载有 rust_library 的 .dll
+    /// 4. 注册 Rust 动作执行器到 ActionExecutorRegistry
+    pub fn reload_rust_libraries(&self) {
+        // 1. 卸载所有 .dll
+        self.rust_library_registry.unload_all();
+
+        // 2. 注销所有扩展执行器
+        for pack in self.extension_pack_registry.list_packs() {
+            self.registry.unregister_extension_pack(&pack.manifest.id);
+        }
+
+        // 3. 重新加载 .dll + 注册扩展执行器
+        for pack in self.extension_pack_registry.list_packs() {
+            if let Some(rust_lib_rel) = &pack.manifest.rust_library {
+                let dll_path = pack.pack_dir.join(rust_lib_rel);
+                match self.rust_library_registry.load(&pack.manifest.id, &dll_path) {
+                    Ok(()) => {
+                        for action in &pack.manifest.actions {
+                            if action.executor_type == ExecutorType::Rust {
+                                let executor = Arc::new(NativeDllExecutor::new(
+                                    self.rust_library_registry.clone(),
+                                    pack.manifest.id.clone(),
+                                    action.id.clone(),
+                                ));
+                                self.registry
+                                    .register_extension(executor.extension_key(), executor);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Rust 动态库重新加载失败 (pack_id={}): {}",
+                            pack.manifest.id,
+                            e
+                        );
+                    }
+                }
+            }
+        }
     }
 }

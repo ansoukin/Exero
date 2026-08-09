@@ -1,0 +1,11 @@
+[package]
+name = "exero-plugin-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "SDK for developing Exero extension packs (Rust actions and plugins) via C ABI"
+license = "MIT"
+repository = "https://github.com/ansoukin/Exero"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

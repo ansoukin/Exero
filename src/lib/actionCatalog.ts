@@ -43,6 +43,7 @@ import {
   type NodeMeta,
   type NodePort,
 } from "@/lib/nodeCatalog";
+import { useAppStore } from "@/stores/app";
 
 // ============================================================
 // 图标名称 → 组件映射（base-pack 20 种 + 默认）
@@ -192,6 +193,8 @@ export function useActionCatalog(): UseActionCatalogResult {
   const [error, setError] = useState<string | null>(null);
   // 后端是否成功响应（区分"空目录"与"调用失败"）
   const [loaded, setLoaded] = useState(false);
+  // 安装/卸载扩展包后 packVersion 递增，触发重新拉取
+  const packVersion = useAppStore((s) => s.packVersion);
 
   const load = async () => {
     setLoading(true);
@@ -212,7 +215,7 @@ export function useActionCatalog(): UseActionCatalogResult {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [packVersion]);
 
   // 后端成功响应：使用后端目录（可能为空，表示无扩展包）
   // 后端调用失败：回退到本地 NODE_REGISTRY（保证编辑器可用）

@@ -1,19 +1,33 @@
-//! 扩展包模块（Beta3 · 扩展包架构）
+//! 扩展包模块（Beta5 · 扩展机制重设计）
 //!
-//! 类比 MC 模组加载器（Forge/Fabric）：
-//! - Exero 应用 = 加载器（Rust 后端：执行引擎 + Lua 引擎 + Rust API）
-//! - 扩展包 = 模组（manifest.json 声明 + Lua/Rust 执行逻辑，注册新动作类型 + 侧边栏入口）
+//! 类比 MC 模组加载器（Forge/Fabric），Exero 将自身定位为"可扩展平台"：
+//! - Exero 应用 = 加载器（Rust 后端：执行引擎 + Lua 引擎 + Rust .dll 加载器）
+//! - 动作包（pack_type=action）= 提供动作积木的扩展，支持 Rust(.dll) 和 Lua(.lua) 两种 executor
+//! - 插件（pack_type=plugin）= 提供完整功能页面的扩展（Phase 3 新增，含 iframe UI + 侧边栏入口）
 //! - LuaScript 动作 = 命令方块（动作链内联脚本节点，用户自写，不在市场分发）
 //!
-//! 阶段 a：架构层（manifest 解析 + 加载器 + 注册表 + list_action_catalog 命令）
-//! 阶段 b：base-pack 外置 + 三目录扫描（只读/可写/自定义）+ 内置动作迁移
-//! 阶段 c：扩展市场 UI + 侧边栏动态渲染 + 统一详情页 + 拖拽排序
+//! V0.4.0-Beta5 变更：
+//! - 原 pack_type: action | lua_scripts 合并为统一 action
+//! - Lua 脚本通过 actions[] + executor_type: "Lua" 声明
+//! - 新增 Rust .dll 动态加载（Phase 2）：动作包可声明 rust_library 字段，通过 C ABI 调用
+//! - 市场列表优化为 market-index.json 索引（1 次请求代替逐个下载 zip）
+//!
+//! 架构层次：
+//! - manifest.rs：Manifest 数据结构（ExtensionPackManifest / ActionManifest / ExecutorType）
+//! - loader.rs：三目录扫描加载器（builtin 只读 > user 可写 > custom 自定义，先加载优先）
+//! - rust_loader.rs：Rust .dll 动态加载器（libloading + C ABI，Phase 2 新增）
+//! - native_dll.rs：NativeDllExecutor，将 .dll 动作接入 ActionExecutor 注册表（Phase 2 新增）
+//! - ExtensionPackRegistry：注册表中心，持有已加载包列表，提供动作目录与侧边栏入口查询
 
 pub mod manifest;
 pub mod loader;
+pub mod rust_loader;
+pub mod native_dll;
 
 pub use loader::{ExtensionPackLoader, LoadedExtensionPack, PackSource};
 pub use manifest::*;
+pub use native_dll::NativeDllExecutor;
+pub use rust_loader::RustLibraryRegistry;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -84,13 +98,16 @@ impl ExtensionPackRegistry {
 
     /// 获取扩展包注册的侧边栏入口列表
     ///
-    /// 阶段 c 侧边栏动态渲染时使用。
+    /// V0.4.0-Beta5 Phase 3：侧边栏入口为插件独占能力，仅返回 pack_type=Plugin 的入口。
     pub fn get_sidebar_entries(&self) -> Vec<(String, SidebarManifest)> {
         let packs = self.packs.read();
         let mut entries = Vec::new();
         for pack in packs.iter() {
-            if let Some(sidebar) = &pack.manifest.sidebar {
-                entries.push((pack.manifest.id.clone(), sidebar.clone()));
+            // 仅插件可注册侧边栏入口
+            if pack.manifest.pack_type == PackType::Plugin {
+                if let Some(sidebar) = &pack.manifest.sidebar {
+                    entries.push((pack.manifest.id.clone(), sidebar.clone()));
+                }
             }
         }
         entries

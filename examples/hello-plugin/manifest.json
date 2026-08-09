@@ -1,0 +1,38 @@
+{
+  "id": "hello-plugin",
+  "version": "0.1.0",
+  "name": "Hello Plugin",
+  "description": "Exero 官方示例插件：演示插件系统完整链路（侧边栏入口 + iframe UI + Rust .dll 动作联动）",
+  "author": "Exero",
+  "exero_api_version": "0.4.0",
+  "pack_type": "plugin",
+  "rust_library": "hello_plugin.dll",
+  "sidebar": {
+    "id": "hello-plugin",
+    "label": "Hello",
+    "icon": "Puzzle",
+    "page_type": "web"
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "actions": [
+    {
+      "id": "say_hello",
+      "executor_type": "rust",
+      "executor_id": "say_hello",
+      "label": "Say Hello",
+      "category": "lua",
+      "icon": "Code",
+      "default_params": {},
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "Say Hello",
+      "description": "示例插件动作：调用 .dll 返回 Hello from Rust!",
+      "permissions": [],
+      "params": []
+    }
+  ]
+}

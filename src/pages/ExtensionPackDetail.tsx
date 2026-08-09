@@ -21,6 +21,7 @@ import {
   type ActionManifest,
 } from "@/lib/tauri";
 import { useAppStore } from "@/stores/app";
+import { PluginPage } from "@/pages/PluginPage";
 
 /** 来源标签映射 */
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
@@ -118,6 +119,11 @@ export function ExtensionPackDetailPage({ packId }: ExtensionPackDetailPageProps
         </Button>
       </div>
     );
+  }
+
+  // 插件类型：分发到 PluginPage（iframe 加载插件前端，Phase 3）
+  if (pack.manifest.pack_type === "plugin") {
+    return <PluginPage packId={packId} />;
   }
 
   const sourceInfo = SOURCE_LABELS[pack.summary.source] ?? SOURCE_LABELS.user;

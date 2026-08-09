@@ -18,6 +18,7 @@
 | V2.1 | 2026-07-24 | 时间轴拖拽体验修订：四视图体系（新增日视图承载时间轴拖拽，周视图及以上改网格）；拖拽性能优化（rAF 节流 + ref 缓存 + hysteresis 滞后区解决鬼影抽搐）；click 拦截升级（dragStart 即时抑制 + dragEnd 后 500ms 禁用窗口根治编辑弹窗误弹）；落点视觉强调重构（高亮线 + 简化色条 + 双侧时间标签明确"拖到哪一刻"） |
 | V2.2 | 2026-08-03 | P4 反馈修复：动作节点数量 12 种 -> 6 类共 20 种（与后端 ActionType 一致）；节点编辑交互明确为单击选中->右侧面板实时编辑（不弹模态框）；Phase 4 交付物补全性能优化页（SPEC 3.6 页面4 原遗漏）；新增第十三章发布流程（AI 准备+用户执行分工/三级更新级别标记 `[强制更新]`/`[推荐更新]`/`[最低版本 x.y.z]`/GitHub+ghproxy 发布渠道）；新增 13.10 版本号命名规则（自定义 SemVer：`VMajor.Minor.Patch-StageN`，Alpha/Beta 从 1 开始，首字母大写，GitHub Tag 用 v 前缀）+ 版本号比较规则（两级比较：语义化版本号优先，相同则比阶段 Alpha<Beta<Stable）；新增 9.6 AI 协作开发规则（TraeWork rules + CLAUDE.local.md 四大准则 + 规则优先级 + tmemory.md 临时记忆机制）；SPEC 开头新增"不懂就问用户"最高准则；第十章深度简化为开发历史归档汇总表（P1-P6 已全部完成）；版本状态更新为 V0.4.0-Beta2（Beta3 开发中） |
 | V2.3 | 2026-08-08 | Beta4 需求修订：全局滚动条 Fluent 样式优化（全局 `*` 选择器 + 保留 `.scrollbar-fluent`）；React Flow 画布控制按钮自定义样式+折叠交互（圆形菜单按钮展开/收回，`useReactFlow` hook 自建）；自动更新机制（7.6 新增：GitHub/ghproxy 下载 .exe 至临时目录 -> NSIS `/S` 静默安装 -> 应用退出；新版本启动时清理临时安装包）；强制更新全屏阻断弹窗（仅"立即更新"/"退出软件"）+ 自动改 `update.check_frequency` 为 `startup` 保险措施（原设置存 `update.previous_check_frequency`，新版本启动后复原）；推荐更新弹窗三选项：立即更新 / 忽略更新（本次跳过） / 取消（持久忽略此版本 `update.ignored_version`）；时间轴右键菜单位置修复（移除全屏 overlay 改用 document 事件监听，课程块 stopPropagation 使菜单直接更新到新位置） |
+| V2.4 | 2026-08-09 | Beta5 市场扩展机制重设计：pack_type 统一为 action\|plugin（原 action\|lua_scripts 合并）；Rust .dll 动态加载（libloading + C ABI + exero-plugin-sdk declare_actions! 宏）；插件系统（Tauri `plugin` URI scheme + iframe + postMessage 桥接 API `window.exero.invoke`）；侧边栏入口为插件独占（动作包不再支持）；市场结构 Market/action-packs/ + Market/plugins/ + market-index.json；Hello Plugin 示例插件；开发者文档（docs/action-pack-guide.md + docs/plugin-guide.md） |
 
 ---
 
@@ -433,25 +434,385 @@ V0.4.0 支持 6 类动作：
 - **可选宽松沙箱**：用户在设置中开启，允许危险 API（自负风险）
 - **超时**：默认 10 秒，单节点可配置
 
-### 6.3 脚本市场（扩展市场）
+### 6.3 扩展市场（V0.4.0-Beta5 重设计）
 
-- **仓库结构**：`Market/` 统一目录
-  - `Market/action-packs/`：动作包 .exero-pack（pack_type=action）
-  - `Market/lua-scripts/`：Lua 脚本包 .exero-pack（pack_type=lua_scripts）
-- **.exero-pack 格式**：zip 包，内含 manifest.json + 资源文件（扁平结构）
-- **manifest.json 字段**：
-  - 基本信息（id/名称/作者/版本/描述/exero_api_version）
-  - pack_type：action / lua_scripts
-  - actions[]（动作包）或 scripts[]（Lua 脚本包，含 .lua 文件路径 + 参数 schema）
-  - sidebar（可选侧边栏入口声明）
-- **应用内浏览**：直连 GitHub Contents API 拉取两个子目录列表，合并展示
-- **网络后备**：github.com 主 → ghproxy 镜像后备 → 离线模式（仅已安装）
+> **V0.4.0-Beta5 重大变更**：原 `pack_type: action | lua_scripts` 两种类型合并重构为 `action`（统一动作）+ `plugin`（插件）。旧版 lua_scripts 包不兼容，需重新安装。
+
+#### 6.3.1 Pack 类型体系
+
+| pack_type | 说明 | 后端语言 | UI 页面 | 侧边栏入口 | Flow 积木 |
+|---|---|---|---|---|---|
+| `action` | 动作包 | Rust (.dll) 或 Lua (.lua) | 无 | 无 | 有 |
+| `plugin` | 插件 | 必须 Rust (.dll) | 有 (iframe) | 有（独占） | 可选（附带动作） |
+
+- **动作包**：提供 Flow 编辑器积木的扩展包。Lua 动作适合非开发者，Rust 动作适合需要系统 API 访问的场景
+- **插件**：在 Exero UI 框架内嵌入完整功能页面（如音乐播放器、记事本）。插件可附带动作积木实现与快捷指令联动。侧边栏入口为插件独占能力，动作包不再支持
+
+#### 6.3.2 Manifest 格式
+
+**动作包**（`pack_type: "action"`）：
+
+```json
+{
+  "id": "my-actions",
+  "version": "1.0.0",
+  "name": "My Actions",
+  "description": "...",
+  "author": "...",
+  "exero_api_version": "0.4.0",
+  "pack_type": "action",
+  "actions": [
+    {
+      "id": "launch_program",
+      "executor_type": "Rust",
+      "executor_id": "launch_program",
+      "label": "启动程序",
+      "category": "app",
+      "icon": "Rocket",
+      "default_params": { "path": "", "args": "" },
+      "ports": { "inputs": ["trigger"], "outputs": ["done"] },
+      "summarize_template": "{path}"
+    },
+    {
+      "id": "hello_world",
+      "executor_type": "Lua",
+      "executor_id": "scripts/hello.lua",
+      "label": "Hello World",
+      "category": "lua",
+      "icon": "Code",
+      "default_params": { "name": "World" },
+      "ports": { "inputs": ["trigger"], "outputs": ["done"] },
+      "summarize_template": "Hello {name}"
+    }
+  ]
+}
+```
+
+- `executor_type`：`Rust`（.dll 导出函数）或 `Lua`（.lua 文件路径）
+- `executor_id`：Rust 动作为 .dll 中导出的函数名；Lua 动作为包内 .lua 文件相对路径
+- 原 `scripts[]` 字段已废弃，Lua 脚本统一通过 `actions[]` + `executor_type: "Lua"` 声明
+
+**插件**（`pack_type: "plugin"`）：
+
+```json
+{
+  "id": "hello-plugin",
+  "version": "1.0.0",
+  "name": "Hello Plugin",
+  "description": "...",
+  "author": "...",
+  "exero_api_version": "0.4.0",
+  "pack_type": "plugin",
+  "rust_library": "hello_plugin.dll",
+  "sidebar": {
+    "label": "Hello",
+    "icon": "Hand",
+    "page_type": "Web"
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "actions": [
+    {
+      "id": "say_hello",
+      "executor_type": "Rust",
+      "executor_id": "say_hello",
+      "label": "Say Hello",
+      "category": "notification",
+      "icon": "MessageSquare",
+      "default_params": {},
+      "ports": { "inputs": ["trigger"], "outputs": ["done"] },
+      "summarize_template": "Say hello"
+    }
+  ]
+}
+```
+
+- `rust_library`：插件 .dll 文件相对路径（必须）
+- `sidebar`：侧边栏入口声明（插件必须）
+- `ui.entry`：前端 HTML 入口文件相对路径（必须）
+- `actions[]`：可选，插件附带动作积木供 Flow 编辑器使用
+
+#### 6.3.3 市场目录结构
+
+```
+Market/
+├── market-index.json          # 元数据索引（list_market_packs 只下载此文件）
+├── action-packs/              # 动作包 .exero-pack
+│   ├── base-pack.exero-pack
+│   └── demo-pack.exero-pack
+└── plugins/                   # 插件 .exero-pack（Phase 3 新增）
+    └── hello-plugin.exero-pack
+```
+
+#### 6.3.4 market-index.json 格式
+
+市场列表拉取从"逐个下载 zip 读 manifest"优化为"只下载索引文件"，大幅减少网络请求：
+
+```json
+{
+  "actions": [
+    {
+      "id": "base-pack",
+      "version": "1.0.0",
+      "name": "Base Pack",
+      "description": "20 种内置动作",
+      "author": "Exero",
+      "pack_type": "action",
+      "file_name": "base-pack.exero-pack",
+      "size": 45056,
+      "action_count": 20,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/base-pack.exero-pack"
+    }
+  ],
+  "plugins": [
+    {
+      "id": "hello-plugin",
+      "version": "1.0.0",
+      "name": "Hello Plugin",
+      "description": "示例插件",
+      "author": "Exero",
+      "pack_type": "plugin",
+      "file_name": "hello-plugin.exero-pack",
+      "size": 8192,
+      "action_count": 1,
+      "has_sidebar": true,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/plugins/hello-plugin.exero-pack"
+    }
+  ]
+}
+```
+
+- `build-packs.ps1` 构建脚本自动生成此文件
+- `list_market_packs` 命令只需 1 次网络请求下载索引，不再逐个下载 zip
+- 离线模式：索引下载失败时仅返回已安装包
+
+#### 6.3.5 .exero-pack 格式
+
+- zip 包，内含 `manifest.json` + 资源文件
+- 动作包：manifest.json + (.dll | .lua 文件)
+- 插件：manifest.json + .dll + 前端资源（HTML/JS/CSS）
+
+#### 6.3.6 三目录扫描策略（不变）
+
+1. **只读 builtin**：`<exe_dir>/data/action-packs/`
+2. **可写 user**：`%APPDATA%/Exero/action-packs/`
+3. **自定义 custom**：settings `extension_pack.user_dir`（可选）
+
+同名扩展包先加载的优先（builtin > user > custom）。
+
+#### 6.3.7 网络后备（不变）
+
+github.com 主 -> ghproxy 镜像后备 -> 离线模式（仅已安装）
 
 ### 6.4 Lua 节点
 
 - V0.4.0 仅支持市场脚本选择，不内置代码编辑器
 - Lua 节点显示脚本名称 + 参数表单
 - 双击节点选择市场脚本并配置参数
+
+### 6.5 插件系统（V0.4.0-Beta5 新增）
+
+> **V0.4.0-Beta5 新增**：插件（Plugin）是 Exero 从"自动化工具"进化为"可扩展平台"的核心能力。插件允许第三方在 Exero UI 框架内嵌入完整功能页面。
+
+#### 6.5.1 插件能力
+
+| 能力 | 说明 |
+|---|---|
+| 侧边栏入口 | 插件独占。点击进入插件页面 |
+| 嵌入 UI | 通过 iframe 加载插件前端资源（HTML/JS/CSS） |
+| Rust 后端 | .dll 提供后端逻辑，可访问系统 API（音频、文件等） |
+| 动作联动 | 插件可附带动作积木，在 Flow 编辑器中使用（如"播放音乐"积木） |
+
+#### 6.5.2 Rust .dll 加载机制
+
+**技术选型**：动态库 .dll + C ABI 接口
+
+- 使用 `libloading` crate 运行时加载 .dll
+- 通过 C ABI（`extern "C"`）保证 ABI 稳定性（Rust 自身 ABI 不稳定）
+- 提供 `exero-plugin-sdk` crate，用户 `cargo add exero-plugin-sdk` 编译插件
+
+**C ABI 接口**（SDK 宏自动生成，用户不直接编写）：
+
+```c
+// 加载时调用，返回 0 表示成功
+int32_t exero_pack_init(void);
+
+// 卸载时调用
+void exero_pack_cleanup(void);
+
+// 执行动作（action_id 对应 manifest 中 actions[].id）
+// params_json 为 JSON 字符串参数
+// 返回 JSON 字符串结果，NULL 表示出错（用 exero_last_error 获取错误信息）
+const char* exero_execute_action(const char* action_id, const char* params_json);
+
+// 获取最近一次错误信息
+const char* exero_last_error(void);
+```
+
+**安全模型**：
+- .dll 加载无沙箱隔离，可完全访问系统（与 Lua 宽松沙箱同级风险）
+- 用户自担风险安装第三方插件
+- .dll 必须编译为 `x86_64-pc-windows-msvc` 目标
+
+#### 6.5.3 插件 UI 架构
+
+**技术选型**：iframe + Tauri 自定义协议 + 桥接 API
+
+```
+┌─ Exero 主窗口 (React) ────────────────────────────┐
+│  ┌─ Sidebar ──┐  ┌─ 主内容区 ──────────────────────┐│
+│  │ 内置导航    │  │  ┌─ PluginPage ───────────────┐ ││
+│  │ ─────────  │  │  │ ┌─ iframe ───────────────┐ │ ││
+│  │ 📌 插件入口 │←─┘  │ │ http://plugin.localhost │ │ ││
+│  │            │     │ │ /{pack_id}/index.html   │ │ ││
+│  │            │     │ │ ┌─────────────────────┐ │ │ ││
+│  │            │     │ │ │ 插件 HTML/JS/CSS    │ │ │ ││
+│  │            │     │ │ │ window.exero.invoke │ │ │ ││
+│  │            │     │ │ └─────────────────────┘ │ │ ││
+│  └────────────┘     │ └─────────────────────────┘ ││
+│                     │   ↑ postMessage ↓            ││
+│                     └───┴──────────────────────────┘│
+│         桥接层 -> execute_plugin_action 命令 -> .dll │
+└──────────────────────────────────────────────────────┘
+```
+
+**实现细节**：
+
+1. **Tauri 自定义协议**：通过 `register_uri_scheme_protocol("plugin", ...)` 注册 `plugin` URI scheme
+   - 访问格式（Windows）：`http://plugin.localhost/{pack_id}/{file_path}`
+   - 协议处理器通过 `AppState.extension_pack_registry.get_pack(pack_id)` 验证插件已安装
+   - HTML 文件自动注入桥接脚本（`inject_bridge_script`），在 `</head>` 前插入
+2. **iframe 加载**：PluginPage 组件用 `<iframe src="http://plugin.localhost/{pack_id}/{entry}">` 加载
+   - `sandbox="allow-scripts allow-forms allow-popups allow-modals"` 限制权限
+3. **桥接 API**：向插件 HTML 注入 JS，提供 `window.exero.invoke(actionId, params) -> Promise` 接口
+   - iframe 通过 `postMessage` 向主窗口发送请求：`{type:'exero-invoke', id, actionId, params}`
+   - PluginPage 监听 `message` 事件，调用 Tauri 命令 `execute_plugin_action(pack_id, action_id, params)`
+   - Tauri 命令直接调用 `RustLibraryRegistry::execute`（C ABI 调用 .dll，不走 ActionExecutorRegistry）
+   - 结果通过 `postMessage` 返回 iframe：`{type:'exero-result', id, result|error}`
+   - 随机 `id` 关联请求与响应，支持并发调用
+4. **前端路由分发**：`ExtensionPackDetailPage` 加载 manifest 后，`pack_type === "plugin"` 时渲染 `PluginPage`
+5. **隔离性**：iframe 天然隔离，插件崩溃不影响 Exero 主界面
+
+#### 6.5.4 插件生命周期
+
+| 阶段 | 操作 |
+|---|---|
+| 安装 | 解压 .exero-pack -> 提取 .dll + 前端资源 -> reload registry |
+| 加载 | `LoadLibrary` 加载 .dll -> 调用 `exero_pack_init()` -> 注册 actions |
+| 运行 | iframe 加载前端 -> 用户交互 -> 桥接 API 调用 .dll |
+| 卸载 | `FreeLibrary` 卸载 .dll -> 删除目录 -> reload registry |
+
+> **Windows .dll 卸载注意**：正在使用的 .dll 不能直接删除。卸载时先 `FreeLibrary` 再删文件，若失败则标记"重启后完成卸载"。
+
+#### 6.5.5 exero-plugin-sdk
+
+独立的 Rust crate，提供扩展包开发所需的一切：
+
+- `declare_actions!` 宏：声明动作列表，自动生成 C ABI 导出函数
+- `Params` 类型：类型安全的参数访问
+- 参数解析 / 结果序列化辅助
+- 发布到 crates.io，用户 `cargo add exero-plugin-sdk`
+
+**SDK 使用示例**：
+
+```rust
+use exero_plugin_sdk::{declare_actions, Params};
+use serde_json::json;
+
+fn say_hello(_params: Params) -> Result<serde_json::Value, String> {
+    Ok(json!({ "message": "Hello from Rust!" }))
+}
+
+fn add(params: Params) -> Result<serde_json::Value, String> {
+    let a: i64 = params.get("a")?;
+    let b: i64 = params.get("b")?;
+    Ok(json!({ "sum": a + b }))
+}
+
+declare_actions! {
+    "say_hello" => say_hello,
+    "add" => add,
+}
+```
+
+**用户项目 Cargo.toml**：
+
+```toml
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+exero-plugin-sdk = "0.1"
+serde_json = "1"
+```
+
+编译命令：`cargo build --release --target x86_64-pc-windows-msvc`
+
+#### 6.5.6 示例插件：Hello Plugin
+
+最简插件，演示完整生命周期。源码位于 `examples/hello-plugin/`。
+
+**文件结构**：
+
+```
+examples/hello-plugin/
+├── Cargo.toml          # Rust crate 配置（crate-type = cdylib）
+├── src/
+│   └── lib.rs          # declare_actions! 注册 say_hello 动作
+├── manifest.json       # 插件 manifest（pack_type=plugin）
+└── index.html          # 插件前端页面
+```
+
+**功能演示**：
+
+- **侧边栏入口**：Puzzle 图标 + "Hello" 标签
+- **前端页面**：一个 "Call Rust" 按钮，点击调用 `window.exero.invoke('say_hello', {})`
+- **Rust 动作**：`say_hello` 返回 `{ "message": "Hello from Rust!" }`
+- **联动**：`say_hello` 同时注册为 Flow 积木（通过 manifest actions[] 声明）
+
+**manifest.json 关键字段**：
+
+```json
+{
+  "id": "hello-plugin",
+  "pack_type": "plugin",
+  "rust_library": "hello_plugin.dll",
+  "sidebar": { "label": "Hello", "icon": "Puzzle", "page_type": "web" },
+  "ui": { "entry": "index.html" },
+  "actions": [
+    { "id": "say_hello", "executor_type": "rust", "executor_id": "say_hello", ... }
+  ]
+}
+```
+
+**Rust 源码**（src/lib.rs）：
+
+```rust
+use exero_plugin_sdk::{declare_actions, Params};
+use serde_json::json;
+
+fn say_hello(_params: Params) -> Result<serde_json::Value, String> {
+    Ok(json!({ "message": "Hello from Rust!" }))
+}
+
+declare_actions! {
+    "say_hello" => say_hello,
+}
+```
+
+**编译与打包**：
+
+```powershell
+# 1. 编译 .dll（CARGO_TARGET_DIR 需设置为 C:\cargo-target-dominate）
+cd examples\hello-plugin
+cargo build --release
+
+# 2. 打包为 .exero-pack（项目根目录执行）
+powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1
+```
+
+`build-packs.ps1` 自动检测 `CARGO_TARGET_DIR\release\hello_plugin.dll`，与 manifest.json + index.html 一起打包为 `Market/plugins/hello-plugin.exero-pack`。
 
 ---
 
@@ -573,10 +934,12 @@ Exero/
 │   │   ├── triggers/       # 触发器
 │   │   ├── lua/            # Lua 引擎
 │   │   ├── hardware/       # 硬件监控
+│   │   ├── extension_pack/ # 扩展包（含 rust_loader.rs / native_dll.rs）
 │   │   └── ...
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── rust-toolchain.toml
+├── exero-plugin-sdk/       # 扩展包开发 SDK（独立 crate，V0.4.0-Beta5 Phase 2 新增）
 ├── src/                    # React 前端
 │   ├── pages/              # 5 大页面
 │   ├── components/         # 复用组件
@@ -585,10 +948,12 @@ Exero/
 │   ├── lib/                # 工具库
 │   └── ...
 ├── Market/                 # 扩展市场分发目录
+│   ├── market-index.json   # 元数据索引（V0.4.0-Beta5 新增）
 │   ├── action-packs/       # 动作包 .exero-pack
-│   └── lua-scripts/        # Lua 脚本包 .exero-pack
+│   └── plugins/            # 插件 .exero-pack（V0.4.0-Beta5 新增）
 ├── scripts/                # 打包脚本与 Lua 脚本源文件
 ├── docs/                   # 文档
+│   └── dev-guide/          # 开发者文档（V0.4.0-Beta5 新增）
 ├── resources/              # 资源文件
 ├── CHANGELOG.md            # 更新历史
 ├── LICENSE                 # MIT + 娱乐性声明
@@ -742,7 +1107,7 @@ tmemory.md
 
 ## 十、开发历史归档
 
-> P1-P6 全部完成，V0.4.0-Alpha1 已交付。V0.4.0-Beta3 已交付（扩展包架构 + 扩展市场 + UI 优化）。当前版本 V0.4.0-Beta4，Beta4 开发中。
+> P1-P6 全部完成，V0.4.0-Alpha1 已交付。V0.4.0-Beta3 已交付（扩展包架构 + 扩展市场 + UI 优化）。V0.4.0-Beta4 已交付（自动更新 + 静默自启 + UI 优化）。当前版本 V0.4.0-Beta5，Beta5 开发中。
 > 以下为开发阶段历史摘要，详细交付记录见 `project_memory.md`。
 
 | Phase | 状态 | 核心交付 |
@@ -754,6 +1119,12 @@ tmemory.md
 | Phase 5 | ✅ 2026-08-03 | Lua 集成（LuaJIT 沙箱 + 变量系统 + 脚本市场） |
 | Phase 6a | ✅ 2026-08-03 | 系统集成 + 主题 + 动画 + Splash + 课表引导向导 |
 | Phase 6b | ✅ 2026-08-03 | NSIS 打包 + 更新检查器 + 关于/帮助页 + 导入导出 + URL 别名 |
+| Beta3 | ✅ 2026-08-06 | 扩展包架构 + 在线扩展市场 + 侧边栏拖拽排序 + 动画优化 |
+| Beta4 | ✅ 2026-08-09 | 自动更新机制 + 静默自启 + Vite 修复 + UI 优化 |
+| Beta5a | ✅ 代码完成 | 动作体系合并（action + lua_scripts -> 统一 action）+ 市场索引优化 |
+| Beta5b | ✅ 代码完成 | Rust 动作加载（.dll + C ABI）+ exero-plugin-sdk |
+| Beta5c | ✅ 代码完成 | 插件系统（iframe UI + 桥接 API + 侧边栏独占）+ Hello Plugin 示例 |
+| Beta5d | ✅ 代码完成 | 开发者文档（动作包指南 + 插件指南）|
 
 ---
 

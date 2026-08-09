@@ -1,7 +1,13 @@
-//! 扩展包 Manifest 数据结构（Beta3 · 扩展包架构）
+//! 扩展包 Manifest 数据结构（Beta5 · 扩展机制重设计）
 //!
 //! 参考 MC fabric.mod.json 设计，声明扩展包元数据与动作/侧边栏入口。
 //! Manifest 文件位于扩展包根目录的 manifest.json，由加载器解析。
+//!
+//! V0.4.0-Beta5 变更：
+//! - 原 pack_type: action | lua_scripts 合并为统一 action
+//! - 原 scripts[] 字段废弃，Lua 脚本通过 actions[] + executor_type: "Lua" 声明
+//! - ActionManifest 新增 params/permissions/description 字段（Lua 动作用）
+//! - Phase 3 新增 pack_type: plugin（插件，含 iframe UI + 侧边栏入口 + Rust .dll）
 
 use serde::{Deserialize, Serialize};
 
@@ -24,30 +30,41 @@ pub struct ExtensionPackManifest {
     pub author: String,
     /// 所需 Exero API 版本（如 "0.4.0"）
     pub exero_api_version: String,
-    /// 扩展包类型：action（动作包，注册新动作类型）或 lua_scripts（Lua 脚本包，提供 Lua 脚本）
+    /// 扩展包类型：action（动作包）或 plugin（插件）
+    /// - action：提供 Flow 积木，通过 actions[] 声明注册动作
+    /// - plugin：提供完整功能页面，含 iframe UI + 侧边栏入口 + Rust .dll（Phase 3 新增）
     #[serde(default)]
     pub pack_type: PackType,
-    /// 动作声明列表（pack_type = "action" 时使用，可为空）
+    /// Rust 动态库文件相对路径（可选，如 "my_pack.dll"）
+    /// 存在时，actions[] 中 executor_type = "Rust" 的动作通过 C ABI 调用此 .dll
+    /// 不存在时，executor_type = "Rust" 的动作映射到内置 ActionType（base-pack 模式）
+    /// 插件（pack_type=plugin）必须声明此字段
+    #[serde(default)]
+    pub rust_library: Option<String>,
+    /// 动作声明列表（统一入口，Rust 和 Lua 动作均在此声明）
+    /// 插件可选附带动作，在 Flow 编辑器中作为积木使用
     #[serde(default)]
     pub actions: Vec<ActionManifest>,
-    /// Lua 脚本声明列表（pack_type = "lua_scripts" 时使用）
-    #[serde(default)]
-    pub scripts: Vec<PackScriptManifest>,
-    /// 侧边栏入口声明（可选，无则不注册侧边栏入口）
+    /// 侧边栏入口声明（插件必填，动作包不支持）
+    /// V0.4.0-Beta5 Phase 3：侧边栏入口为插件独占能力，动作包不再支持
     #[serde(default)]
     pub sidebar: Option<SidebarManifest>,
+    /// 插件 UI 声明（仅 pack_type=plugin 时有意义，Phase 3 新增）
+    /// 声明插件前端入口文件，通过 iframe 加载
+    #[serde(default)]
+    pub ui: Option<UiManifest>,
 }
 
 /// 扩展包类型
 ///
-/// - Action：动作包，通过 actions[] 声明注册新动作类型
-/// - LuaScripts：Lua 脚本包，通过 scripts[] 声明提供 Lua 脚本，安装后注册到 Lua 脚本积木可选列表
+/// - Action：动作包，通过 actions[] 声明注册动作积木（Rust 或 Lua）
+/// - Plugin：插件，含 iframe UI + 侧边栏入口 + Rust .dll（Phase 3 新增）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PackType {
     #[serde(rename = "action")]
     Action,
-    #[serde(rename = "lua_scripts")]
-    LuaScripts,
+    #[serde(rename = "plugin")]
+    Plugin,
 }
 
 impl Default for PackType {
@@ -56,42 +73,10 @@ impl Default for PackType {
     }
 }
 
-/// Lua 脚本包内的脚本声明
-///
-/// pack_type = "lua_scripts" 时，每个条目描述一个 Lua 脚本及其参数 schema。
-/// 安装时将 .lua 文件复制到 scripts 目录并注册到数据库。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PackScriptManifest {
-    /// 脚本 ID（全局唯一，与已安装脚本合并查询）
-    pub id: String,
-    /// 显示名
-    pub name: String,
-    /// 作者
-    #[serde(default)]
-    pub author: String,
-    /// 语义化版本
-    #[serde(default = "default_script_version")]
-    pub version: String,
-    /// 描述
-    #[serde(default)]
-    pub description: String,
-    /// 权限声明（宽松沙箱权限）
-    #[serde(default)]
-    pub permissions: Vec<String>,
-    /// 参数定义（动态生成 Lua 节点参数表单）
-    #[serde(default)]
-    pub params: Vec<crate::models::ScriptParam>,
-    /// 包内 .lua 文件路径（如 "scripts/hello.lua"）
-    pub file: String,
-}
-
-fn default_script_version() -> String {
-    "1.0.0".to_string()
-}
-
 /// 动作 Manifest 声明
 ///
 /// 声明一个动作类型的元数据与执行器配置。
+/// Rust 动作和 Lua 动作统一使用此结构，通过 executor_type 区分。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionManifest {
     /// 动作唯一标识（扩展包内唯一，如 "launch_program"）
@@ -118,6 +103,15 @@ pub struct ActionManifest {
     /// 参数摘要模板（如 "{path}"，前端解析为节点卡片摘要）
     #[serde(default)]
     pub summarize_template: String,
+    /// 动作描述（Lua 动作注册到数据库时使用）
+    #[serde(default)]
+    pub description: String,
+    /// Lua 沙箱权限声明（仅 executor_type = "Lua" 时有意义）
+    #[serde(default)]
+    pub permissions: Vec<String>,
+    /// Lua 脚本参数定义（仅 executor_type = "Lua" 时有意义，前端据此生成参数表单）
+    #[serde(default)]
+    pub params: Vec<crate::models::ScriptParam>,
 }
 
 /// 执行器类型
@@ -166,15 +160,16 @@ pub enum PortPosition {
 /// 侧边栏入口 Manifest
 ///
 /// 声明扩展包在侧边栏注册的入口。
+/// V0.4.0-Beta5 Phase 3：侧边栏入口为插件独占能力，动作包不再支持。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SidebarManifest {
     /// 入口唯一标识
     pub id: String,
-    /// 入口显示名（如 "基础动作包"）
+    /// 入口显示名（如 "Hello Plugin"）
     pub label: String,
     /// 图标名称（lucide-react 图标名）
     pub icon: String,
-    /// 页面类型：detail（统一详情页）或 declarative（声明式自定义页面）
+    /// 页面类型：web（插件 iframe 页面）或 detail（统一详情页）
     #[serde(default = "default_page_type")]
     pub page_type: PageType,
 }
@@ -187,6 +182,18 @@ pub enum PageType {
     Detail,
     /// 声明式自定义页面（manifest 声明 UI 组件，Lua 提供数据）
     Declarative,
+    /// 插件 iframe 页面（Phase 3 新增，通过 plugin:// 协议加载插件前端）
+    Web,
+}
+
+/// 插件 UI Manifest（Phase 3 新增）
+///
+/// 声明插件前端入口文件，由 Tauri 自定义协议 `plugin://{pack_id}/` 服务。
+/// iframe 通过 `http://plugin.localhost/{pack_id}/{entry}` 加载（Windows）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UiManifest {
+    /// 前端入口文件相对路径（如 "index.html"）
+    pub entry: String,
 }
 
 fn default_icon() -> String {

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// 动作类型枚举
 ///
-/// 对应 SPEC 中定义的 6 类共 20 种动作。
+/// 对应 SPEC 中定义的 6 类共 20 种内置动作 + Lua 脚本 + 扩展包动作。
 /// 新增动作类型时在此扩展，并在 actions 模块中实现执行器。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "variant")]
@@ -40,8 +40,13 @@ pub enum ActionType {
     Loop,
     SetVariable,
 
-    // Lua 脚本类
+    // Lua 脚本类（用户内联脚本）
     LuaScript,
+
+    // 扩展包动作（V0.4.0-Beta5 新增）
+    // variant 格式："pack_id:action_id"（如 "my-pack:my_action"）
+    // 同时支持 Lua 扩展动作和 Rust .dll 动作
+    Extension(String),
 }
 
 impl ActionType {
@@ -68,6 +73,7 @@ impl ActionType {
             Self::Loop => "循环",
             Self::SetVariable => "变量赋值",
             Self::LuaScript => "Lua 脚本",
+            Self::Extension(_) => "扩展动作",
         }
     }
 
@@ -87,7 +93,7 @@ impl ActionType {
             | Self::SwitchPowerPlan => ActionCategory::SystemAndPower,
             Self::ShowToast | Self::ShowInAppNotification => ActionCategory::Notification,
             Self::IfElse | Self::Loop | Self::SetVariable => ActionCategory::ControlFlow,
-            Self::LuaScript => ActionCategory::LuaScript,
+            Self::LuaScript | Self::Extension(_) => ActionCategory::LuaScript,
         }
     }
 }
