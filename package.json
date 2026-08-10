@@ -1,7 +1,7 @@
 {
   "name": "exero",
   "private": true,
-  "version": "0.4.0-Beta5",
+  "version": "0.4.0-Beta6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -29,6 +29,8 @@
     "@xyflow/react": "^12.11.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cron-parser": "^5.8.1",
+    "driver.js": "^1.8.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
