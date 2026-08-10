@@ -1,0 +1,24 @@
+name: Sync to Gitee
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [published]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync to Gitee
+        uses: NEVSTOP-LAB/GitHub-Gitee-Sync@main
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          gitee-token: ${{ secrets.GITEE_TOKEN }}
+          github-owner: ${{ github.repository_owner }}   # ← 新增这行
+          gitee-owner: ${{ secrets.GITEE_OWNER }}
+          include-repos: 'Exero'
+          sync-extra: 'releases'
