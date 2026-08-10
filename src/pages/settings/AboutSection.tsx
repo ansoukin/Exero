@@ -84,7 +84,7 @@ export function AboutSection() {
         <div className="flex-1">
           <h2 className="text-xl font-semibold tracking-tight">{info.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>版本 {info.version}</span>
+            <span>版本 V{info.version}</span>
             <span>·</span>
             <span>构建 {info.build_date}</span>
             <span>·</span>
@@ -176,7 +176,7 @@ export function AboutSection() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">
-                        v{entry.version}
+                        V{entry.version}
                       </span>
                       {entry.published_at && (
                         <span className="text-xs text-muted-foreground">

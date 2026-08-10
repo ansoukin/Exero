@@ -172,8 +172,8 @@ export function UpdateManager() {
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {forceStatus.minimum_version_required
-                  ? `当前版本 ${forceStatus.current_version} 低于最低要求版本 ${forceStatus.minimum_version}，必须升级。`
-                  : `最新版本 ${forceStatus.latest_version} 标记为强制更新，必须升级。`}
+                  ? `当前版本 V${forceStatus.current_version} 低于最低要求版本 V${forceStatus.minimum_version}，必须升级。`
+                  : `最新版本 V${forceStatus.latest_version} 标记为强制更新，必须升级。`}
               </p>
             </div>
           </div>
@@ -248,9 +248,9 @@ export function UpdateManager() {
               <Bell className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <DialogTitle>推荐更新到 {recommendStatus?.latest_version}</DialogTitle>
+              <DialogTitle>推荐更新到 V{recommendStatus?.latest_version}</DialogTitle>
               <DialogDescription>
-                当前版本 {recommendStatus?.current_version}，此版本标记为推荐更新
+                当前版本 V{recommendStatus?.current_version}，此版本标记为推荐更新
               </DialogDescription>
             </div>
           </div>

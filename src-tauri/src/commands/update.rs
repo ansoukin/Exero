@@ -260,7 +260,7 @@ pub async fn check_for_updates(
 
     let latest_version = release
         .as_ref()
-        .map(|r| r.tag_name.trim_start_matches('v').to_string());
+        .map(|r| r.tag_name.trim_start_matches(['v', 'V']).to_string());
     let update_available = match &latest_version {
         Some(v) => version_gt(v, &current_version),
         None => false,
@@ -425,7 +425,7 @@ async fn fetch_releases_from(
     Ok(releases
         .into_iter()
         .map(|r| ChangelogEntry {
-            version: r.tag_name.trim_start_matches('v').to_string(),
+            version: r.tag_name.trim_start_matches(['v', 'V']).to_string(),
             published_at: r.published_at,
             body: r.body.unwrap_or_default(),
             html_url: r.html_url,

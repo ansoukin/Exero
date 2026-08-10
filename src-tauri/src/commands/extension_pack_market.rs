@@ -390,7 +390,7 @@ fn opt_str(s: String) -> Option<String> {
 /// 简单语义化版本比较：a > b（x.y.z）
 fn version_gt(a: &str, b: &str) -> bool {
     let parse = |s: &str| -> Vec<u32> {
-        s.trim_start_matches('v')
+        s.trim_start_matches(['v', 'V'])
             .split('.')
             .filter_map(|p| p.parse().ok())
             .collect()
