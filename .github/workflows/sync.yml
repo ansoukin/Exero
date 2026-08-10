@@ -2,9 +2,9 @@ name: Sync to Gitee
 
 on:
   push:
-    branches: [ main ]  # 当你向 main 分支推送代码时触发
+    branches: [ main ]
   release:
-    types: [published]  # 当你发布新 Release 时触发
+    types: [published]
 
 jobs:
   sync:
@@ -18,7 +18,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           gitee-token: ${{ secrets.GITEE_TOKEN }}
+          github-owner: ${{ github.repository_owner }}   # ← 新增这行
           gitee-owner: ${{ secrets.GITEE_OWNER }}
-          # 明确指定只同步 Exero 仓库，并同步 Releases
           include-repos: 'Exero'
           sync-extra: 'releases'
