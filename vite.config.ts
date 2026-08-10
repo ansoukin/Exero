@@ -59,6 +59,7 @@ export default defineConfig(() => ({
       "@tauri-apps/plugin-opener",
       "@tauri-apps/plugin-shell",
       "@tauri-apps/plugin-store",
+      "cron-parser",
     ],
   },
   build: {

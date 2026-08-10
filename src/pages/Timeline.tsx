@@ -1,21 +1,26 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { CalendarDays, AlertCircle, Loader2, CalendarPlus } from "lucide-react";
+import { CalendarDays, AlertCircle, Loader2, CalendarPlus, Clock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   semesterCommands,
   classPeriodCommands,
   courseCommands,
   overrideCommands,
   weeklyTemplateCommands,
+  flowCommands,
   type Semester,
   type ClassPeriod,
   type Course,
   type ScheduleOverride,
   type WeeklyTemplate,
 } from "@/lib/tauri";
-import { useTimelineStore } from "@/stores/timeline";
+import { useTimelineStore, type TimelineView } from "@/stores/timeline";
 import { useOnboardingStore } from "@/stores/onboarding";
+import { useAppStore } from "@/stores/app";
+import { useOobeStore } from "@/stores/oobe";
+import { useQuickActionsStore } from "@/stores/quickactions";
 import { TimelineToolbar } from "./timeline/TimelineToolbar";
 import { WeekView } from "./timeline/WeekView";
 import { MonthView } from "./timeline/MonthView";
@@ -27,15 +32,21 @@ import { OverrideDialog } from "./timeline/OverrideDialog";
 import { WeeklyTemplateDialog } from "./timeline/WeeklyTemplateDialog";
 import { todayIso } from "./timeline/utils";
 import type { LongPressPosition } from "./timeline/useLongPress";
+import { DailyTimelineView } from "./timeline/DailyTimelineView";
+import { DailyWeekView } from "./timeline/DailyWeekView";
+import { DailyMonthView } from "./timeline/DailyMonthView";
+import { DailyYearView } from "./timeline/DailyYearView";
+import { DailyActionMenu, type DailyActionMenuPosition } from "./timeline/DailyActionMenu";
+import { useDailyTriggers } from "./timeline/useDailyTriggers";
+import type { TriggerBlock } from "./timeline/dailyTypes";
 
 /**
  * 时间轴页面（SPEC V2 3.5 页面 2）
  *
- * 三视图：周 / 月 / 年（三级递进）
- * 周视图：整块拖动改位置 + 底边 resize 手柄改时长
- * 长按 500ms / 右键弹出操作菜单（双通道）
- * 临时调课（不修改常规课表）
- * 学期制多周课表 + 周模板（普通周/特殊周）
+ * 校园模式：周/月/年三视图，学期制多周课表，可编辑课程块
+ * 日常模式：只读显示快捷指令触发时间块（Phase 2 实现，当前显示占位空状态）
+ *
+ * 模式判断：从 oobe store 读取 appMode（OOBE 启动时已从 settings.app.mode 读取）
  */
 export default function TimelinePage() {
   const view = useTimelineStore((s) => s.view);
@@ -46,6 +57,27 @@ export default function TimelinePage() {
   const openOnboarding = useOnboardingStore((s) => s.open);
   const onboardingOpen = useOnboardingStore((s) => s.isOpen);
   const prevOnboardingOpen = useRef(false);
+  const setPage = useAppStore((s) => s.setPage);
+  const setView = useTimelineStore((s) => s.setView);
+  const selectedDate = useTimelineStore((s) => s.selectedDate);
+  // 应用模式：从 oobe store 读取（OOBE 启动时已从 settings 读取并持久化到 store）
+  const appMode = useOobeStore((s) => s.appMode);
+
+  // 日常模式：数据加载（与日期无关，getBlocksForDate 按需解析）
+  const {
+    loading: dailyLoading,
+    error: dailyError,
+    refresh: dailyRefresh,
+    getBlocksForDate,
+  } = useDailyTriggers();
+  const setEditingFlow = useQuickActionsStore((s) => s.setEditingFlow);
+
+  // 日常模式：右键菜单状态
+  const [dailyMenuPosition, setDailyMenuPosition] =
+    useState<DailyActionMenuPosition | null>(null);
+  const [dailyMenuBlock, setDailyMenuBlock] = useState<TriggerBlock | null>(
+    null
+  );
 
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [periods, setPeriods] = useState<ClassPeriod[]>([]);
@@ -256,7 +288,89 @@ export default function TimelinePage() {
     if (activeSemesterId) loadSemesterData(activeSemesterId);
   }, [activeSemesterId, loadSemesterData]);
 
+  // 日常模式：编辑快捷指令 → 跳转 QuickActions 页并选中 flow
+  const handleEditFlow = useCallback(
+    (block: TriggerBlock) => {
+      setPage("quick-actions");
+      // 延迟选中，等待页面切换完成
+      setTimeout(() => setEditingFlow(block.flowId), 300);
+    },
+    [setPage, setEditingFlow]
+  );
+
+  // 日常模式：删除快捷指令 → 删除整个 flow（含触发器和动作）
+  const handleDeleteFlow = useCallback(
+    async (block: TriggerBlock) => {
+      if (!confirm(`确定删除快捷指令「${block.flowName}」？此操作不可撤销。`)) return;
+      try {
+        await flowCommands.delete(block.flowId);
+        dailyRefresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [dailyRefresh]
+  );
+
+  // 日常模式：右键触发块 → 弹出操作菜单
+  const handleDailyBlockContextMenu = useCallback(
+    (block: TriggerBlock, pos: { x: number; y: number }) => {
+      setDailyMenuBlock(block);
+      setDailyMenuPosition(pos);
+    },
+    []
+  );
+
+  // 日常模式：关闭右键菜单
+  const handleCloseDailyMenu = useCallback(() => {
+    setDailyMenuPosition(null);
+    setDailyMenuBlock(null);
+  }, []);
+
   function renderView() {
+    // 日常模式：日/周/月/年四视图（只读触发块，右键管理快捷指令）
+    if (appMode === "daily") {
+      if (dailyLoading) {
+        return (
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            加载触发时间...
+          </div>
+        );
+      }
+
+      switch (view) {
+        case "day": {
+          const blocks = getBlocksForDate(selectedDate);
+          return (
+            <DailyTimelineView
+              blocks={blocks}
+              loading={false}
+              onBlockContextMenu={handleDailyBlockContextMenu}
+            />
+          );
+        }
+        case "week":
+          return (
+            <DailyWeekView
+              getBlocksForDate={getBlocksForDate}
+              onBlockContextMenu={handleDailyBlockContextMenu}
+            />
+          );
+        case "month":
+          return (
+            <DailyMonthView getBlocksForDate={getBlocksForDate} />
+          );
+        case "year":
+          return (
+            <DailyYearView getBlocksForDate={getBlocksForDate} />
+          );
+        default:
+          return null;
+      }
+    }
+
+    // 校园模式：无学期时显示创建学期空状态
     if (!activeSemester) {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center text-muted-foreground">
@@ -353,39 +467,78 @@ export default function TimelinePage() {
       {/* 页面标题栏 */}
       <div className="flex items-center justify-between border-b bg-card px-6 py-4">
         <div className="flex items-center gap-3">
-          <CalendarDays className="h-6 w-6 text-primary" />
+          {appMode === "daily" ? (
+            <Clock className="h-6 w-6 text-primary" />
+          ) : (
+            <CalendarDays className="h-6 w-6 text-primary" />
+          )}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">时间轴</h1>
             <p className="text-xs text-muted-foreground">
-              日 / 周 / 月 / 年四视图 · 多周课表
+              {appMode === "daily"
+                ? "快捷指令触发时间一览（只读）"
+                : "日 / 周 / 月 / 年四视图 · 多周课表"}
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleRefresh} className="h-9">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={appMode === "daily" ? dailyRefresh : handleRefresh}
+          className="h-9"
+        >
           刷新
         </Button>
       </div>
 
       {/* 错误提示 */}
-      {error && (
+      {(error || dailyError) && (
         <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/5 px-6 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span className="flex-1">数据加载失败：{error}</span>
-          <Button variant="ghost" size="sm" onClick={handleRefresh}>
+          <span className="flex-1">数据加载失败：{error || dailyError}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={appMode === "daily" ? dailyRefresh : handleRefresh}
+          >
             重试
           </Button>
         </div>
       )}
 
-      {/* 工具栏（视图/学期/周模板/周次切换） */}
-      <TimelineToolbar
-        semesters={semesters}
-        semestersLoading={semestersLoading}
-        totalWeeks={totalWeeks}
-        templates={templates}
-        onSemesterChange={(id) => loadSemesterData(id)}
-        onOpenTemplateDialog={() => setTemplateDialogOpen(true)}
-      />
+      {/* 校园模式工具栏：视图/学期/周模板/周次切换 */}
+      {appMode === "school" && (
+        <TimelineToolbar
+          semesters={semesters}
+          semestersLoading={semestersLoading}
+          totalWeeks={totalWeeks}
+          templates={templates}
+          onSemesterChange={(id) => loadSemesterData(id)}
+          onOpenTemplateDialog={() => setTemplateDialogOpen(true)}
+        />
+      )}
+
+      {/* 日常模式工具栏：仅视图切换（日/周/月/年） */}
+      {appMode === "daily" && (
+        <div className="flex flex-wrap items-center gap-3 border-b bg-card/50 px-6 py-3">
+          <div className="flex items-center rounded-md border bg-background p-0.5">
+            {(["day", "week", "month", "year"] as TimelineView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  "h-8 rounded px-3 text-sm font-medium transition-colors",
+                  view === v
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v === "day" ? "日" : v === "week" ? "周" : v === "month" ? "月" : "年"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 视图主体 */}
       {renderView()}
@@ -437,6 +590,15 @@ export default function TimelinePage() {
         activeTemplateId={activeTemplateId}
         onSelect={setActiveTemplate}
         onSaved={() => activeSemesterId && loadSemesterData(activeSemesterId)}
+      />
+
+      {/* 日常模式右键菜单：编辑/删除快捷指令 */}
+      <DailyActionMenu
+        position={dailyMenuPosition}
+        block={dailyMenuBlock}
+        onClose={handleCloseDailyMenu}
+        onEdit={handleEditFlow}
+        onDelete={handleDeleteFlow}
       />
     </div>
   );
