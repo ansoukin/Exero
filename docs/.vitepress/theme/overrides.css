@@ -1,0 +1,60 @@
+/* Exero 品牌色覆盖 - 浅色模式 */
+:root {
+  /* 品牌色 */
+  --vp-brand-color: #0078D4;
+  --vp-brand-color-light: #1a8ad4;
+  --vp-brand-color-lighter: #3a9ade;
+  --vp-brand-color-dark: #006abc;
+  --vp-brand-color-darker: #005fa8;
+
+  /* 按钮 */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #0078D4;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #1a8ad4;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #006abc;
+
+  /* 首页 Hero 渐变 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #0078D4, #2b9dff);
+
+  /* Hero 图片光晕 */
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #0078D4 50%, #2b9dff 50%);
+  --vp-home-hero-image-filter: blur(40px);
+
+  /* 自定义容器颜色 */
+  --vp-custom-block-tip-border: #0078D4;
+  --vp-custom-block-tip-text: #0078D4;
+  --vp-custom-block-tip-bg: rgba(0, 120, 212, 0.05);
+
+  /* 版本徽章 */
+  --vp-version-badge-bg: #0078D4;
+  --vp-version-badge-text: #ffffff;
+}
+
+/* Exero 品牌色覆盖 - 深色模式 */
+.dark {
+  --vp-brand-color: #2b9dff;
+  --vp-brand-color-light: #4db0ff;
+  --vp-brand-color-lighter: #6dc0ff;
+  --vp-brand-color-dark: #1a8ad4;
+  --vp-brand-color-darker: #0078D4;
+
+  --vp-button-brand-bg: #2b9dff;
+  --vp-button-brand-hover-bg: #4db0ff;
+  --vp-button-brand-active-bg: #1a8ad4;
+
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #2b9dff, #0078D4);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #2b9dff 50%, #0078D4 50%);
+
+  --vp-custom-block-tip-border: #2b9dff;
+  --vp-custom-block-tip-text: #2b9dff;
+  --vp-custom-block-tip-bg: rgba(43, 157, 255, 0.08);
+
+  --vp-version-badge-bg: #2b9dff;
+  --vp-version-badge-text: #0a0f1a;
+}

@@ -57,3 +57,7 @@ desktop.ini
 *.exp
 *.msi
 *.nsis
+
+# ===== VitePress 文档系统 =====
+docs/.vitepress/cache/
+docs/.vitepress/dist/
