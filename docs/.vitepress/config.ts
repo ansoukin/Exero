@@ -9,6 +9,10 @@ export default defineConfig({
   lastUpdated: true,
   cleanUrls: true,
 
+  // GitHub Pages 部署路径：https://ansoukin.github.io/Exero/docs/
+  // base 必须与实际访问路径一致，否则资源 404
+  base: '/Exero/docs/',
+
   // 构建产物输出到 docs/docs/（GitHub Pages 静态站点目录）
   // outDir 相对于 srcDir（docs/），'docs' → docs/docs/
   srcExclude: ['docs/**'],
