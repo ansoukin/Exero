@@ -1,91 +1,62 @@
 {
-  "id": "music-player",
-  "version": "0.1.0",
-  "name": "音乐播放器",
-  "description": "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示",
-  "author": "Exero",
-  "exero_api_version": "0.4.0",
-  "pack_type": "plugin",
-  "rust_library": "music_player.dll",
-  "sidebar": {
-    "id": "music-player",
-    "label": "音乐",
-    "icon": "Music",
-    "page_type": "web"
-  },
-  "ui": {
-    "entry": "index.html"
-  },
-  "hide_header": true,
   "actions": [
     {
-      "id": "pick_audio_files",
-      "executor_type": "rust",
-      "executor_id": "pick_audio_files",
-      "label": "选择音频文件",
-      "category": "app",
-      "icon": "FolderOpen",
-      "default_params": {},
-      "ports": {
-        "inputs": [{ "id": "trigger", "position": "top" }],
-        "outputs": [{ "id": "done", "position": "bottom" }]
-      },
-      "summarize_template": "选择音频文件",
-      "description": "弹出系统文件选择对话框，返回用户选择的音频文件路径列表",
-      "permissions": [],
-      "params": []
+      "id": "base-pack",
+      "version": "1.0.0",
+      "name": "基础动作包",
+      "description": "Exero 内置的 20 种基础动作类型，涵盖应用与文件、媒体与输入、系统与电源、通知、控制流、Lua 脚本六大类别。执行器为 Rust 原生实现，性能敏感动作直接调用系统 API。",
+      "author": "Exero",
+      "exero_api_version": "0.4.0",
+      "pack_type": "action",
+      "file_name": "base-pack.exero-pack",
+      "size": 1657,
+      "action_count": 20,
+      "has_sidebar": false,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/base-pack.exero-pack"
     },
     {
-      "id": "read_metadata",
-      "executor_type": "rust",
-      "executor_id": "read_metadata",
-      "label": "读取音频元数据",
-      "category": "app",
-      "icon": "FileAudio",
-      "default_params": { "path": "" },
-      "ports": {
-        "inputs": [{ "id": "trigger", "position": "top" }],
-        "outputs": [{ "id": "done", "position": "bottom" }]
-      },
-      "summarize_template": "{path}",
-      "description": "读取音频文件的元数据（标题/艺术家/专辑/时长/年份等）",
-      "permissions": [],
-      "params": [
-        {
-          "name": "path",
-          "label": "文件路径",
-          "type": "string",
-          "default": "",
-          "options": [],
-          "required": true
-        }
-      ]
+      "id": "lua-scripts-pack",
+      "version": "1.1.0",
+      "name": "基础 Lua 动作包",
+      "description": "Exero 官方示例 Lua 动作集合：Hello World、计数器、系统时间。演示 args 参数读取、exero.log/notify/set_result API、变量系统、os 库等基础能力。",
+      "author": "Exero",
+      "exero_api_version": "0.4.0",
+      "pack_type": "action",
+      "file_name": "lua-scripts-pack.exero-pack",
+      "size": 3243,
+      "action_count": 3,
+      "has_sidebar": false,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/lua-scripts-pack.exero-pack"
+    }
+  ],
+  "plugins": [
+    {
+      "id": "hello-plugin",
+      "version": "0.1.0",
+      "name": "Hello Plugin",
+      "description": "Exero 官方示例插件：演示插件系统完整链路（侧边栏入口 + iframe UI + Rust .dll 动作联动）",
+      "author": "Exero",
+      "exero_api_version": "0.4.0",
+      "pack_type": "plugin",
+      "file_name": "hello-plugin.exero-pack",
+      "size": 102206,
+      "action_count": 1,
+      "has_sidebar": true,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/plugins/hello-plugin.exero-pack"
     },
     {
-      "id": "read_embedded_cover",
-      "executor_type": "rust",
-      "executor_id": "read_embedded_cover",
-      "label": "读取专辑封面",
-      "category": "app",
-      "icon": "Image",
-      "default_params": { "path": "" },
-      "ports": {
-        "inputs": [{ "id": "trigger", "position": "top" }],
-        "outputs": [{ "id": "done", "position": "bottom" }]
-      },
-      "summarize_template": "{path}",
-      "description": "读取音频文件内嵌的专辑封面图片，返回 base64 data URI",
-      "permissions": [],
-      "params": [
-        {
-          "name": "path",
-          "label": "文件路径",
-          "type": "string",
-          "default": "",
-          "options": [],
-          "required": true
-        }
-      ]
+      "id": "music-player",
+      "version": "0.1.0",
+      "name": "音乐播放器",
+      "description": "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示",
+      "author": "Exero",
+      "exero_api_version": "0.4.0",
+      "pack_type": "plugin",
+      "file_name": "music-player.exero-pack",
+      "size": 478558,
+      "action_count": 3,
+      "has_sidebar": true,
+      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/plugins/music-player.exero-pack"
     }
   ]
 }
