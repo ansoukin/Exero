@@ -121,6 +121,48 @@ if (-not (Test-Path $helloManifest)) {
     }
 }
 
+# 4b. Build Music Player pack (示例插件)
+$musicPluginDir = Join-Path $root "examples\music-player"
+$musicManifest = Join-Path $musicPluginDir "manifest.json"
+$musicIndex = Join-Path $musicPluginDir "index.html"
+$musicDllName = "music_player.dll"
+
+if (-not (Test-Path $musicManifest)) {
+    Write-Host "[4b/5] Skipped: examples\music-player\manifest.json not found" -ForegroundColor Yellow
+} else {
+    # 定位 .dll：优先 CARGO_TARGET_DIR，回退默认 target
+    $dllPath = $null
+    if ($env:CARGO_TARGET_DIR) {
+        $candidate = Join-Path $env:CARGO_TARGET_DIR "release\$musicDllName"
+        if (Test-Path $candidate) { $dllPath = $candidate }
+    }
+    if (-not $dllPath) {
+        $candidate = Join-Path $musicPluginDir "target\release\$musicDllName"
+        if (Test-Path $candidate) { $dllPath = $candidate }
+    }
+
+    if (-not $dllPath) {
+        Write-Host "[4b/5] Skipped: $musicDllName not found" -ForegroundColor Yellow
+        Write-Host "       先在 examples\music-player\ 下执行: cargo build --release" -ForegroundColor DarkGray
+    } else {
+        $tempDir = Join-Path $env:TEMP "exero-music-player-$(Get-Date -Format 'yyyyMMddHHmmss')"
+        New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+
+        Copy-Item -Path $musicManifest -Destination (Join-Path $tempDir "manifest.json") -Force
+        Copy-Item -Path $musicIndex -Destination (Join-Path $tempDir "index.html") -Force
+        Copy-Item -Path $dllPath -Destination (Join-Path $tempDir $musicDllName) -Force
+
+        $outputPath = Join-Path $marketPlugins "music-player.exero-pack"
+        if (Test-Path $outputPath) {
+            Remove-Item -Path $outputPath -Force
+        }
+        [System.IO.Compression.ZipFile]::CreateFromDirectory($tempDir, $outputPath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+        Write-Host "[4b/5] Built: music-player.exero-pack to Market\plugins\" -ForegroundColor Green
+
+        Remove-Item -Path $tempDir -Recurse -Force
+    }
+}
+
 # 5. Generate market-index.json
 Write-Host "[5/5] Generating market-index.json..." -ForegroundColor Cyan
 

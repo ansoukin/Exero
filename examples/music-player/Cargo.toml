@@ -1,0 +1,15 @@
+[package]
+name = "music-player"
+version = "0.1.0"
+edition = "2021"
+description = "Exero 音乐播放器示例插件 - 本地音频播放 + 元数据读取"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
+serde_json = "1"
+lofty = "0.21"
+rfd = "0.14"
+base64 = "0.22"

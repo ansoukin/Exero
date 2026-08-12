@@ -43,6 +43,20 @@
                         "file_name":  "hello-plugin.exero-pack",
                         "exero_api_version":  "0.4.0",
                         "action_count":  1
+                    },
+                    {
+                        "pack_type":  "plugin",
+                        "id":  "music-player",
+                        "has_sidebar":  true,
+                        "size":  478504,
+                        "version":  "0.1.0",
+                        "description":  "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示",
+                        "author":  "Exero",
+                        "download_url":  "https://github.com/ansoukin/Exero/raw/main/Market/plugins/music-player.exero-pack",
+                        "name":  "音乐播放器",
+                        "file_name":  "music-player.exero-pack",
+                        "exero_api_version":  "0.4.0",
+                        "action_count":  3
                     }
                 ]
 }
