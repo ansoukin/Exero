@@ -1,5 +1,47 @@
 # 更新历史
 
+## V0.4.0-Beta7
+
+**[强制更新] 插件系统增强：local-file 协议 + hide_header 字段 + 示例插件**
+
+> 本版本为 V0.4.0-Beta6 的修补版本，针对插件系统核心能力进行扩展与文档完善。新增 `local-file` URI scheme 解决 iframe sandbox 无法加载本地文件的问题，新增 `hide_header` manifest 字段支持插件沉浸式 UI，并补充音乐播放器示例插件验证开发链路。所有 Beta6 用户必须升级以获得完整的插件开发能力。
+
+### 新增
+
+- **local-file URI scheme**（SPEC 6.5.3 扩展）：
+  - 注册 `local-file` 自定义协议，解决 iframe sandbox（无 `allow-same-origin`）禁止 `file:///` 访问本地文件的问题
+  - 访问格式（Windows）：`http://local-file.localhost/{url-encoded-path}`
+  - 自动 URL 解码 + MIME 类型推断（mp3/wav/flac/ogg/m4a/aac 音频，png/jpeg/gif/bmp/webp/svg 图片）
+  - 支持 CORS 头（`Access-Control-Allow-Origin: *`），适配 iframe 跨域加载
+- **manifest `hide_header` 字段**（SPEC 6.5.3 扩展）：
+  - `ExtensionPackManifest` 新增 `hide_header: bool`（默认 `false`，`#[serde(default)]` 向后兼容）
+  - `true` 时隐藏插件 iframe 上方标题栏（插件名称+版本号信息条），插件自行管理全部 UI（含返回按钮等导航）
+  - 前端 `PluginPage.tsx` 根据该字段条件渲染标题栏
+- **音乐播放器示例插件**（`examples/music-player/`）：
+  - 完整可运行插件：Cargo.toml（cdylib + lofty 0.21 + rfd 0.14 + base64 0.22）+ lib.rs（3 个 Rust 动作）+ manifest.json + index.html
+  - 3 个 Rust 动作：`pick_audio_files`（rfd 文件选择）/ `read_metadata`（lofty 元数据）/ `read_embedded_cover`（lofty 内嵌封面 base64）
+  - 前端功能：播放/暂停/上一首/下一首、进度条拖拽、音量控制、3 种播放模式（顺序/随机/单曲循环）、播放列表管理、专辑封面+元数据显示
+  - Win11 Fluent Design 风格（#0a0f1a 背景 / #0078D4 品牌蓝 / 8px 网格 / 200ms 动画）
+  - `hide_header: true` 沉浸式 UI + `local-file` 协议播放本地音频
+
+### 修复
+
+- **插件 iframe 无法加载本地文件**：sandbox 未含 `allow-same-origin`，`file:///` 协议被浏览器拦截。通过新增 `local-file` URI scheme 中转读取本地文件，插件可安全加载音频/图片/视频等资源
+
+### 文档
+
+- **修正 SDK 路径**：开发者文档原写 `src-tauri/crates/exero-plugin-sdk/`，实际位于项目根目录 `exero-plugin-sdk/`（plugin.md 已修正）
+- **新增 local-file 协议文档**：plugin.md（本地文件访问章节 + sandbox 限制说明）、bridge-api.md（URL 格式 + 示例 + 路径编码注意事项）、manifest.md（无需改动，协议为主程序能力）
+- **新增 hide_header 字段文档**：manifest.md（字段说明）、plugin.md（插件特有字段表 + 完整 manifest 示例）
+- **新增 sandbox 限制说明**：plugin.md 详细列出 `file:///`、`fetch('file:///...')`、`localStorage`、`XMLHttpRequest` 在 sandbox 下的限制及解决方案
+- **修正示例插件位置说明**：文档原暗示示例源码在 `Market/plugins/`，实际源码在 `examples/`，`Market/plugins/` 仅存放打包后的 `.exero-pack`
+
+### 后端命令
+
+- 无新增 Tauri 命令（`local-file` 协议通过 Tauri `register_uri_scheme_protocol` 注册，非命令）
+
+---
+
 ## V0.4.0-Beta6
 
 **[强制更新] 日常模式时间轴 + OOBE 引导系统优化 + 静默更新**
