@@ -1,0 +1,91 @@
+{
+  "id": "music-player",
+  "version": "0.1.0",
+  "name": "音乐播放器",
+  "description": "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示",
+  "author": "Exero",
+  "exero_api_version": "0.4.0",
+  "pack_type": "plugin",
+  "rust_library": "music_player.dll",
+  "sidebar": {
+    "id": "music-player",
+    "label": "音乐",
+    "icon": "Music",
+    "page_type": "web"
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "hide_header": true,
+  "actions": [
+    {
+      "id": "pick_audio_files",
+      "executor_type": "rust",
+      "executor_id": "pick_audio_files",
+      "label": "选择音频文件",
+      "category": "app",
+      "icon": "FolderOpen",
+      "default_params": {},
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "选择音频文件",
+      "description": "弹出系统文件选择对话框，返回用户选择的音频文件路径列表",
+      "permissions": [],
+      "params": []
+    },
+    {
+      "id": "read_metadata",
+      "executor_type": "rust",
+      "executor_id": "read_metadata",
+      "label": "读取音频元数据",
+      "category": "app",
+      "icon": "FileAudio",
+      "default_params": { "path": "" },
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "{path}",
+      "description": "读取音频文件的元数据（标题/艺术家/专辑/时长/年份等）",
+      "permissions": [],
+      "params": [
+        {
+          "name": "path",
+          "label": "文件路径",
+          "type": "string",
+          "default": "",
+          "options": [],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "read_embedded_cover",
+      "executor_type": "rust",
+      "executor_id": "read_embedded_cover",
+      "label": "读取专辑封面",
+      "category": "app",
+      "icon": "Image",
+      "default_params": { "path": "" },
+      "ports": {
+        "inputs": [{ "id": "trigger", "position": "top" }],
+        "outputs": [{ "id": "done", "position": "bottom" }]
+      },
+      "summarize_template": "{path}",
+      "description": "读取音频文件内嵌的专辑封面图片，返回 base64 data URI",
+      "permissions": [],
+      "params": [
+        {
+          "name": "path",
+          "label": "文件路径",
+          "type": "string",
+          "default": "",
+          "options": [],
+          "required": true
+        }
+      ]
+    }
+  ]
+}
