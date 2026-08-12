@@ -35,12 +35,12 @@ edition = "2021"
 crate-type = ["cdylib"]   # 编译为 Windows .dll
 
 [dependencies]
-exero-plugin-sdk = { path = "../../src-tauri/crates/exero-plugin-sdk" }
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
 serde_json = "1"
 ```
 
 ::: warning 路径注意
-`exero-plugin-sdk` 相对路径取决于你的插件目录位置。官方示例 `examples/hello-plugin` 用 `../../src-tauri/crates/exero-plugin-sdk`。
+`exero-plugin-sdk` 相对路径取决于你的插件目录位置。官方示例 `examples/hello-plugin` 用 `../../exero-plugin-sdk`（SDK 在项目根目录 `exero-plugin-sdk/`）。
 :::
 
 ### 2. 编写动作
@@ -112,6 +112,7 @@ cargo build --release
   "ui": {
     "entry": "index.html"
   },
+  "hide_header": false,
   "actions": [
     {
       "id": "say_hello",
@@ -139,6 +140,7 @@ cargo build --release
 | `rust_library` | 是 | .dll 相对路径 |
 | `sidebar` | 是 | 侧边栏入口（lucide-react 图标） |
 | `ui.entry` | 是 | 前端入口 HTML 路径 |
+| `hide_header` | 否 | `true` 时隐藏 iframe 上方标题栏（插件名称+版本号信息条），默认 `false`。设为 `true` 后插件需自行管理全部 UI（包括返回按钮等导航） |
 
 完整字段说明请查阅 [Manifest 参考](/api/manifest)。
 
@@ -169,6 +171,45 @@ allow-scripts allow-forms allow-popups allow-modals
 - ✅ 脚本、表单、弹窗、模态框
 - ❌ `allow-same-origin`（防止访问主窗口 DOM）
 - ❌ `allow-top-navigation`（防止篡改主窗口导航）
+
+::: warning sandbox 限制与开发注意事项
+由于 iframe sandbox **不含 `allow-same-origin`**，以下操作会被浏览器拦截：
+
+1. **`file:///` 协议**：无法通过 `audio.src = 'file:///C:/...'` 等方式加载本地文件
+2. **`fetch('file:///...')`**：无法用 fetch 读取本地文件
+3. **localStorage / sessionStorage**：sandbox 禁止访问，需用 Rust .dll 持久化数据
+4. **XMLHttpRequest**：无法直接请求本地文件
+
+**解决方案**：使用 `local-file` 协议（见下方说明）
+:::
+
+### 本地文件访问（local-file 协议）
+
+由于 iframe sandbox 禁止 `file:///` 访问，Exero 提供 `local-file` 自定义 URI scheme，让插件能加载本地文件（如音频、图片、视频等）。
+
+**访问格式**（Windows）：
+
+```
+http://local-file.localhost/{url-encoded-file-path}
+```
+
+**示例**：
+
+```javascript
+// 播放本地音频文件
+const audioPath = 'C:\\Users\\music\\song.mp3';
+audio.src = 'http://local-file.localhost/' + encodeURIComponent(audioPath);
+
+// 显示本地图片
+const imgPath = 'D:\\Photos\\cover.jpg';
+img.src = 'http://local-file.localhost/' + encodeURIComponent(imgPath);
+```
+
+**支持的 MIME 类型**：mp3/wav/flac/ogg/m4a/aac（音频），png/jpeg/gif/bmp/webp/svg（图片），以及所有 `plugin://` 协议支持的类型。
+
+::: tip 路径编码
+务必使用 `encodeURIComponent()` 编码文件路径，否则 Windows 路径中的 `:` 和 `\` 会导致 URL 解析错误。
+:::
 
 ### 前端页面示例
 
@@ -240,7 +281,9 @@ Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force
 
 ## 参考示例
 
-官方示例：`examples/hello-plugin/`（1 个 Rust 动作 + 按钮页面）
+官方示例：
+- `examples/hello-plugin/`：入门示例（1 个 Rust 动作 + 按钮页面）
+- `examples/music-player/`：音乐播放器（文件选择 + 元数据读取 + 封面提取 + local-file 协议播放 + hide_header）
 
 ## 下一步
 

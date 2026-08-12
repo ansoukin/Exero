@@ -6,6 +6,9 @@ import {
   AlertTriangle,
   FlaskConical,
   LogOut,
+  GraduationCap,
+  Calendar,
+  RefreshCw,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -18,8 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { onboardingCommands, settingCommands, type Setting } from "@/lib/tauri";
+import { onboardingCommands, settingCommands, systemCommands, type Setting } from "@/lib/tauri";
 import { useOnboardingStore } from "@/stores/onboarding";
+import { useOobeStore, type AppMode } from "@/stores/oobe";
 import { cn } from "@/lib/utils";
 import { UrlAliasSection } from "./UrlAliasSection";
 import { ImportExportSection } from "./ImportExportSection";
@@ -28,7 +32,9 @@ import { ImportExportSection } from "./ImportExportSection";
  * 通用分区（Phase 6a/6b · SPEC 3.5 页面 5 分区 2 / SPEC 11.2 / SPEC 11.3 / SPEC 5.5）
  *
  * 包含：
+ * - 应用模式（学校/日常，切换后重启生效）
  * - 开机自启（tauri-plugin-autostart）
+ * - 静默自启（依赖开机自启）
  * - 关闭主窗口行为（ask / minimize / exit）
  * - 课表管理（重新初始化 / 退出演示模式，SPEC 11.2）
  * - URL 短域名别名（Phase 6b · SPEC 11.3）
@@ -44,13 +50,35 @@ const CLOSE_BEHAVIORS = [
 
 type CloseBehavior = (typeof CLOSE_BEHAVIORS)[number]["key"];
 
+/** 应用模式选项（学校模式有课表，日常模式只有快捷指令+日历） */
+const APP_MODES: { key: AppMode; label: string; desc: string; icon: typeof GraduationCap }[] = [
+  {
+    key: "school",
+    label: "校园模式",
+    desc: "包含课表、节次、课程管理，适合学生使用",
+    icon: GraduationCap,
+  },
+  {
+    key: "daily",
+    label: "日常模式",
+    desc: "只保留快捷指令和日历视图，更简洁",
+    icon: Calendar,
+  },
+];
+
 export function GeneralSection() {
   const [autostart, setAutostart] = useState(false);
   const [silentAutostart, setSilentAutostart] = useState(false);
+  const [silentUpdate, setSilentUpdate] = useState(false);
   const [closeBehavior, setCloseBehavior] = useState<CloseBehavior>("ask");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  // 应用模式（从 settings.app.mode 读取，切换后需重启生效）
+  const [appMode, setAppMode] = useState<AppMode>("school");
+  const [modeRestartOpen, setModeRestartOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
 
   const demoMode = useOnboardingStore((s) => s.demoMode);
   const setDemoMode = useOnboardingStore((s) => s.setDemoMode);
@@ -79,7 +107,52 @@ export function GeneralSection() {
         if (s) setSilentAutostart(s.value === "true");
       })
       .catch((e) => console.error("[general] 读取静默自启设置失败:", e));
+
+    // 加载静默更新设置（Beta6 Phase 4）
+    settingCommands
+      .get("update.silent_update")
+      .then((s) => {
+        if (s) setSilentUpdate(s.value === "true");
+      })
+      .catch((e) => console.error("[general] 读取静默更新设置失败:", e));
+
+    // 加载应用模式（学校/日常）
+    settingCommands
+      .get("app.mode")
+      .then((s) => {
+        if (s && (s.value === "school" || s.value === "daily")) {
+          setAppMode(s.value as AppMode);
+        }
+      })
+      .catch((e) => console.error("[general] 读取应用模式失败:", e));
   }, []);
+
+  /** 切换应用模式：先弹确认框，确认后保存并重启 */
+  const handleModeChange = (mode: AppMode) => {
+    if (mode === appMode) return;
+    setPendingMode(mode);
+    setModeRestartOpen(true);
+  };
+
+  /** 确认切换模式：保存设置并重启应用 */
+  const handleConfirmModeSwitch = async () => {
+    if (!pendingMode) return;
+    try {
+      await settingCommands.set({
+        key: "app.mode",
+        value: pendingMode,
+        value_type: "string",
+      });
+      // 同步到 oobe store（下次启动会读取）
+      useOobeStore.getState().setAppMode(pendingMode);
+      // 重启应用使模式切换生效
+      systemCommands.restartApp();
+    } catch (e) {
+      console.error("[general] 切换应用模式失败:", e);
+      setModeRestartOpen(false);
+      setPendingMode(null);
+    }
+  };
 
   const handleAutostartChange = async (enabled: boolean) => {
     setAutostart(enabled);
@@ -115,6 +188,21 @@ export function GeneralSection() {
     }
   };
 
+  /** 切换静默更新（Beta6 Phase 4） */
+  const handleSilentUpdateChange = async (enabled: boolean) => {
+    setSilentUpdate(enabled);
+    try {
+      await settingCommands.set({
+        key: "update.silent_update",
+        value: enabled.toString(),
+        value_type: "bool",
+      });
+    } catch (e) {
+      setSilentUpdate(!enabled);
+      console.error("[general] 保存静默更新设置失败:", e);
+    }
+  };
+
   const handleCloseBehaviorChange = async (value: CloseBehavior) => {
     setCloseBehavior(value);
     const setting: Setting = {
@@ -142,6 +230,40 @@ export function GeneralSection() {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* 应用模式（学校/日常，切换后需重启生效） */}
+      <section className="flex flex-col gap-3">
+        <div>
+          <h3 className="text-base font-medium">应用模式</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            选择使用场景，切换后需重启应用生效
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {APP_MODES.map((mode) => {
+            const Icon = mode.icon;
+            const selected = appMode === mode.key;
+            return (
+              <button
+                key={mode.key}
+                onClick={() => handleModeChange(mode.key)}
+                className={cn(
+                  "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors duration-200",
+                  selected
+                    ? "border-primary bg-primary/10"
+                    : "border-input hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", selected ? "text-primary" : "text-muted-foreground")} />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{mode.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{mode.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* 开机自启 */}
       <section className="flex items-center justify-between gap-4">
         <div className="flex-1">
@@ -169,6 +291,17 @@ export function GeneralSection() {
           onCheckedChange={handleSilentAutostartChange}
           disabled={!autostart}
         />
+      </section>
+
+      {/* 静默更新（Beta6 Phase 4：自动下载安装推荐更新，不弹窗） */}
+      <section className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <h3 className="text-base font-medium">静默更新</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            检测到推荐更新时自动下载并安装，无需手动确认
+          </p>
+        </div>
+        <Switch checked={silentUpdate} onCheckedChange={handleSilentUpdateChange} />
       </section>
 
       {/* 关闭主窗口行为 */}
@@ -308,6 +441,36 @@ export function GeneralSection() {
                 <RotateCcw className="h-4 w-4" />
               )}
               {resetConfirmText}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 模式切换重启确认弹窗 */}
+      <Dialog open={modeRestartOpen} onOpenChange={setModeRestartOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              切换到{pendingMode === "school" ? "校园模式" : "日常模式"}
+            </DialogTitle>
+            <DialogDescription>
+              切换应用模式需要重启 Exero 才能生效。未保存的数据可能会丢失，请确认后再继续。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModeRestartOpen(false);
+                setPendingMode(null);
+              }}
+            >
+              取消
+            </Button>
+            <Button onClick={handleConfirmModeSwitch} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              保存并重启
             </Button>
           </DialogFooter>
         </DialogContent>

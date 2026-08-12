@@ -306,6 +306,7 @@ export function Sidebar() {
           return (
             <button
               key={item.id}
+              data-nav={item.id}
               onClick={() => setPage(item.id)}
               title={collapsed ? item.label : undefined}
               className={cn(

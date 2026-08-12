@@ -53,6 +53,11 @@ pub struct ExtensionPackManifest {
     /// 声明插件前端入口文件，通过 iframe 加载
     #[serde(default)]
     pub ui: Option<UiManifest>,
+    /// 是否隐藏插件 iframe 上方的标题栏（插件名称 + 版本号信息条）
+    /// - false（默认）：显示标题栏，用户可通过返回按钮回到设置
+    /// - true：隐藏标题栏，插件自行管理全部 UI（需自行提供返回按钮等导航）
+    #[serde(default)]
+    pub hide_header: bool,
 }
 
 /// 扩展包类型

@@ -82,7 +82,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   currentPage: "home",
-  sidebarCollapsed: false,
+  sidebarCollapsed: true,
   dynamicNavEntries: [],
   sidebarOrder: [],
   packVersion: 0,

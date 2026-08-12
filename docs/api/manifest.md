@@ -23,6 +23,7 @@
 | `actions` | ActionManifest[] | | `[]` | 动作声明列表。动作注册为 Flow 编辑器的可视化积木 |
 | `sidebar` | SidebarManifest | | 无 | 侧边栏入口。**插件必填**，动作包不支持 |
 | `ui` | UiManifest | | 无 | 前端入口声明。**插件必填**，动作包不支持 |
+| `hide_header` | boolean | | `false` | 是否隐藏插件 iframe 上方的标题栏（插件名称+版本号信息条）。`true` 时插件需自行管理全部 UI（包括返回按钮等导航） |
 
 ---
 

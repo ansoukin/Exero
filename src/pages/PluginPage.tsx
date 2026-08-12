@@ -146,39 +146,44 @@ export function PluginPage({ packId }: PluginPageProps) {
   const entry = pack.manifest.ui!.entry;
   const iframeSrc = `http://plugin.localhost/${packId}/${entry}`;
 
+  // hide_header=true 时隐藏标题栏，插件 iframe 撑满整个区域
+  const hideHeader = pack.manifest.hide_header;
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* 标题栏 */}
-      <div className="flex shrink-0 items-center justify-between border-b bg-card px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setPage("settings")}
-            className="h-9 w-9"
-            title="返回"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Puzzle className="h-6 w-6 text-primary" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {pack.manifest.name}
-              </h1>
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                v{pack.manifest.version}
-              </span>
-              <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
-                插件
-              </span>
+      {/* 标题栏（hide_header=true 时隐藏） */}
+      {!hideHeader && (
+        <div className="flex shrink-0 items-center justify-between border-b bg-card px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPage("settings")}
+              className="h-9 w-9"
+              title="返回"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Puzzle className="h-6 w-6 text-primary" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  {pack.manifest.name}
+                </h1>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  v{pack.manifest.version}
+                </span>
+                <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+                  插件
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pack.manifest.id} · {pack.manifest.author || "未知作者"}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {pack.manifest.id} · {pack.manifest.author || "未知作者"}
-            </p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* iframe 区：加载插件前端资源（min-h-0 确保 flex 子项可收缩，iframe 撑满剩余高度） */}
       <div className="min-h-0 flex-1 overflow-hidden bg-background">

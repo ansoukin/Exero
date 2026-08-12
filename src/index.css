@@ -244,6 +244,71 @@
     }
   }
 
+  /* OOBE 开屏动画（Beta6） */
+  /* logo 切出 + 字母展开循环播放：每 3s 一个完整周期 */
+  /* 入场和出场统一为从左到右方向 */
+  .oobe-logo-clip {
+    animation: oobe-logo-clip 3s var(--ease-fluent) infinite;
+  }
+  @keyframes oobe-logo-clip {
+    0% {
+      /* 隐藏：从左侧完全裁切 */
+      clip-path: inset(0 100% 0 0);
+      opacity: 0;
+    }
+    20%, 80% {
+      /* 600ms-2400ms 保持完整显示 */
+      clip-path: inset(0 0 0 0);
+      opacity: 1;
+    }
+    100% {
+      /* 出场：从左到右逐渐裁切消失（左侧先消失，向右推进） */
+      clip-path: inset(0 0 0 100%);
+      opacity: 0;
+    }
+  }
+
+  .oobe-letter {
+    animation: oobe-letter 3s var(--ease-fluent) infinite;
+  }
+  @keyframes oobe-letter {
+    0% {
+      /* 入场：从左侧滑入 */
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    16%, 80% {
+      /* 500ms-2400ms 保持展开状态 */
+      transform: translateX(0);
+      opacity: 1;
+    }
+    100% {
+      /* 出场：向右侧滑出（从左到右方向消失） */
+      transform: translateX(20px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes oobe-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* OOBE 开始按钮入场动画（scale + fade） */
+  .oobe-start-enter {
+    animation: oobe-start-enter 500ms var(--ease-fluent) both;
+  }
+  @keyframes oobe-start-enter {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   /* 按钮按下反馈（100ms 按压 + 150ms 背景色过渡） */
   .btn-press {
     transition: transform 100ms var(--ease-fluent),

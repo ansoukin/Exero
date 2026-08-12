@@ -16,6 +16,7 @@
   "ui": {
     "entry": "index.html"
   },
+  "hide_header": true,
   "actions": [
     {
       "id": "pick_audio_files",

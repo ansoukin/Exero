@@ -657,9 +657,9 @@
       currentIndex = index;
       const track = playlist[index];
 
-      // 音频源：需要将路径转为可访问的 URL
-      // Windows 本地路径转 file:// URL
-      audio.src = 'file:///' + track.path.replace(/^\//, '');
+      // 音频源：通过 local-file 协议中转读取本地文件
+      // iframe sandbox 禁止 file:/// 访问，需用 http://local-file.localhost/{encoded-path}
+      audio.src = 'http://local-file.localhost/' + encodeURIComponent(track.path);
 
       // 更新 UI
       emptyState.style.display = 'none';

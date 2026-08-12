@@ -30,3 +30,15 @@ pub async fn hide_main_window(app_handle: tauri::AppHandle) -> Result<()> {
     }
     Ok(())
 }
+
+/// 重启应用（Beta6 · OOBE 字体安装后重启）
+///
+/// Tauri v2 AppHandle::restart：退出当前进程并启动新实例。
+#[tauri::command]
+pub async fn restart_app(app_handle: tauri::AppHandle) -> Result<()> {
+    tracing::info!("用户请求重启应用");
+    app_handle.restart();
+    // restart() 不会返回，但 Rust 类型系统要求返回 Result
+    #[allow(unreachable_code)]
+    Ok(())
+}

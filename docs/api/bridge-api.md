@@ -124,6 +124,26 @@ allow-scripts allow-forms allow-popups allow-modals
 - 桥接脚本在返回 HTML 时注入到 `</head>` 前（仅对 `.html` 响应生效）
 - **文件命名建议**：入口固定 `index.html`，资源放 `assets/` 子目录避免与入口冲突
 
+### 本地文件加载（local-file 协议）
+
+iframe sandbox 禁止 `file:///` 访问，插件如需加载本地文件（音频/图片/视频等），使用 `local-file` 协议：
+
+| 环境 | URL 格式 | 示例 |
+|---|---|---|
+| Windows | `http://local-file.localhost/{url-encoded-path}` | `http://local-file.localhost/C%3A%5CUsers%5Cmusic%5Csong.mp3` |
+
+```javascript
+// 加载本地音频
+audio.src = 'http://local-file.localhost/' + encodeURIComponent(filePath);
+
+// 加载本地图片
+img.src = 'http://local-file.localhost/' + encodeURIComponent(imagePath);
+```
+
+::: warning 路径编码
+务必使用 `encodeURIComponent()` 编码文件路径。Windows 路径中的 `:` 和 `\` 会导致 URL 解析错误。
+:::
+
 ---
 
 ## 桥接脚本注入（实现细节）

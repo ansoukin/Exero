@@ -659,6 +659,8 @@ export const systemCommands = {
   exitApp: () => invoke<void>("exit_app"),
   /** 隐藏主窗口到托盘 */
   hideMainWindow: () => invoke<void>("hide_main_window"),
+  /** 重启应用（OOBE 字体安装后重启） */
+  restartApp: () => invoke<void>("restart_app"),
 };
 
 // ============================================================
@@ -940,6 +942,8 @@ export interface ExtensionPackManifest {
   sidebar?: SidebarManifest | null;
   /** 插件 UI 声明（仅 plugin 类型，Phase 3 新增） */
   ui?: UiManifest | null;
+  /** 是否隐藏插件 iframe 上方的标题栏（默认 false） */
+  hide_header?: boolean;
 }
 
 /** 已安装扩展包摘要 */

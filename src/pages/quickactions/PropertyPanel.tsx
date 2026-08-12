@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Trash2, Settings2, PanelRightClose, PanelRightOpen } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,8 @@ interface PropertyPanelProps {
  *
  * SPEC 308 行：单击选中节点 → 右侧属性面板自动展示该节点表单（实时编辑）。
  * 表单内容根据节点类型动态渲染（ActionFormRegistry 注册 20 种专属表单）。
+ *
+ * Beta6：折叠/展开 width 过渡动画（200ms，与侧边栏一致），头部按钮统一。
  */
 export function PropertyPanel({
   selectedNode,
@@ -47,132 +50,121 @@ export function PropertyPanel({
   collapsed,
   onToggleCollapse,
 }: PropertyPanelProps) {
-  // 折叠状态：渲染为窄条
-  if (collapsed) {
-    return (
-      <aside className="flex w-10 shrink-0 flex-col items-center border-l bg-card py-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground"
-          onClick={onToggleCollapse}
-          title="展开属性面板"
-        >
-          <PanelRightOpen className="h-4 w-4" />
-        </Button>
-      </aside>
-    );
-  }
-
-  if (!selectedNode) {
-    return (
-      <aside className="flex w-72 shrink-0 flex-col border-l bg-card">
-        <div className="flex items-center justify-end border-b px-2 py-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground"
-            onClick={onToggleCollapse}
-            title="折叠属性面板"
-          >
-            <PanelRightClose className="h-4 w-4" />
-          </Button>
-        </div>
-        <EmptyState />
-      </aside>
-    );
-  }
-
-  const { id, data } = selectedNode;
-  const meta = getNodeMeta(data.kind);
+  const id = selectedNode?.id ?? "";
+  const data = selectedNode?.data ?? null;
+  const meta = data ? getNodeMeta(data.kind) : null;
   const Icon = meta?.icon;
-  const FormCmp = ActionFormRegistry[data.kind];
+  const FormCmp = data ? ActionFormRegistry[data.kind] : null;
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l bg-card">
-      {/* 头部：节点类型信息 + 折叠按钮 */}
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        {Icon && (
-          <div className={`flex h-7 w-7 items-center justify-center rounded ${meta ? getCategoryColor(meta.category) : ""}`}>
-            <Icon className="h-4 w-4" />
-          </div>
+    <aside
+      className={cn(
+        "flex shrink-0 flex-col overflow-hidden border-l bg-card transition-[width] duration-200 ease-in-out",
+        collapsed ? "w-10" : "w-72",
+      )}
+    >
+      {/* 头部：折叠时仅居中切换按钮；展开时选中节点显示图标+标签+删除按钮 */}
+      <div
+        className={cn(
+          "flex items-center border-b",
+          collapsed ? "justify-center px-0 py-2" : "gap-2 px-4 py-3",
         )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{data.label}</p>
-          <p className="text-[10px] text-muted-foreground">{data.kind}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => onDelete(id)}
-          title="删除节点"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+      >
+        {!collapsed && data && (
+          <>
+            {Icon && (
+              <div className={`flex h-7 w-7 items-center justify-center rounded ${meta ? getCategoryColor(meta.category) : ""}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{data.label}</p>
+              <p className="text-[10px] text-muted-foreground">{data.kind}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onDelete(id)}
+              title="删除节点"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-muted-foreground"
           onClick={onToggleCollapse}
-          title="折叠属性面板"
+          title={collapsed ? "展开属性面板" : "折叠属性面板"}
         >
-          <PanelRightClose className="h-4 w-4" />
+          {collapsed ? (
+            <PanelRightOpen className="h-4 w-4" />
+          ) : (
+            <PanelRightClose className="h-4 w-4" />
+          )}
         </Button>
       </div>
 
-      {/* 表单内容（滚动区） */}
-      <div className="flex-1 overflow-y-auto scrollbar-fluent">
-        <div className="space-y-4 p-4">
-          {/* 类型专属参数表单 */}
-          {FormCmp ? (
-            <FormCmp
-              params={data.params}
-              onChange={(params) => onParamsChange(id, params)}
-            />
-          ) : (
-            <FallbackJsonForm
-              params={data.params}
-              onChange={(params) => onParamsChange(id, params)}
-            />
-          )}
+      {/* 展开内容：选中节点显示表单，未选中显示空状态 */}
+      {!collapsed && (
+        data ? (
+          <div className="flex-1 overflow-y-auto scrollbar-fluent">
+            <div className="space-y-4 p-4">
+              {/* 类型专属参数表单 */}
+              {FormCmp ? (
+                <FormCmp
+                  params={data.params}
+                  onChange={(params) => onParamsChange(id, params)}
+                />
+              ) : (
+                <FallbackJsonForm
+                  params={data.params}
+                  onChange={(params) => onParamsChange(id, params)}
+                />
+              )}
 
-          {/* 公共字段：容错策略 */}
-          <div className="space-y-2 pt-2">
-            <Label className="text-xs font-medium">容错策略</Label>
-            <Select
-              value={data.faultStrategy ?? "__inherit__"}
-              onValueChange={(v) =>
-                onFaultStrategyChange(id, v === "__inherit__" ? null : v)
-              }
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__inherit__">继承 Flow 默认</SelectItem>
-                <SelectItem value="Continue">继续</SelectItem>
-                <SelectItem value="Stop">停止</SelectItem>
-                <SelectItem value="Rollback">回滚</SelectItem>
-                <SelectItem value="Notify">通知</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              {/* 公共字段：容错策略 */}
+              <div className="space-y-2 pt-2">
+                <Label className="text-xs font-medium">容错策略</Label>
+                <Select
+                  value={data.faultStrategy ?? "__inherit__"}
+                  onValueChange={(v) =>
+                    onFaultStrategyChange(id, v === "__inherit__" ? null : v)
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__inherit__">继承 Flow 默认</SelectItem>
+                    <SelectItem value="Continue">继续</SelectItem>
+                    <SelectItem value="Stop">停止</SelectItem>
+                    <SelectItem value="Rollback">回滚</SelectItem>
+                    <SelectItem value="Notify">通知</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* 公共字段：备注 */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">备注</Label>
-            <Textarea
-              value={data.note ?? ""}
-              onChange={(e) =>
-                onNoteChange(id, e.target.value || null)
-              }
-              placeholder="可选..."
-              className="min-h-[60px] text-xs"
-            />
+              {/* 公共字段：备注 */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">备注</Label>
+                <Textarea
+                  value={data.note ?? ""}
+                  onChange={(e) =>
+                    onNoteChange(id, e.target.value || null)
+                  }
+                  placeholder="可选..."
+                  className="min-h-[60px] text-xs"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        ) : (
+          <EmptyState />
+        )
+      )}
     </aside>
   );
 }
@@ -180,13 +172,11 @@ export function PropertyPanel({
 /** 空状态：未选中节点 */
 function EmptyState() {
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l bg-card">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-muted-foreground">
-        <Settings2 className="mb-2 h-8 w-8 opacity-40" />
-        <p className="text-sm font-medium">未选中节点</p>
-        <p className="mt-1 text-xs">单击画布节点查看并编辑属性</p>
-      </div>
-    </aside>
+    <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-muted-foreground">
+      <Settings2 className="mb-2 h-8 w-8 opacity-40" />
+      <p className="text-sm font-medium">未选中节点</p>
+      <p className="mt-1 text-xs">单击画布节点查看并编辑属性</p>
+    </div>
   );
 }
 

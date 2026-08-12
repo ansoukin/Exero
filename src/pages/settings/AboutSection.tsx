@@ -4,7 +4,7 @@
  * 包含：
  * - 基本信息（Logo 占位 + 名称 + 版本号 + 构建日期）
  * - 技术栈列表
- * - MIT 许可 + 娱乐性 24 小时删除声明
+ * - MIT 许可
  * - GitHub 仓库链接
  * - 更新历史（GitHub Release Notes 优先，失败回退本地 CHANGELOG.md）
  */
@@ -135,15 +135,11 @@ export function AboutSection() {
         </div>
       </CollapsibleSection>
 
-      {/* MIT 许可 + 娱乐性声明 */}
+      {/* MIT 许可 */}
       <CollapsibleSection title="License" defaultOpen={false}>
         <div className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed">
           <p>
             本软件基于 <span className="font-medium">MIT License</span> 开源。
-          </p>
-          <p className="mt-2 text-muted-foreground">
-            娱乐性声明（无法律效力，纯属娱乐）：本软件仅供学习研究使用，请在下载后
-            24 小时内删除。请支持正版软件，尊重知识产权。
           </p>
         </div>
       </CollapsibleSection>

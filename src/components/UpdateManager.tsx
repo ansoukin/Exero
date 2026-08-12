@@ -115,8 +115,23 @@ export function UpdateManager() {
           .catch(() => null);
         const ignoredVersion = ignored?.value ?? "";
         if (result.latest_version && result.latest_version !== ignoredVersion) {
-          setRecommendStatus(result);
-          setShowRecommended(true);
+          // 静默更新：直接下载安装，不弹窗（Beta6 Phase 4）
+          const silentUpdateSetting = await settingCommands
+            .get("update.silent_update")
+            .catch(() => null);
+          const silentUpdate = silentUpdateSetting?.value === "true";
+          if (silentUpdate) {
+            console.log("[update] 静默更新已启用，直接下载安装");
+            // 直接调用下载安装，不弹窗
+            updateCommands
+              .downloadAndInstall()
+              .catch((e) =>
+                console.error("[update] 静默更新下载安装失败:", e)
+              );
+          } else {
+            setRecommendStatus(result);
+            setShowRecommended(true);
+          }
         }
       }
       // 普通更新：不弹窗

@@ -189,11 +189,15 @@ pub async fn complete_onboarding(
     Ok(())
 }
 
-/// V004 示例数据 SQL（编译期嵌入）
+/// 示例数据 SQL（编译期嵌入）
 ///
-/// reset_schedule_data 会清空五张课表表，refinery 迁移只执行一次不会重跑，
-/// 因此 load_demo_data 必须重新插入 V004 示例数据。
-const V004_SEED_SQL: &str = include_str!("../../migrations/V004__seed_courses.sql");
+/// 数据源：src/assets/seed_courses_data.sql（不参与 refinery 迁移）
+///
+/// 背景：原本 V004__seed_courses.sql 在 refinery 迁移时自动执行，
+///       导致清库重建后示例数据被自动插入，与"跳过向导应得空课表"冲突（Beta6 修复）。
+///       现在迁移文件 V004 保持空注释状态，示例数据移到 src/assets/，
+///       仅当用户主动点击"加载示例数据"时通过本命令执行。
+const SEED_COURSES_SQL: &str = include_str!("../assets/seed_courses_data.sql");
 
 /// 加载演示数据（SPEC 11.2 演示模式）
 ///
@@ -210,9 +214,9 @@ pub async fn load_demo_data(state: State<'_, Arc<AppState>>) -> Result<()> {
         tx.execute("DELETE FROM weekly_templates WHERE id LIKE 'seed-%'", [])?;
         tx.execute("DELETE FROM semesters WHERE id LIKE 'seed-%'", [])?;
 
-        // 2. 执行 V004 示例数据 SQL
+        // 2. 执行示例数据 SQL（数据源：src/assets/seed_courses_data.sql）
         //    把 INSERT INTO 替换为 INSERT OR REPLACE INTO 实现幂等
-        let seed_sql = V004_SEED_SQL.replace("INSERT INTO", "INSERT OR REPLACE INTO");
+        let seed_sql = SEED_COURSES_SQL.replace("INSERT INTO", "INSERT OR REPLACE INTO");
         tx.execute_batch(&seed_sql)?;
 
         // 3. 标记 onboarding_completed=true + demo_mode=true

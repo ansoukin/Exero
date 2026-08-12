@@ -1194,7 +1194,7 @@ dependencies = [
 
 [[package]]
 name = "exero"
-version = "0.4.0-Beta5"
+version = "0.4.0-Beta6"
 dependencies = [
  "anyhow",
  "async-stream",

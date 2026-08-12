@@ -4,7 +4,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { useThemeStore } from "@/stores/theme";
 import { useOnboardingStore } from "@/stores/onboarding";
-import { onboardingCommands } from "@/lib/tauri";
+import { useOobeStore, type OobeStage } from "@/stores/oobe";
+import { onboardingCommands, settingCommands } from "@/lib/tauri";
 import "./index.css";
 
 // 禁用 Edge WebView2 浏览器默认右键菜单
@@ -51,18 +52,43 @@ function hideBootSplash() {
  *
  * 三步完成后隐藏 boot-splash，显示应用内容。
  */
+/** OOBE 有效阶段集合（用于校验持久化的 onboarding_stage） */
+const VALID_OOBE_STAGES: OobeStage[] = [
+  "splash",
+  "license",
+  "scenario",
+  "font",
+  "post_restart",
+  "quick_settings",
+  "personalization",
+  "scene_branch",
+  "tour",
+  "market",
+];
+
 async function bootstrap() {
   try {
-    // 并行执行主题初始化 + onboarding 状态检测
-    const [, status] = await Promise.all([
+    // 并行执行主题初始化 + onboarding 状态检测 + OOBE 阶段读取 + 应用模式读取
+    const [, status, stageSetting, appModeSetting] = await Promise.all([
       useThemeStore.getState().init(),
       onboardingCommands.getStatus(),
+      settingCommands.get("onboarding_stage"),
+      settingCommands.get("app.mode"),
     ]);
     // 同步 demoMode 到 store（SPEC 11.2 演示模式标识）
     useOnboardingStore.getState().setDemoMode(status.demo_mode);
-    // 首次启动检测：onboarding_completed=false 且 has_semesters=false 时弹向导
-    if (!status.onboarding_completed && !status.has_semesters) {
-      useOnboardingStore.getState().open(0);
+
+    // 同步应用模式到 oobe store（无论是否启动 OOBE，都需要供 Timeline 等页面读取）
+    if (appModeSetting && (appModeSetting.value === "school" || appModeSetting.value === "daily")) {
+      useOobeStore.setState({ appMode: appModeSetting.value as "school" | "daily" });
+    }
+
+    // OOBE：未完成引导时启动（包裹原课表向导）
+    if (!status.onboarding_completed) {
+      const savedStage = stageSetting?.value as OobeStage | null;
+      const validStage =
+        savedStage && VALID_OOBE_STAGES.includes(savedStage) ? savedStage : null;
+      useOobeStore.getState().start(validStage);
     }
   } catch (e) {
     console.error("[bootstrap] 初始化失败，强制隐藏 boot-splash:", e);

@@ -103,6 +103,42 @@ pub fn run() {
                 ),
             }
         })
+        // 插件本地文件协议（Phase 3 补充 · SPEC 6.5.4）
+        // 注册 `local-file` URI scheme，让插件 iframe 能加载本地文件（如音频/图片）。
+        // iframe sandbox 禁止 file:/// 访问，通过此协议中转读取本地文件。
+        // 访问格式（Windows）：http://local-file.localhost/{url-encoded-path}
+        .register_uri_scheme_protocol("local-file", |_ctx, request| {
+            // 路径格式：/{url-encoded-file-path}
+            let path = request.uri().path();
+            let path = path.strip_prefix('/').unwrap_or(path);
+
+            // URL 解码文件路径（手动解码 %XX 序列）
+            let decoded = match url_decode(path) {
+                Ok(s) => s,
+                Err(msg) => {
+                    return plugin_protocol_response(
+                        tauri::http::StatusCode::BAD_REQUEST,
+                        msg,
+                    )
+                }
+            };
+
+            // 读取本地文件
+            match std::fs::read(&decoded) {
+                Ok(data) => {
+                    let content_type = guess_content_type(std::path::Path::new(&decoded));
+                    tauri::http::Response::builder()
+                        .header(tauri::http::header::CONTENT_TYPE, content_type)
+                        .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .body(data)
+                        .unwrap()
+                }
+                Err(_) => plugin_protocol_response(
+                    tauri::http::StatusCode::NOT_FOUND,
+                    "Local file not found",
+                ),
+            }
+        })
         .setup(|app| {
             tracing::info!("执行 setup 回调");
             // 初始化应用状态
@@ -300,6 +336,7 @@ pub fn run() {
             // 系统集成命令（Phase 6a）
             commands::system::exit_app,
             commands::system::hide_main_window,
+            commands::system::restart_app,
             // 课表初始化向导命令（Phase 6a · SPEC 11.2）
             commands::onboarding::get_onboarding_status,
             commands::onboarding::complete_onboarding,
@@ -361,6 +398,29 @@ fn plugin_protocol_response(
         .unwrap()
 }
 
+/// URL 解码（手动解码 %XX 序列，避免引入额外 crate）
+fn url_decode(s: &str) -> Result<String, &'static str> {
+    let mut result = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = &s[i + 1..i + 3];
+            match u8::from_str_radix(hex, 16) {
+                Ok(b) => {
+                    result.push(b);
+                    i += 3;
+                }
+                Err(_) => return Err("Invalid percent encoding"),
+            }
+        } else {
+            result.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(result).map_err(|_| "Invalid UTF-8 in decoded path")
+}
+
 /// 根据文件扩展名猜测 Content-Type
 fn guess_content_type(path: &std::path::Path) -> &'static str {
     match path
@@ -380,6 +440,17 @@ fn guess_content_type(path: &std::path::Path) -> &'static str {
         "ico" => "image/x-icon",
         "woff" => "font/woff",
         "woff2" => "font/woff2",
+        // 音频格式（local-file 协议需要）
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "ogg" => "audio/ogg",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        // 图片格式（封面等）
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
         _ => "application/octet-stream",
     }
 }
