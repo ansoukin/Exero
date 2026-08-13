@@ -1,62 +1,62 @@
 {
-  "actions": [
-    {
-      "id": "base-pack",
-      "version": "1.0.0",
-      "name": "基础动作包",
-      "description": "Exero 内置的 20 种基础动作类型，涵盖应用与文件、媒体与输入、系统与电源、通知、控制流、Lua 脚本六大类别。执行器为 Rust 原生实现，性能敏感动作直接调用系统 API。",
-      "author": "Exero",
-      "exero_api_version": "0.4.0",
-      "pack_type": "action",
-      "file_name": "base-pack.exero-pack",
-      "size": 1657,
-      "action_count": 20,
-      "has_sidebar": false,
-      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/base-pack.exero-pack"
-    },
-    {
-      "id": "lua-scripts-pack",
-      "version": "1.1.0",
-      "name": "基础 Lua 动作包",
-      "description": "Exero 官方示例 Lua 动作集合：Hello World、计数器、系统时间。演示 args 参数读取、exero.log/notify/set_result API、变量系统、os 库等基础能力。",
-      "author": "Exero",
-      "exero_api_version": "0.4.0",
-      "pack_type": "action",
-      "file_name": "lua-scripts-pack.exero-pack",
-      "size": 3243,
-      "action_count": 3,
-      "has_sidebar": false,
-      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/lua-scripts-pack.exero-pack"
-    }
-  ],
-  "plugins": [
-    {
-      "id": "hello-plugin",
-      "version": "0.1.0",
-      "name": "Hello Plugin",
-      "description": "Exero 官方示例插件：演示插件系统完整链路（侧边栏入口 + iframe UI + Rust .dll 动作联动）",
-      "author": "Exero",
-      "exero_api_version": "0.4.0",
-      "pack_type": "plugin",
-      "file_name": "hello-plugin.exero-pack",
-      "size": 102206,
-      "action_count": 1,
-      "has_sidebar": true,
-      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/plugins/hello-plugin.exero-pack"
-    },
-    {
-      "id": "music-player",
-      "version": "0.2.1",
-      "name": "音乐播放器",
-      "description": "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示、内嵌歌词显示",
-      "author": "Exero",
-      "exero_api_version": "0.4.0",
-      "pack_type": "plugin",
-      "file_name": "music-player.exero-pack",
-      "size": 480224,
-      "action_count": 4,
-      "has_sidebar": true,
-      "download_url": "https://github.com/ansoukin/Exero/raw/main/Market/plugins/music-player.exero-pack"
-    }
-  ]
+    "actions":  [
+                    {
+                        "pack_type":  "action",
+                        "id":  "base-pack",
+                        "has_sidebar":  false,
+                        "size":  1657,
+                        "version":  "1.0.0",
+                        "description":  "Exero 内置的 20 种基础动作类型，涵盖应用与文件、媒体与输入、系统与电源、通知、控制流、Lua 脚本六大类别。执行器为 Rust 原生实现，性能敏感动作直接调用系统 API。",
+                        "author":  "Exero",
+                        "download_url":  "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/base-pack.exero-pack",
+                        "name":  "基础动作包",
+                        "file_name":  "base-pack.exero-pack",
+                        "exero_api_version":  "0.4.0",
+                        "action_count":  20
+                    },
+                    {
+                        "pack_type":  "action",
+                        "id":  "lua-scripts-pack",
+                        "has_sidebar":  false,
+                        "size":  3243,
+                        "version":  "1.1.0",
+                        "description":  "Exero 官方示例 Lua 动作集合：Hello World、计数器、系统时间。演示 args 参数读取、exero.log/notify/set_result API、变量系统、os 库等基础能力。",
+                        "author":  "Exero",
+                        "download_url":  "https://github.com/ansoukin/Exero/raw/main/Market/action-packs/lua-scripts-pack.exero-pack",
+                        "name":  "基础 Lua 动作包",
+                        "file_name":  "lua-scripts-pack.exero-pack",
+                        "exero_api_version":  "0.4.0",
+                        "action_count":  3
+                    }
+                ],
+    "plugins":  [
+                    {
+                        "pack_type":  "plugin",
+                        "id":  "hello-plugin",
+                        "has_sidebar":  true,
+                        "size":  102206,
+                        "version":  "0.1.0",
+                        "description":  "Exero 官方示例插件：演示插件系统完整链路（侧边栏入口 + iframe UI + Rust .dll 动作联动）",
+                        "author":  "Exero",
+                        "download_url":  "https://github.com/ansoukin/Exero/raw/main/Market/plugins/hello-plugin.exero-pack",
+                        "name":  "Hello Plugin",
+                        "file_name":  "hello-plugin.exero-pack",
+                        "exero_api_version":  "0.4.0",
+                        "action_count":  1
+                    },
+                    {
+                        "pack_type":  "plugin",
+                        "id":  "music-player",
+                        "has_sidebar":  true,
+                        "size":  481080,
+                        "version":  "0.2.2",
+                        "description":  "Exero 示例插件：本地音频播放器，支持播放控制、播放模式、播放列表（持久化保存）、元数据/专辑封面、内嵌歌词显示，适配明暗模式。更新日志：v0.2.2 播放列表持久化 + 明暗模式适配；v0.2.1 修复歌词滚动位置；v0.2.0 修复进度条拖动与音量条美化",
+                        "author":  "Exero",
+                        "download_url":  "https://github.com/ansoukin/Exero/raw/main/Market/plugins/music-player.exero-pack",
+                        "name":  "音乐播放器",
+                        "file_name":  "music-player.exero-pack",
+                        "exero_api_version":  "0.4.0",
+                        "action_count":  4
+                    }
+                ]
 }

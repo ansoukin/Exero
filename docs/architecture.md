@@ -194,4 +194,5 @@ Market/
 | 三目录扫描 | builtin（内置）+ user（用户安装）+ custom（自定义路径） |
 | courses 表同时存 period_index 和 time | 拖拽时两个字段互斥更新，兼顾课表定位和精确时间 |
 
-更多设计决策详见 [SPEC 摘要](/spec-summary)。
+> 完整的内部设计 SPEC 仅在 GitHub 仓库保留备份，不随文档发布。本套文档已涵盖开发者所需全部知识。
+

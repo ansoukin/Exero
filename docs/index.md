@@ -27,6 +27,8 @@ features:
     details: LuaJIT 引擎，严格沙箱默认禁用危险 API，5 个核心 API（log/notify/var/result），10 秒超时保护。
   - title: 插件 UI 桥接
     details: iframe 隔离 + Tauri 自定义协议 + postMessage 桥接 API，插件崩溃不影响主程序。
+  - title: 🎵 官方音乐播放器插件
+    details: 本地音频播放器：播放控制、播放模式、持久化播放列表、专辑封面与内嵌歌词显示，适配明暗模式。与宿主存储 API 的完美示范。
   - title: 在线扩展市场
     details: GitHub 仓库分发，market-index.json 索引优化，一键安装/更新/卸载，镜像加速 + 离线兜底。
 ---

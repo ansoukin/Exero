@@ -534,4 +534,5 @@ powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1
 ## 下一步
 
 - 开发纯动作包（无 UI）：参阅 [动作包开发指南](./action-pack-guide.md)
-- 了解 Exero 整体架构：参阅 [SPEC.md](./SPEC.md)
+- 了解 Exero 整体架构：参阅 [架构概览](./architecture.md)
+- 查看完整桥接 API：参阅 [桥接 API 参考](./api/bridge-api.md)

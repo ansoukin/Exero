@@ -54,7 +54,6 @@ export default defineConfig({
           { text: '构建与发布', link: '/build-and-publish' },
           { text: '调试与排错', link: '/troubleshooting' },
           { text: 'FAQ', link: '/faq' },
-          { text: 'SPEC 摘要', link: '/spec-summary' },
         ]
       },
       { text: 'GitHub', link: 'https://github.com/ansoukin/Exero' },
@@ -98,7 +97,6 @@ export default defineConfig({
             { text: '构建与发布', link: '/build-and-publish' },
             { text: '调试与排错', link: '/troubleshooting' },
             { text: 'FAQ', link: '/faq' },
-            { text: 'SPEC 摘要', link: '/spec-summary' },
           ]
         },
       ]

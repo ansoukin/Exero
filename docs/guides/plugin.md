@@ -159,7 +159,12 @@ Exero 通过 Tauri 自定义协议加载插件前端：
 Exero 会自动在 HTML 的 `</head>` 前注入桥接脚本，无需手动引入。注入后可使用：
 
 ```javascript
-window.exero.invoke(actionId, params)  // Promise<any>
+window.exero.invoke(actionId, params)  // Promise<any> 调用 .dll 动作
+window.exero.storage.set(key, value)   // Promise<void> 宿主持久化存储
+window.exero.storage.get(key)          // Promise<any>
+window.exero.storage.remove(key)       // Promise<void>
+window.exero.storage.clear()           // Promise<void> 清空当前插件数据
+window.exero.storage.keys()            // Promise<string[]>
 ```
 
 ### iframe 沙箱
@@ -177,7 +182,7 @@ allow-scripts allow-forms allow-popups allow-modals
 
 1. **`file:///` 协议**：无法通过 `audio.src = 'file:///C:/...'` 等方式加载本地文件
 2. **`fetch('file:///...')`**：无法用 fetch 读取本地文件
-3. **localStorage / sessionStorage**：sandbox 禁止访问，需用 Rust .dll 持久化数据
+3. **localStorage / sessionStorage**：sandbox 禁止访问，持久化数据请用[宿主存储 API](#桥接脚本自动注入)（`window.exero.storage.*`）
 4. **XMLHttpRequest**：无法直接请求本地文件
 
 **解决方案**：使用 `local-file` 协议（见下方说明）

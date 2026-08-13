@@ -26,10 +26,31 @@
       --primary-hover: #106EBE;
       --primary-active: #005a9e;
       --danger: #ef4444;
+      --vol-track: rgba(255, 255, 255, 0.1);
+      --thumb: #ffffff;
       --radius: 8px;
       --radius-sm: 6px;
       --transition: 200ms ease;
       --ease-fluent: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 明暗模式：主程序跟随系统主题，插件用 prefers-color-scheme 自动适配 */
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f3f3f3;
+        --bg-card: rgba(0, 0, 0, 0.03);
+        --bg-card-hover: rgba(0, 0, 0, 0.06);
+        --bg-active: rgba(0, 120, 212, 0.08);
+        --border: rgba(0, 0, 0, 0.08);
+        --border-strong: rgba(0, 0, 0, 0.15);
+        --text: #1a1a1a;
+        --text-secondary: #616161;
+        --text-muted: #9e9e9e;
+        --vol-track: rgba(0, 0, 0, 0.12);
+        --thumb: #1a1a1a;
+      }
+      /* 卡片阴影在浅色下更浅，避免过重 */
+      .cover-wrapper { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); }
     }
 
     body {
@@ -473,7 +494,7 @@
     .volume-bar {
       flex: 1;
       height: 4px;
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--vol-track);
       border-radius: 4px;
       cursor: pointer;
       position: relative;
@@ -499,7 +520,7 @@
     .volume-thumb {
       width: 14px;
       height: 14px;
-      background: #fff;
+      background: var(--thumb);
       border-radius: 50%;
       position: absolute;
       right: -7px;
@@ -824,8 +845,48 @@
       return div.innerHTML;
     }
 
+    // --- 播放列表持久化（宿主存储 API） ---
+    // 通过 window.exero.storage 读写宿主持久化存储，退出页面后仍保留。
+    // 封面是 base64 data URI，体积大，不入库；恢复时按需重新读取。
+    const STORAGE_KEY = 'playlist';
+
+    async function savePlaylist() {
+      const toSave = playlist.map(t => ({
+        path: t.path, name: t.name, title: t.title, artist: t.artist,
+        album: t.album, duration: t.duration
+      }));
+      try {
+        await window.exero.storage.set(STORAGE_KEY, toSave);
+      } catch (e) {
+        console.error('保存播放列表失败:', e);
+      }
+    }
+
+    async function loadPlaylist() {
+      try {
+        const saved = await window.exero.storage.get(STORAGE_KEY);
+        if (!Array.isArray(saved) || saved.length === 0) return;
+        playlist = saved.map(t => ({ ...t, cover: null }));
+        // 异步补封面，边加载边渲染
+        for (const track of playlist) {
+          try {
+            const coverResult = await window.exero.invoke('read_embedded_cover', { path: track.path });
+            if (coverResult.cover) track.cover = coverResult.cover;
+          } catch (e) { /* 忽略 */ }
+          renderPlaylist();
+        }
+        renderPlaylist();
+        // 加载第一首到播放器，但不自动播放
+        if (playlist.length > 0) {
+          loadTrack(0, false);
+        }
+      } catch (e) {
+        console.error('加载播放列表失败:', e);
+      }
+    }
+
     // --- 加载歌曲 ---
-    async function loadTrack(index) {
+    async function loadTrack(index, autoplay = true) {
       if (index < 0 || index >= playlist.length) return;
       currentIndex = index;
       const track = playlist[index];
@@ -860,7 +921,7 @@
       }
 
       renderPlaylist();
-      audio.play();
+      if (autoplay) audio.play();
     }
 
     // --- 播放控制 ---
@@ -975,6 +1036,8 @@
           playlist.push(track);
           renderPlaylist();
         }
+        // 持久化播放列表
+        savePlaylist();
         // 如果是第一次添加，自动播放第一首
         if (currentIndex === -1 && playlist.length > 0) {
           loadTrack(0);
@@ -995,6 +1058,7 @@
       renderLyrics();
       emptyState.style.display = 'flex';
       playerContent.style.display = 'none';
+      savePlaylist();
     });
 
     btnPlay.addEventListener('click', togglePlay);
@@ -1026,6 +1090,7 @@
           currentIndex--;
         }
         renderPlaylist();
+        savePlaylist();
         return;
       }
       const item = e.target.closest('.playlist-item');
@@ -1082,6 +1147,9 @@
     // 初始化音量
     audio.volume = 0.8;
     updateVolumeUI();
+
+    // 恢复上次的播放列表（持久化）
+    loadPlaylist();
   </script>
 </body>
 </html>

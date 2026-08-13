@@ -381,4 +381,4 @@ my-action-pack/
 ## 下一步
 
 - 开发完整功能页面（含 UI + 侧边栏入口）：参阅 [插件开发指南](./plugin-guide.md)
-- 了解 Exero 整体架构：参阅 [SPEC.md](./SPEC.md)
+- 了解 Exero 整体架构：参阅 [架构概览](./architecture.md)

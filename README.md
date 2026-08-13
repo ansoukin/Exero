@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Beta7-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta8-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,7 +14,14 @@
 
 ## 当前状态
 
-**V0.4.0 Beta6** - 日常模式时间轴四视图 + OOBE 引导系统优化 + 静默更新 + 全局 ErrorBoundary：
+**V0.4.0 Beta8** - 宿主存储 API + 扩展更新安装修复 + 音乐播放器 v0.2.2：
+
+**Beta8**：
+
+- 🎵 **音乐播放器插件 v0.2.2**（重点宣传）：本地音频播放器，支持播放控制（上一首/播放暂停/下一首）、多种播放模式（顺序/单曲/循环）、播放列表（**持久化保存**，退出页面不丢失）、音频元数据与专辑封面显示、内嵌歌词滚动高亮，完整适配程序明暗模式。是宿主存储 API 的完美示范。
+- **宿主存储 API（新增）**：`window.exero.storage.*`（set/get/remove/clear/keys）。插件 iframe 因 sandbox 不开放 `allow-same-origin` 无法使用 localStorage，现由主程序后端代为落盘，按插件（pack_id）隔离，数据存于 `%APPDATA%/Exero/plugin-data/`。
+- **修复扩展更新安装 OS 错误**：覆盖安装前先卸载旧版本已加载的 Rust .dll（FreeLibrary 释放文件占用），解决 Windows 文件占用导致更新安装失败的问题。
+- 文档系统完善：删除内部 SPEC 文档（GitHub 保留备份），文档版本徽章更新为 V0.4.0-Beta8，补齐桥接存储 API 文档。
 
 **Beta6**：
 

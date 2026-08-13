@@ -47,6 +47,42 @@ try {
 }
 ```
 
+### `window.exero.storage.*`（宿主存储 API）
+
+读写宿主持久化存储。因为插件 iframe 的 sandbox **不开放 `allow-same-origin`**，浏览器 localStorage / Cookie / IndexedDB 全部不可用（opaque origin）。为此 Exero 提供宿主管控的键值存储：数据由主程序后端代为落盘，**按插件（pack_id）隔离**，插件之间互不可见。
+
+| 方法 | 说明 | 返回 |
+|---|---|---|
+| `await window.exero.storage.set(key, value)` | 写入键值，`value` 为任意 JSON（数组/对象/字符串/数字/布尔） | `Promise<void>` |
+| `await window.exero.storage.get(key)` | 读取键值，不存在返回 `null` | `Promise<any>` |
+| `await window.exero.storage.remove(key)` | 删除键（键不存在也成功） | `Promise<void>` |
+| `await window.exero.storage.clear()` | 清空当前插件的全部数据 | `Promise<void>` |
+| `await window.exero.storage.keys()` | 列出当前插件的全部键 | `Promise<string[]>` |
+
+```javascript
+// 保存设置
+await window.exero.storage.set('volume', 0.8);
+await window.exero.storage.set('playlist', [
+  { path: 'C:/music/a.mp3', title: '歌名' }
+]);
+
+// 读取设置（不存在返回 null）
+const volume = await window.exero.storage.get('volume'); // 0.8
+const list = await window.exero.storage.get('playlist');
+
+// 删除 / 清空 / 列键
+await window.exero.storage.remove('volume');
+await window.exero.storage.keys();   // ['playlist']
+await window.exero.storage.clear();  // 全部清空
+```
+
+::: tip 存储特性
+- **隔离**：每个插件独立存储空间，键名不冲突，无法读取其他插件数据。
+- **持久化**：数据保存在宿主导航数据目录 `%APPDATA%/Exero/plugin-data/{pack_id}.json`，退出/重启不丢失。
+- **容量**：适合 JSON 元数据（设置、列表、缓存索引）。**不要存放大体积二进制/图片**——图片建议用 `local-file` 协议按路径加载。
+- **同步语义**：`set` 返回前数据已落盘。
+:::
+
 ---
 
 ## 底层通信协议（postMessage）
@@ -56,11 +92,21 @@ try {
 ### 请求帧（iframe → 主窗口）
 
 ```javascript
+// 动作调用
 window.parent.postMessage({
   type: 'exero-invoke',
-  id: 'xxx',          // 随机请求 ID（UUID/自增数，用于关联响应）
+  id: 'xxx',          // 随机请求 ID（用于关联响应）
   actionId: 'add',
   params: { a: 1, b: 2 }
+}, '*');
+
+// 存储操作
+window.parent.postMessage({
+  type: 'exero-storage',
+  id: 'xxx',
+  op: 'set',          // get | set | remove | clear | keys
+  key: 'volume',
+  value: 0.8
 }, '*');
 ```
 
@@ -109,6 +155,10 @@ allow-scripts allow-forms allow-popups allow-modals
 由于 `allow-same-origin` 被移除，iframe 与主窗口处于不同 origin。`window.parent`、`window.top` 可访问（postMessage 通信），但 `window.parent.document` 等跨域 API 会抛 SecurityError。
 :::
 
+::: tip 需要持久化数据？
+`allow-same-origin` 被禁止后，浏览器 localStorage / Cookie / IndexedDB 在 iframe 内**全部不可用**（opaque origin）。如果插件需要保存数据，请使用 [宿主存储 API](#window-exero-storage-宿主存储-api)（`window.exero.storage.*`），由主程序代为落盘且按插件隔离——无需也**不应该**为此放开 `allow-same-origin`。
+:::
+
 ---
 
 ## 前端资源加载
@@ -154,17 +204,24 @@ img.src = 'http://local-file.localhost/' + encodeURIComponent(imagePath);
 <script>
 (function() {
   const pending = new Map();
-  let seq = 0;
-
   window.exero = {
-    invoke(actionId, params) {
-      const id = String(++seq);
+    _post(msg) {
+      const id = String(++pending.size);
       return new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });
-        window.parent.postMessage({
-          type: 'exero-invoke', id, actionId, params
-        }, '*');
+        msg.id = id;
+        window.parent.postMessage(msg, '*');
       });
+    },
+    invoke(actionId, params) {
+      return this._post({ type: 'exero-invoke', actionId, params: params || {} });
+    },
+    storage: {
+      get: (key) => window.exero._post({ type: 'exero-storage', op: 'get', key }),
+      set: (key, value) => window.exero._post({ type: 'exero-storage', op: 'set', key, value }),
+      remove: (key) => window.exero._post({ type: 'exero-storage', op: 'remove', key }),
+      clear: () => window.exero._post({ type: 'exero-storage', op: 'clear' }),
+      keys: () => window.exero._post({ type: 'exero-storage', op: 'keys' }),
     }
   };
 
@@ -193,6 +250,8 @@ img.src = 'http://local-file.localhost/' + encodeURIComponent(imagePath);
 
 ## 数据流全景
 
+### 动作调用（invoke）
+
 ```
 插件前端 (iframe)
   │  window.exero.invoke('add', {a:1, b:2})
@@ -212,4 +271,26 @@ PluginPage
   │
   ▼
 插件前端 Promise.resolve({sum:3})
+```
+
+### 存储 API（storage）
+
+```
+插件前端 (iframe)
+  │  await window.exero.storage.set('volume', 0.8)
+  │  ── postMessage({type:'exero-storage', id:2, op:'set', key:'volume', value:0.8}) ──▶
+  │
+  ▼
+PluginPage (React 主窗口)
+  │  extensionPackCommands.pluginStorageSet('my-plugin', 'volume', 0.8)
+  │  ── Tauri IPC → Rust 后端 ──▶
+  ▼
+PluginStorage::set
+  │  更新内存缓存 + 写盘 %APPDATA%/Exero/plugin-data/my-plugin.json
+  ▼
+PluginPage
+  │  postMessage({type:'exero-result', id:2, result:null}) ◀── 完成
+  │
+  ▼
+插件前端 Promise.resolve()
 ```
