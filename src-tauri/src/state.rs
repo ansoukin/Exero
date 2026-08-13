@@ -23,6 +23,7 @@ use crate::error::Result;
 use crate::executor::ChainEngine;
 use crate::extension_pack::{ExtensionPackRegistry, NativeDllExecutor, RustLibraryRegistry};
 use crate::extension_pack::ExecutorType;
+use crate::plugin_storage::PluginStorage;
 use crate::triggers::TriggerScheduler;
 
 /// 应用全局状态
@@ -43,6 +44,8 @@ pub struct AppState {
     pub extension_pack_registry: Arc<ExtensionPackRegistry>,
     /// Rust .dll 动态库注册表（Beta5 Phase 2）
     pub rust_library_registry: Arc<RustLibraryRegistry>,
+    /// 插件宿主存储（Phase 3 补充 · 按 pack_id 隔离的键值存储）
+    pub plugin_storage: Arc<PluginStorage>,
     /// 是否已完成初始化
     pub initialized: RwLock<bool>,
 }
@@ -169,6 +172,7 @@ impl AppState {
             global_variables,
             extension_pack_registry,
             rust_library_registry,
+            plugin_storage: Arc::new(PluginStorage::new()),
             initialized: RwLock::new(true),
         })
     }

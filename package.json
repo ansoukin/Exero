@@ -1,7 +1,7 @@
 {
   "name": "exero",
   "private": true,
-  "version": "0.4.0-Beta7",
+  "version": "0.4.0-Beta8",
   "type": "module",
   "scripts": {
     "dev": "vite",

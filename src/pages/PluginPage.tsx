@@ -78,21 +78,52 @@ export function PluginPage({ packId }: PluginPageProps) {
 
     const handler = async (event: MessageEvent) => {
       const data = event.data;
-      // 仅处理插件桥接请求
-      if (!data || data.type !== "exero-invoke") return;
+      // 仅处理插件桥接请求（动作调用 + 存储 API）
+      if (!data || (data.type !== "exero-invoke" && data.type !== "exero-storage")) {
+        return;
+      }
 
-      const { id, actionId, params } = data as {
-        id: string;
-        actionId: string;
-        params: Record<string, unknown> | null;
-      };
+      const { id } = data as { id: string };
 
       try {
-        const result = await extensionPackCommands.executePluginAction(
-          packId,
-          actionId,
-          params ?? {},
-        );
+        let result: unknown;
+        if (data.type === "exero-invoke") {
+          const { actionId, params } = data as {
+            actionId: string;
+            params: Record<string, unknown> | null;
+          };
+          result = await extensionPackCommands.executePluginAction(
+            packId,
+            actionId,
+            params ?? {},
+          );
+        } else {
+          // 插件存储 API：读写宿主持久化存储（按 pack_id 隔离）
+          const { op, key, value } = data as {
+            op: string;
+            key?: string;
+            value?: unknown;
+          };
+          switch (op) {
+            case "get":
+              result = await extensionPackCommands.pluginStorageGet(packId, key!);
+              break;
+            case "set":
+              await extensionPackCommands.pluginStorageSet(packId, key!, value);
+              break;
+            case "remove":
+              await extensionPackCommands.pluginStorageRemove(packId, key!);
+              break;
+            case "clear":
+              await extensionPackCommands.pluginStorageClear(packId);
+              break;
+            case "keys":
+              result = await extensionPackCommands.pluginStorageKeys(packId);
+              break;
+            default:
+              throw new Error("未知的存储操作: " + op);
+          }
+        }
         // 将结果回传给 iframe
         event.source?.postMessage(
           { type: "exero-result", id, result },

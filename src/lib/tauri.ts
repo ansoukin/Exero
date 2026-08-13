@@ -1021,6 +1021,21 @@ export const extensionPackCommands = {
     params: Record<string, unknown>,
   ) =>
     invoke<unknown>("execute_plugin_action", { packId, actionId, params }),
+  /** 读取插件存储键值（Phase 3 补充 · 供 iframe 桥接 API 调用） */
+  pluginStorageGet: (packId: string, key: string) =>
+    invoke<unknown | null>("plugin_storage_get", { packId, key }),
+  /** 写入插件存储键值（Phase 3 补充 · 供 iframe 桥接 API 调用） */
+  pluginStorageSet: (packId: string, key: string, value: unknown) =>
+    invoke<void>("plugin_storage_set", { packId, key, value }),
+  /** 删除插件存储键值（Phase 3 补充 · 供 iframe 桥接 API 调用） */
+  pluginStorageRemove: (packId: string, key: string) =>
+    invoke<void>("plugin_storage_remove", { packId, key }),
+  /** 清空插件存储（Phase 3 补充 · 供 iframe 桥接 API 调用） */
+  pluginStorageClear: (packId: string) =>
+    invoke<void>("plugin_storage_clear", { packId }),
+  /** 列出插件存储全部键（Phase 3 补充 · 供 iframe 桥接 API 调用） */
+  pluginStorageKeys: (packId: string) =>
+    invoke<string[]>("plugin_storage_keys", { packId }),
 };
 
 // ============================================================

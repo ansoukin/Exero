@@ -279,6 +279,15 @@ pub async fn install_pack_from_file(
     let user_dir = crate::extension_pack::ExtensionPackLoader::user_packs_dir();
     let target_dir = user_dir.join(&pack_id);
 
+    // 覆盖安装前，先卸载旧版本已加载的 Rust .dll（FreeLibrary 释放文件占用）。
+    // 否则 Windows 会因 DLL 仍被映射而拒绝删除目录，报 OS 错误（如"另一个程序正在使用此文件"）。
+    if let Some(old_pack) = state.extension_pack_registry.get_pack(&pack_id) {
+        if old_pack.manifest.rust_library.is_some() {
+            state.rust_library_registry.unload(&pack_id)?;
+            state.registry.unregister_extension_pack(&pack_id);
+        }
+    }
+
     // 如果已存在，先删除（覆盖安装）
     if target_dir.exists() {
         std::fs::remove_dir_all(&target_dir)?;

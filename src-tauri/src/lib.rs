@@ -13,6 +13,7 @@ pub mod logging;
 pub mod commands;
 pub mod state;
 pub mod extension_pack;
+pub mod plugin_storage;
 
 use std::sync::Arc;
 
@@ -443,6 +444,12 @@ pub fn run() {
             commands::extension_pack_market::install_pack_from_github,
             // 插件动作执行（Phase 3 · 供 iframe 桥接 API 调用）
             commands::extension_pack::execute_plugin_action,
+            // 插件存储（Phase 3 补充 · 供 iframe 桥接 API 调用）
+            commands::plugin_storage::plugin_storage_get,
+            commands::plugin_storage::plugin_storage_set,
+            commands::plugin_storage::plugin_storage_remove,
+            commands::plugin_storage::plugin_storage_clear,
+            commands::plugin_storage::plugin_storage_keys,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");
@@ -523,12 +530,14 @@ fn guess_content_type(path: &std::path::Path) -> &'static str {
 
 /// 插件桥接脚本（注入到插件 HTML 的 `<head>` 中）
 ///
-/// 提供 `window.exero.invoke(actionId, params)` 接口：
-/// - iframe 内调用 -> 通过 postMessage 向主窗口发送请求
-/// - 主窗口接收后调用 Tauri 命令 execute_plugin_action
-/// - 结果通过 postMessage 返回 iframe
+/// 提供两套接口：
+/// - `window.exero.invoke(actionId, params)`：调用插件 Rust .dll 动作
+/// - `window.exero.storage.*`：读写宿主持久化存储（Phase 3 补充）
+///
+/// 通信方式均为 postMessage，由主窗口（PluginPage）转发到对应 Tauri 命令，
+/// 结果再通过 postMessage 返回 iframe。
 const PLUGIN_BRIDGE_SCRIPT: &str = r#"<script>
-window.exero={invoke:function(a,p){return new Promise(function(r,j){var i=Math.random().toString(36).slice(2);var h=function(e){if(e.data&&e.data.type==='exero-result'&&e.data.id===i){window.removeEventListener('message',h);if(e.data.error)j(new Error(e.data.error));else r(e.data.result);}};window.addEventListener('message',h);window.parent.postMessage({type:'exero-invoke',id:i,actionId:a,params:p||{}},'*');});}};
+window.exero={_post:function(m){return new Promise(function(r,j){var i=Math.random().toString(36).slice(2);var h=function(e){if(e.data&&e.data.type==='exero-result'&&e.data.id===i){window.removeEventListener('message',h);if(e.data.error)j(new Error(e.data.error));else r(e.data.result);}};window.addEventListener('message',h);m.id=i;window.parent.postMessage(m,'*');});},invoke:function(a,p){return window.exero._post({type:'exero-invoke',actionId:a,params:p||{}});},storage:{get:function(k){return window.exero._post({type:'exero-storage',op:'get',key:k});},set:function(k,v){return window.exero._post({type:'exero-storage',op:'set',key:k,value:v});},remove:function(k){return window.exero._post({type:'exero-storage',op:'remove',key:k});},clear:function(){return window.exero._post({type:'exero-storage',op:'clear'});},keys:function(){return window.exero._post({type:'exero-storage',op:'keys'});}}};
 </script>"#;
 
 /// 向插件 HTML 注入桥接脚本
