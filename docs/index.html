@@ -28,7 +28,7 @@
     "description":"Windows 桌面自动化工具，可视化积木 + 快捷指令，无需写代码",
     "author":{"@type":"Person","name":"ansoukin"},
     "offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},
-    "softwareVersion":"V0.4.0-Beta7",
+    "softwareVersion":"V0.4.0-Beta8",
     "url":"https://ansoukin.github.io/Exero/"
   }
   </script>
@@ -2615,7 +2615,7 @@
       <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener" class="btn-primary">
         <i class="fa-solid fa-arrow-down-to-line"></i>
         <span>下载 Windows</span>
-        <span class="btn-meta">Beta7</span>
+        <span class="btn-meta">Beta8</span>
       </a>
       <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="btn-ghost">
         <i class="fa-brands fa-github"></i>
@@ -2838,7 +2838,7 @@
       <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener" class="dc-btn-primary">
         <i class="fa-solid fa-arrow-down-to-line"></i>
         <span>下载 Windows</span>
-        <span class="dc-meta">Beta7</span>
+        <span class="dc-meta">Beta8</span>
       </a>
       <a href="https://github.com/ansoukin/Exero" target="_blank" rel="noopener" class="dc-btn-ghost">
         <i class="fa-brands fa-github"></i>
@@ -3442,5 +3442,85 @@ if(dashSection)dashObs.observe(dashSection);
 })();
 </script>
 
+<!-- ===== 音乐播放器提醒条（Beta8）===== -->
+<style>
+/* 右上角从右往左滑入，CSS 变量驱动明暗自适应，贴合官网风格 */
+#exeroToast{
+  position:fixed;top:58px;right:20px;z-index:9999;
+  width:350px;max-width:calc(100vw - 32px);
+  background:color-mix(in srgb,var(--bg-card) 86%,transparent);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-window);
+  padding:16px;
+  display:flex;flex-direction:column;gap:11px;
+  transform:translateX(calc(100% + 40px));
+  opacity:0;pointer-events:none;
+  transition:transform .55s var(--ease),opacity .45s var(--ease);
+}
+#exeroToast.show{transform:translateX(0);opacity:1;pointer-events:auto}
+.exeroToast-head{display:flex;align-items:center;gap:10px}
+.exeroToast-logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-hover));display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;box-shadow:0 6px 16px var(--brand-glow)}
+.exeroToast-title{flex:1;font-size:14px;font-weight:700;color:var(--text);line-height:1.3}
+.exeroToast-close{background:transparent;border:0;width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:17px;line-height:1;cursor:pointer;transition:all .2s ease;flex-shrink:0}
+.exeroToast-close:hover{background:var(--bg-hover);color:var(--text)}
+.exeroToast-desc{font-size:12px;line-height:1.65;color:var(--text-secondary)}
+.exeroToast-tags{display:flex;flex-wrap:wrap;gap:6px}
+.exeroToast-tags span{font-size:11px;color:var(--brand);background:var(--brand-light);border:1px solid var(--border);padding:3px 10px;border-radius:99px}
+.exeroToast-actions{display:flex;gap:8px}
+.exeroToast-actions a{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;border-radius:99px;font-size:12px;font-weight:600;text-decoration:none;transition:all .2s var(--ease)}
+.exeroToast-open{background:var(--brand);color:#fff;box-shadow:0 6px 16px var(--brand-glow),inset 0 0 0 1px rgba(255,255,255,.12)}
+.exeroToast-open:hover{background:var(--brand-hover);transform:translateY(-1px)}
+.exeroToast-dl{background:var(--bg-subtle);color:var(--text);border:1px solid var(--border)}
+.exeroToast-dl:hover{border-color:var(--border-hover);color:var(--brand)}
+@media(max-width:480px){#exeroToast{top:50px;right:12px;width:calc(100vw - 24px);padding:14px}.exeroToast-actions a{font-size:11px}}
+</style>
+
+<div id="exeroToast" role="status" aria-live="polite">
+  <div class="exeroToast-head">
+    <div class="exeroToast-logo"><i class="fa-solid fa-music"></i></div>
+    <div class="exeroToast-title">试试 Exero 音乐播放器</div>
+    <button class="exeroToast-close" id="exeroToastClose" aria-label="关闭">×</button>
+  </div>
+  <p class="exeroToast-desc">本地播放、专辑封面、歌词同步——装个插件就能用，无需写代码。</p>
+  <div class="exeroToast-tags">
+    <span>🎵 本地播放</span><span>🎨 专辑封面</span><span>🎤 歌词同步</span>
+  </div>
+  <div class="exeroToast-actions">
+    <a href="#" class="exeroToast-open" id="exeroToastOpen"><i class="fa-solid fa-play"></i>打开 Exero</a>
+    <a href="https://github.com/ansoukin/Exero/releases" target="_blank" rel="noopener" class="exeroToast-dl"><i class="fa-solid fa-download"></i>下载</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='exero_music_toast_shown';
+  var toast=document.getElementById('exeroToast');
+  function show(){if(!toast||localStorage.getItem(KEY))return;setTimeout(function(){toast.classList.add('show');},1500);}
+  function close(){if(!toast)return;toast.classList.remove('show');localStorage.setItem(KEY,'1');}
+  document.getElementById('exeroToastClose').addEventListener('click',close);
+  document.getElementById('exeroToastOpen').addEventListener('click',function(e){
+    e.preventDefault();
+    var done=false;
+    function finish(){if(done)return;done=true;window.removeEventListener('blur',onBlur);document.removeEventListener('visibilitychange',onVis);clearTimeout(timer);}
+    function onBlur(){finish();}
+    function onVis(){if(document.hidden)finish();}
+    var timer=setTimeout(function(){
+      // 1.6 秒后页面仍可见（未切到 Exero）→ 大概率未安装，提示下载
+      if(!document.hidden){
+        if(confirm('未检测到 Exero，是否前往下载？')){
+          window.open('https://github.com/ansoukin/Exero/releases','_blank');
+        }
+      }
+      finish();
+    },1600);
+    window.addEventListener('blur',onBlur);
+    document.addEventListener('visibilitychange',onVis);
+    window.location.href='exero://open';
+  });
+  show();
+})();
+</script>
 
 <div class="light"><div class="trae-browser-inspect-highlight-tag"></div><div class="trae-browser-inspect-highlight-tag"></div><div class="trae-browser-inspect-highlight-box"></div><div class="trae-browser-inspect-highlight-box trae-browser-inspect-select-highlight-box" style="cursor: grab; pointer-events: auto;"></div><div class="trae-browser-inspect-overlay" style="display: none;"></div><div class="trae-browser-inspect-comment-card-container"></div><div class="trae-browser-inspect-drop-indicator" style="position: fixed; pointer-events: none; z-index: 999999; display: none; background: linear-gradient(90deg, rgb(0, 102, 255), rgb(0, 170, 255)); box-shadow: rgba(0, 102, 255, 0.4) 0px 0px 4px 1px, rgba(0, 102, 255, 0.3) 0px 0px 8px 2px, rgba(0, 102, 255, 0.2) 0px 0px 12px 3px; transition: transform 0.15s, width 0.15s, height 0.15s;"></div></div><div class="trae-browser-inspect-text-selection-container light"><div class="trae-browser-inspect-comment-card-container"></div></div><div class="trae-browser-inspect-operation light"></div><iframe class="html2canvas-container" width="645" height="789" scrolling="no" data-html2canvas-ignore="true" style="visibility: hidden; position: fixed; left: -10000px; top: 0px; border: 0px;"></iframe></body></html>

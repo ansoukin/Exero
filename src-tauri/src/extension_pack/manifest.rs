@@ -120,13 +120,30 @@ pub struct ActionManifest {
 }
 
 /// 执行器类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+///
+/// 反序列化大小写不敏感：接受 `rust`/`Rust`、`lua`/`Lua`（幂等容错，历史包曾用大写）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum ExecutorType {
     /// 调用 Rust 内置执行器（性能敏感动作）
     Rust,
     /// 执行 Lua 脚本（通用逻辑）
     Lua,
+}
+
+impl<'de> Deserialize<'de> for ExecutorType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.to_ascii_lowercase().as_str() {
+            "rust" => Ok(ExecutorType::Rust),
+            "lua" => Ok(ExecutorType::Lua),
+            other => Err(serde::de::Error::custom(format!(
+                "未知的执行器类型: {other}（应为 rust 或 lua）"
+            ))),
+        }
+    }
 }
 
 /// 端口配置 Manifest

@@ -148,6 +148,8 @@
 
 ## ExecutorType 枚举
 
+> Beta8 起：解析**大小写不敏感**，`"rust"`/`"Rust"`、`"lua"`/`"Lua"` 均被接受（历史包曾用大写）。建议统一使用小写。
+
 | JSON 值 | 说明 |
 |---|---|
 | `"rust"` | 调用 Rust 执行器（内置 ActionType 或自定义 .dll） |

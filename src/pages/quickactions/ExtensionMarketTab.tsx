@@ -499,9 +499,11 @@ export function ExtensionMarketTab() {
               {/* 元数据 */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-md bg-muted/40 p-2">
-                  <span className="text-muted-foreground">动作数量</span>
+                  <span className="text-muted-foreground">
+                    {detail.pack_type === "plugin" ? "扩展类型" : "动作数量"}
+                  </span>
                   <p className="mt-0.5 font-medium">
-                    {detail.action_count} 个
+                    {detail.pack_type === "plugin" ? "页面型插件" : `${detail.action_count} 个`}
                   </p>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
@@ -654,7 +656,7 @@ function PackBannerCard({
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
           <span>
-            {pack.action_count} 个动作
+            {pack.pack_type === "plugin" ? "页面型插件" : `${pack.action_count} 个动作`}
           </span>
           <span>·</span>
           <span>{formatSize(pack.size)}</span>
@@ -766,7 +768,7 @@ function PackGridCard({
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
           <PackTypeBadge packType={pack.pack_type} />
           <span>
-            {pack.action_count} 个动作
+            {pack.pack_type === "plugin" ? "页面型插件" : `${pack.action_count} 个动作`}
           </span>
           <span>·</span>
           <span>{formatSize(pack.size)}</span>

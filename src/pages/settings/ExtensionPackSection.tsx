@@ -583,7 +583,11 @@ function PackCard({ pack, onView, onUninstall }: PackCardProps) {
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span>作者：{pack.author || "—"}</span>
-          <span>动作：{pack.action_count} 个</span>
+          {pack.pack_type === "plugin" ? (
+            <span>页面型插件</span>
+          ) : (
+            <span>动作：{pack.action_count} 个</span>
+          )}
           {pack.has_sidebar && (
             <span className="flex items-center gap-1">
               <LayoutPanelLeft className="h-3 w-3" />

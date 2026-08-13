@@ -45,6 +45,20 @@ pub fn run() {
             Some(vec!["--autostart"]),
         ))
         .plugin(tauri_plugin_dialog::init())
+        // 系统级 deep link（Beta8 新增）：注册 `exero://` 协议，
+        // 浏览器/网页可唤起本机主程序。方案在 tauri.conf.json > plugins > deep-link 声明，
+        // NSIS 安装器自动写入注册表。
+        .plugin(tauri_plugin_deep_link::init())
+        // 单实例（Beta8 新增）：确保应用只有一个实例，二次唤起时聚焦已有窗口。
+        // 配合 deep-link：网页唤起 `exero://` 时，若已在运行则聚焦主窗口而非新开实例。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // 已有实例被再次唤起时，聚焦主窗口
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.show();
+                let _ = main.set_focus();
+                tracing::info!("单实例唤起：聚焦主窗口");
+            }
+        }))
         // 插件 iframe 自定义协议（Phase 3 · SPEC 6.5.3）
         // 注册 `plugin` URI scheme，服务插件安装目录下的前端文件。
         // iframe 通过 `http://plugin.localhost/{pack_id}/{file}` 加载（Windows）。

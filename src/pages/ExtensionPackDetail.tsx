@@ -161,7 +161,12 @@ export function ExtensionPackDetailPage({ packId }: ExtensionPackDetailPageProps
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {pack.manifest.id} · {pack.summary.action_count} 个动作
+              {pack.manifest.id} ·{" "}
+              {pack.summary.pack_type === "plugin" ? (
+                <span>页面型插件（不提供快捷指令动作）</span>
+              ) : (
+                <span>{pack.summary.action_count} 个动作</span>
+              )}
               {pack.summary.has_sidebar && " · 注册侧边栏入口"}
             </p>
           </div>
