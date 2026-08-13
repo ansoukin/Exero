@@ -35,6 +35,7 @@ export default defineConfig({
         items: [
           { text: '动作包开发', link: '/guides/action-pack' },
           { text: '插件开发', link: '/guides/plugin' },
+          { text: 'UI 风格指南', link: '/guides/ui-style' },
         ]
       },
       {
@@ -76,6 +77,7 @@ export default defineConfig({
           items: [
             { text: '动作包开发', link: '/guides/action-pack' },
             { text: '插件开发', link: '/guides/plugin' },
+            { text: 'UI 风格指南', link: '/guides/ui-style' },
           ]
         },
         {

@@ -173,10 +173,11 @@ $actionEntries = @()
 $pluginEntries = @()
 
 # Index action packs
-Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack" | ForEach-Object {
-    $packFile = $_.FullName
-    $fileName = $_.Name
-    $fileSize = $_.Length
+# 注意：必须用 foreach 循环而非 ForEach-Object 管道，否则 $actionEntries += 在子作用域中无法修改外部变量（PowerShell 5.1 bug）
+foreach ($packItem in (Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack")) {
+    $packFile = $packItem.FullName
+    $fileName = $packItem.Name
+    $fileSize = $packItem.Length
 
     try {
         $zip = [System.IO.Compression.ZipFile]::OpenRead($packFile)
@@ -213,10 +214,10 @@ Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack" | ForEach-Object {
 }
 
 # Index plugins (if any)
-Get-ChildItem -Path $marketPlugins -Filter "*.exero-pack" -ErrorAction SilentlyContinue | ForEach-Object {
-    $packFile = $_.FullName
-    $fileName = $_.Name
-    $fileSize = $_.Length
+foreach ($packItem in (Get-ChildItem -Path $marketPlugins -Filter "*.exero-pack" -ErrorAction SilentlyContinue)) {
+    $packFile = $packItem.FullName
+    $fileName = $packItem.Name
+    $fileSize = $packItem.Length
 
     try {
         $zip = [System.IO.Compression.ZipFile]::OpenRead($packFile)
