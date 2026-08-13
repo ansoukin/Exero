@@ -1,6 +1,6 @@
 {
   "id": "music-player",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "name": "音乐播放器",
   "description": "Exero 示例插件：本地音频文件播放器，支持播放控制、播放模式切换、播放列表管理、音频元数据/专辑封面显示",
   "author": "Exero",

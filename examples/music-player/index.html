@@ -300,9 +300,10 @@
     .lyrics-section {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 24px;
-      mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+      padding: 20px 24px;
+      position: relative;
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
     }
     .lyrics-section::-webkit-scrollbar { width: 6px; }
     .lyrics-section::-webkit-scrollbar-track { background: transparent; }
@@ -744,6 +745,9 @@
       }
     }
 
+    let lastScrollIndex = -2; // 节流：仅当索引变化时滚动，-2 表示初始未滚动
+    let lastScrollTime = 0;   // 节流时间戳
+
     function updateLyricsHighlight() {
       if (!lyricsData || lyricsData.type !== 'lrc') return;
       const currentTime = audio.currentTime;
@@ -755,17 +759,35 @@
           break;
         }
       }
+
       const lines = lyricsSection.querySelectorAll('.lyric-line');
       lines.forEach((el, i) => {
         if (i === activeIndex) {
           el.classList.add('active');
-          // 滚动到当前行
-          const offset = el.offsetTop - lyricsSection.clientHeight / 2 + el.clientHeight / 2;
-          lyricsSection.scrollTo({ top: offset, behavior: 'smooth' });
         } else {
           el.classList.remove('active');
         }
       });
+
+      // 节流：仅当活动行变化时才滚动（避免每帧 timeupdate 触发滚动抖动）
+      if (activeIndex !== lastScrollIndex) {
+        const now = performance.now();
+        if (now - lastScrollTime < 80) return; // 80ms 节流
+        lastScrollTime = now;
+        lastScrollIndex = activeIndex;
+
+        if (activeIndex >= 0) {
+          const el = lines[activeIndex];
+          if (el) {
+            // 当前行的中心定位到容器约 45% 处（避开顶部 15% 渐变遮罩盲区，视觉更舒适）
+            const offset = el.offsetTop - lyricsSection.clientHeight * 0.45 + el.clientHeight / 2;
+            lyricsSection.scrollTo({ top: offset, behavior: 'smooth' });
+          }
+        } else {
+          // 歌曲开始前回到顶部
+          lyricsSection.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
     }
 
     // --- 播放列表渲染 ---
