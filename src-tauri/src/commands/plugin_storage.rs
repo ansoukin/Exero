@@ -17,8 +17,8 @@ pub async fn plugin_storage_get(
     state: State<'_, Arc<AppState>>,
     pack_id: String,
     key: String,
-) -> Option<Value> {
-    state.plugin_storage.get(&pack_id, &key)
+) -> Result<Option<Value>> {
+    Ok(state.plugin_storage.get(&pack_id, &key))
 }
 
 /// 写入插件存储中的键值（value 为任意 JSON）
@@ -56,6 +56,6 @@ pub async fn plugin_storage_clear(
 pub async fn plugin_storage_keys(
     state: State<'_, Arc<AppState>>,
     pack_id: String,
-) -> Vec<String> {
-    state.plugin_storage.keys(&pack_id)
+) -> Result<Vec<String>> {
+    Ok(state.plugin_storage.keys(&pack_id))
 }

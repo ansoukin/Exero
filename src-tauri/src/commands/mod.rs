@@ -39,4 +39,5 @@ pub mod io;
 pub mod url_alias;
 pub mod extension_pack;
 pub mod extension_pack_market;
+pub mod plugin_storage;
 pub mod test;
