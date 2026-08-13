@@ -10,7 +10,7 @@
 
 use exero_plugin_sdk::{declare_actions, Params};
 use lofty::file::{AudioFile, TaggedFileExt};
-use lofty::tag::Accessor;
+use lofty::tag::{Accessor, ItemKey};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
@@ -184,6 +184,47 @@ fn read_embedded_cover(params: Params) -> Result<Value, String> {
     Ok(json!({ "cover": cover_data_uri }))
 }
 
+/// read_lyrics 动作：读取音频文件内嵌的歌词
+///
+/// 通过 lofty 读取 ID3 USLT 帧（UnsyncLyrics）或通用 Lyrics 字段。
+/// 返回原始歌词文本，前端负责解析时间标签和双语排版。
+///
+/// 参数：`{ path: string }`
+/// 返回：`{ lyrics: string | null }`
+fn read_lyrics(params: Params) -> Result<Value, String> {
+    let path_str: String = params.get("path")?;
+    let path = PathBuf::from(&path_str);
+
+    if !path.exists() {
+        return Err(format!("文件不存在: {}", path_str));
+    }
+
+    let mut lyrics: Option<String> = None;
+
+    match lofty::read_from_path(&path) {
+        Ok(tagged_file) => {
+            let tag_opt = tagged_file
+                .primary_tag()
+                .or_else(|| tagged_file.first_tag());
+
+            if let Some(tag) = tag_opt {
+                // 读取 USLT 帧（ID3 非同步歌词），lofty 0.21 中映射为 ItemKey::Lyrics
+                if let Some(l) = tag.get_string(&ItemKey::Lyrics) {
+                    let l = l.trim();
+                    if !l.is_empty() {
+                        lyrics = Some(l.to_string());
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            exero_log(&format!("歌词读取失败 {}: {}", path_str, e));
+        }
+    }
+
+    Ok(json!({ "lyrics": lyrics }))
+}
+
 /// 简易日志输出（输出到 stderr，Exero 可捕获）
 fn exero_log(msg: &str) {
     eprintln!("[music-player] {}", msg);
@@ -193,4 +234,5 @@ declare_actions! {
     "pick_audio_files" => pick_audio_files,
     "read_metadata" => read_metadata,
     "read_embedded_cover" => read_embedded_cover,
+    "read_lyrics" => read_lyrics,
 }
