@@ -465,15 +465,15 @@
     .volume-section {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 10px;
+      margin-top: 16px;
       padding: 0 60px;
     }
     .volume-bar {
       flex: 1;
       height: 4px;
-      background: var(--border-strong);
-      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
       cursor: pointer;
       position: relative;
       transition: height var(--transition);
@@ -481,26 +481,41 @@
     .volume-bar::before {
       content: '';
       position: absolute;
-      top: -8px;
+      top: -10px;
       left: 0;
       right: 0;
-      bottom: -8px;
+      bottom: -10px;
     }
     .volume-bar:hover { height: 6px; }
     .volume-filled {
       height: 100%;
-      background: var(--text-secondary);
-      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary), #4FC3F7);
+      border-radius: 4px;
       width: 80%;
-      transition: width var(--transition), background var(--transition);
+      position: relative;
+      transition: width var(--transition);
     }
-    .volume-bar:hover .volume-filled { background: var(--primary); }
+    .volume-thumb {
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      right: -7px;
+      top: 50%;
+      transform: translateY(-50%) scale(0);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: transform var(--transition);
+      pointer-events: none;
+    }
+    .volume-bar:hover .volume-thumb { transform: translateY(-50%) scale(1); }
     .vol-label {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      min-width: 32px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      min-width: 36px;
       font-variant-numeric: tabular-nums;
       text-align: right;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -617,7 +632,9 @@
           <!-- 音量条 -->
           <div class="volume-section">
             <div class="volume-bar" id="volumeBar">
-              <div class="volume-filled" id="volumeFilled"></div>
+              <div class="volume-filled" id="volumeFilled">
+                <div class="volume-thumb"></div>
+              </div>
             </div>
             <span class="vol-label" id="volLabel">80%</span>
           </div>

@@ -4,17 +4,12 @@
 # What it does:
 #   1. Create Market/action-packs/ + Market/plugins/ directories
 #   2. Copy existing action-packs/*.exero-pack to Market/action-packs/
-#   3. Build Lua scripts pack (new format: actions[] + executor_type=Lua) to Market/action-packs/
-#   4. Build Hello Plugin pack (Phase 3 示例插件) to Market/plugins/
+#   3. Build Lua scripts pack to Market/action-packs/
+#   4. Build Hello Plugin + Music Player packs to Market/plugins/
 #   5. Generate Market/market-index.json by reading each pack's manifest
 #
 # Usage (run from project root):
 #   powershell -ExecutionPolicy Bypass -File scripts/build-packs.ps1
-#
-# Hello Plugin 编译前置条件：
-#   cd examples\hello-plugin
-#   $env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
-#   cargo build --release
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -42,7 +37,7 @@ if (Test-Path $sourceActionPacks) {
 }
 Write-Host "[2/5] Copied $copied action pack(s) to Market\action-packs\" -ForegroundColor Green
 
-# 3. Build Lua scripts pack (new format)
+# 3. Build Lua scripts pack
 $luaManifest = Join-Path $root "scripts\lua-scripts-pack.json"
 $luaScriptsDir = Join-Path $root "scripts"
 
@@ -79,7 +74,7 @@ if (-not (Test-Path $luaManifest)) {
     Remove-Item -Path $tempDir -Recurse -Force
 }
 
-# 4. Build Hello Plugin pack (Phase 3 示例插件)
+# 4. Build Hello Plugin pack
 $helloPluginDir = Join-Path $root "examples\hello-plugin"
 $helloManifest = Join-Path $helloPluginDir "manifest.json"
 $helloIndex = Join-Path $helloPluginDir "index.html"
@@ -88,7 +83,6 @@ $dllName = "hello_plugin.dll"
 if (-not (Test-Path $helloManifest)) {
     Write-Host "[4/5] Skipped: examples\hello-plugin\manifest.json not found" -ForegroundColor Yellow
 } else {
-    # 定位 .dll：优先 CARGO_TARGET_DIR，回退默认 target
     $dllPath = $null
     if ($env:CARGO_TARGET_DIR) {
         $candidate = Join-Path $env:CARGO_TARGET_DIR "release\$dllName"
@@ -101,7 +95,7 @@ if (-not (Test-Path $helloManifest)) {
 
     if (-not $dllPath) {
         Write-Host "[4/5] Skipped: $dllName not found" -ForegroundColor Yellow
-        Write-Host "       先在 examples\hello-plugin\ 下执行: cargo build --release" -ForegroundColor DarkGray
+        Write-Host "       Build first: cd examples\hello-plugin; cargo build --release" -ForegroundColor DarkGray
     } else {
         $tempDir = Join-Path $env:TEMP "exero-hello-plugin-$(Get-Date -Format 'yyyyMMddHHmmss')"
         New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
@@ -121,7 +115,7 @@ if (-not (Test-Path $helloManifest)) {
     }
 }
 
-# 4b. Build Music Player pack (示例插件)
+# 4b. Build Music Player pack
 $musicPluginDir = Join-Path $root "examples\music-player"
 $musicManifest = Join-Path $musicPluginDir "manifest.json"
 $musicIndex = Join-Path $musicPluginDir "index.html"
@@ -130,7 +124,6 @@ $musicDllName = "music_player.dll"
 if (-not (Test-Path $musicManifest)) {
     Write-Host "[4b/5] Skipped: examples\music-player\manifest.json not found" -ForegroundColor Yellow
 } else {
-    # 定位 .dll：优先 CARGO_TARGET_DIR，回退默认 target
     $dllPath = $null
     if ($env:CARGO_TARGET_DIR) {
         $candidate = Join-Path $env:CARGO_TARGET_DIR "release\$musicDllName"
@@ -143,7 +136,7 @@ if (-not (Test-Path $musicManifest)) {
 
     if (-not $dllPath) {
         Write-Host "[4b/5] Skipped: $musicDllName not found" -ForegroundColor Yellow
-        Write-Host "       先在 examples\music-player\ 下执行: cargo build --release" -ForegroundColor DarkGray
+        Write-Host "       Build first: cd examples\music-player; cargo build --release" -ForegroundColor DarkGray
     } else {
         $tempDir = Join-Path $env:TEMP "exero-music-player-$(Get-Date -Format 'yyyyMMddHHmmss')"
         New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
@@ -172,9 +165,9 @@ $githubRepo = "Exero"
 $actionEntries = @()
 $pluginEntries = @()
 
-# Index action packs
-# 注意：必须用 foreach 循环而非 ForEach-Object 管道，否则 $actionEntries += 在子作用域中无法修改外部变量（PowerShell 5.1 bug）
-foreach ($packItem in (Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack")) {
+# Index action packs (foreach 而非 ForEach-Object，避免子作用域问题)
+$actionPackFiles = Get-ChildItem -Path $marketActionPacks -Filter "*.exero-pack"
+foreach ($packItem in $actionPackFiles) {
     $packFile = $packItem.FullName
     $fileName = $packItem.Name
     $fileSize = $packItem.Length
@@ -190,6 +183,11 @@ foreach ($packItem in (Get-ChildItem -Path $marketActionPacks -Filter "*.exero-p
 
             $downloadUrl = "https://github.com/$githubOwner/$githubRepo/raw/main/Market/action-packs/$fileName"
 
+            $packType = "action"
+            if ($manifest.pack_type) {
+                $packType = $manifest.pack_type
+            }
+
             $entry = @{
                 id = $manifest.id
                 version = $manifest.version
@@ -197,11 +195,11 @@ foreach ($packItem in (Get-ChildItem -Path $marketActionPacks -Filter "*.exero-p
                 description = $manifest.description
                 author = $manifest.author
                 exero_api_version = $manifest.exero_api_version
-                pack_type = if ($manifest.pack_type) { $manifest.pack_type } else { "action" }
+                pack_type = $packType
                 file_name = $fileName
                 size = $fileSize
                 action_count = $manifest.actions.Count
-                has_sidebar = $null -ne $manifest.sidebar
+                has_sidebar = ($null -ne $manifest.sidebar)
                 download_url = $downloadUrl
             }
             $actionEntries += $entry
@@ -209,47 +207,55 @@ foreach ($packItem in (Get-ChildItem -Path $marketActionPacks -Filter "*.exero-p
         }
         $zip.Dispose()
     } catch {
-        Write-Host "  WARNING: Failed to read manifest from ${fileName}: $_" -ForegroundColor Yellow
+        Write-Host ("  WARNING: Failed to read manifest from " + $fileName + ": " + $_) -ForegroundColor Yellow
     }
 }
 
-# Index plugins (if any)
-foreach ($packItem in (Get-ChildItem -Path $marketPlugins -Filter "*.exero-pack" -ErrorAction SilentlyContinue)) {
-    $packFile = $packItem.FullName
-    $fileName = $packItem.Name
-    $fileSize = $packItem.Length
+# Index plugins
+$pluginFiles = Get-ChildItem -Path $marketPlugins -Filter "*.exero-pack" -ErrorAction SilentlyContinue
+if ($pluginFiles) {
+    foreach ($packItem in $pluginFiles) {
+        $packFile = $packItem.FullName
+        $fileName = $packItem.Name
+        $fileSize = $packItem.Length
 
-    try {
-        $zip = [System.IO.Compression.ZipFile]::OpenRead($packFile)
-        $manifestEntry = $zip.GetEntry("manifest.json")
-        if ($manifestEntry) {
-            $reader = New-Object System.IO.StreamReader($manifestEntry.Open())
-            $manifestJson = $reader.ReadToEnd()
-            $reader.Close()
-            $manifest = $manifestJson | ConvertFrom-Json
+        try {
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($packFile)
+            $manifestEntry = $zip.GetEntry("manifest.json")
+            if ($manifestEntry) {
+                $reader = New-Object System.IO.StreamReader($manifestEntry.Open())
+                $manifestJson = $reader.ReadToEnd()
+                $reader.Close()
+                $manifest = $manifestJson | ConvertFrom-Json
 
-            $downloadUrl = "https://github.com/$githubOwner/$githubRepo/raw/main/Market/plugins/$fileName"
+                $downloadUrl = "https://github.com/$githubOwner/$githubRepo/raw/main/Market/plugins/$fileName"
 
-            $entry = @{
-                id = $manifest.id
-                version = $manifest.version
-                name = $manifest.name
-                description = $manifest.description
-                author = $manifest.author
-                exero_api_version = $manifest.exero_api_version
-                pack_type = if ($manifest.pack_type) { $manifest.pack_type } else { "action" }
-                file_name = $fileName
-                size = $fileSize
-                action_count = $manifest.actions.Count
-                has_sidebar = $null -ne $manifest.sidebar
-                download_url = $downloadUrl
+                $packType = "action"
+                if ($manifest.pack_type) {
+                    $packType = $manifest.pack_type
+                }
+
+                $entry = @{
+                    id = $manifest.id
+                    version = $manifest.version
+                    name = $manifest.name
+                    description = $manifest.description
+                    author = $manifest.author
+                    exero_api_version = $manifest.exero_api_version
+                    pack_type = $packType
+                    file_name = $fileName
+                    size = $fileSize
+                    action_count = $manifest.actions.Count
+                    has_sidebar = ($null -ne $manifest.sidebar)
+                    download_url = $downloadUrl
+                }
+                $pluginEntries += $entry
+                Write-Host "  Indexed plugin: $($manifest.id) v$($manifest.version)"
             }
-            $pluginEntries += $entry
-            Write-Host "  Indexed plugin: $($manifest.id) v$($manifest.version)"
+            $zip.Dispose()
+        } catch {
+            Write-Host ("  WARNING: Failed to read manifest from " + $fileName + ": " + $_) -ForegroundColor Yellow
         }
-        $zip.Dispose()
-    } catch {
-        Write-Host "  WARNING: Failed to read manifest from ${fileName}: $_" -ForegroundColor Yellow
     }
 }
 
@@ -259,22 +265,21 @@ $index = @{
 }
 
 $indexPath = Join-Path $root "Market\market-index.json"
-# 使用 .NET StreamWriter 写入无 BOM 的 UTF-8（PowerShell 5.1 的 Out-File -Encoding utf8 默认带 BOM，会导致 Rust serde_json 解析失败）
+# PowerShell 5.1 的 ConvertTo-Json 在某些情况下返回空字符串（已知 bug）
+# 使用 .NET JavaScriptSerializer 作为 fallback
 $jsonContent = $index | ConvertTo-Json -Depth 10
+if (-not $jsonContent -or $jsonContent.Length -eq 0) {
+    Write-Host "  ConvertTo-Json returned empty, using JavaScriptSerializer fallback" -ForegroundColor Yellow
+    Add-Type -AssemblyName System.Web.Extensions
+    $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $serializer.MaxJsonLength = [int]::MaxValue
+    $jsonContent = $serializer.Serialize($index)
+    # 简单格式化缩进
+    $jsonContent = $jsonContent.Replace(",", ",`n").Replace(":{", ":`n{").Replace(":[", ":`n[").Replace("}", "`n}")
+}
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($indexPath, $jsonContent, $utf8NoBom)
 Write-Host "[5/5] Generated: market-index.json ($($actionEntries.Count) actions, $($pluginEntries.Count) plugins)" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== Done ===" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Directory structure:"
-Write-Host "  Market\"
-Write-Host "    market-index.json  (metadata index)"
-Write-Host "    action-packs\      (pack_type=action)"
-Write-Host "    plugins\           (pack_type=plugin)"
-Write-Host ""
-Write-Host "Next steps:"
-Write-Host "  1. Review Market\ directory contents"
-Write-Host "  2. Clean up old Market\lua-scripts\ directory"
-Write-Host "  3. Push Market\ to GitHub repository"

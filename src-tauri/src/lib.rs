@@ -123,16 +123,82 @@ pub fn run() {
                 }
             };
 
-            // 读取本地文件
-            match std::fs::read(&decoded) {
-                Ok(data) => {
-                    let content_type = guess_content_type(std::path::Path::new(&decoded));
-                    tauri::http::Response::builder()
-                        .header(tauri::http::header::CONTENT_TYPE, content_type)
-                        .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                        .body(data)
-                        .unwrap()
+            // 获取文件元信息（大小用于 Content-Range 响应）
+            let file_size = match std::fs::metadata(&decoded) {
+                Ok(m) => m.len(),
+                Err(_) => {
+                    return plugin_protocol_response(
+                        tauri::http::StatusCode::NOT_FOUND,
+                        "Local file not found",
+                    );
                 }
+            };
+
+            let content_type = guess_content_type(std::path::Path::new(&decoded));
+
+            // 解析 Range 请求头（格式：bytes=start-end）
+            // 浏览器 seek 音频/视频时会发送 Range 请求
+            let range_header = request
+                .headers()
+                .get(tauri::http::header::RANGE)
+                .and_then(|v| v.to_str().ok());
+
+            if let Some(range_str) = range_header {
+                if let Some(range_part) = range_str.strip_prefix("bytes=") {
+                    let parts: Vec<&str> = range_part.splitn(2, '-').collect();
+                    if parts.len() == 2 {
+                        let start: u64 = parts[0].parse().unwrap_or(0);
+                        let end: u64 = if parts[1].is_empty() {
+                            file_size - 1
+                        } else {
+                            parts[1].parse().unwrap_or(file_size - 1)
+                        };
+
+                        if start < file_size && start <= end {
+                            let length = end - start + 1;
+                            let mut file = match std::fs::File::open(&decoded) {
+                                Ok(f) => f,
+                                Err(_) => {
+                                    return plugin_protocol_response(
+                                        tauri::http::StatusCode::NOT_FOUND,
+                                        "Local file not found",
+                                    );
+                                }
+                            };
+                            use std::io::{Read, Seek, SeekFrom};
+                            let _ = file.seek(SeekFrom::Start(start));
+                            let mut buffer = vec![0u8; length as usize];
+                            let _ = file.read_exact(&mut buffer);
+
+                            return tauri::http::Response::builder()
+                                .status(206)
+                                .header(tauri::http::header::CONTENT_TYPE, content_type)
+                                .header(tauri::http::header::CONTENT_LENGTH, length)
+                                .header(
+                                    tauri::http::header::CONTENT_RANGE,
+                                    format!("bytes {}-{}/{}", start, end, file_size),
+                                )
+                                .header(tauri::http::header::ACCEPT_RANGES, "bytes")
+                                .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                                .header(tauri::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "Range")
+                                .header(tauri::http::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Range, Content-Length")
+                                .body(buffer)
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+
+            // 无 Range 请求：返回整个文件
+            match std::fs::read(&decoded) {
+                Ok(data) => tauri::http::Response::builder()
+                    .header(tauri::http::header::CONTENT_TYPE, content_type)
+                    .header(tauri::http::header::ACCEPT_RANGES, "bytes")
+                    .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                    .header(tauri::http::header::ACCESS_CONTROL_ALLOW_HEADERS, "Range")
+                    .header(tauri::http::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Range, Content-Length")
+                    .body(data)
+                    .unwrap(),
                 Err(_) => plugin_protocol_response(
                     tauri::http::StatusCode::NOT_FOUND,
                     "Local file not found",
