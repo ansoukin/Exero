@@ -63,8 +63,8 @@ pub mod defaults {
     pub const THEME_MODE: &str = "system";
     /// 主题色（Win11 8 色色板，默认蓝）
     pub const THEME_COLOR: &str = "#0078D4";
-    /// 是否启用 Mica 背景
-    pub const THEME_MICA_ENABLED: bool = false;
+    /// 是否启用 Acrylic 窗口效果（默认开启，低性能机器可关闭）
+    pub const THEME_ACRYLIC_ENABLED: bool = true;
     /// 是否启用开机自启
     pub const GENERAL_AUTOSTART: bool = false;
     /// 关闭主窗口行为：ask/minimize/exit

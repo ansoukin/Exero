@@ -16,7 +16,7 @@ import { settingCommands } from "@/lib/tauri";
 import { Switch } from "@/components/ui/switch";
 
 type CloseBehavior = "ask" | "minimize" | "exit";
-type CheckFrequency = "startup" | "each-startup" | "daily" | "manual";
+type CheckFrequency = "startup" | "daily" | "manual";
 
 const CLOSE_BEHAVIORS: { key: CloseBehavior; label: string }[] = [
   { key: "minimize", label: "最小化到托盘" },
@@ -26,7 +26,6 @@ const CLOSE_BEHAVIORS: { key: CloseBehavior; label: string }[] = [
 
 const CHECK_FREQUENCIES: { key: CheckFrequency; label: string }[] = [
   { key: "startup", label: "启动后后台检查" },
-  { key: "each-startup", label: "每次启动检查" },
   { key: "daily", label: "每日检查" },
   { key: "manual", label: "仅手动检查" },
 ];
@@ -56,7 +55,7 @@ export function QuickSettingsStage() {
         }
         if (
           freq &&
-          ["startup", "each-startup", "daily", "manual"].includes(freq.value)
+          ["startup", "daily", "manual"].includes(freq.value)
         ) {
           setCheckFrequency(freq.value as CheckFrequency);
         }

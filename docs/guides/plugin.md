@@ -80,16 +80,11 @@ declare_actions! {
 
 ### 3. 编译
 
-::: danger CARGO_TARGET_DIR
-编译前必须设置环境变量，防止 cargo 增量清理污染回收站：
-:::
-
 ```powershell
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
 cargo build --release
 ```
 
-产物：`C:\cargo-target-dominate\release\my_plugin.dll`（crate name 中的 `-` 自动转为 `_`）。
+产物：`target\release\my_plugin.dll`（crate name 中的 `-` 自动转为 `_`）。可选：将 `CARGO_TARGET_DIR` 指向项目外固定目录，让多个插件共享编译缓存。
 
 ## Manifest 编写
 
@@ -138,11 +133,26 @@ cargo build --release
 |---|---|---|
 | `pack_type` | 是 | 必须为 `"plugin"` |
 | `rust_library` | 是 | .dll 相对路径 |
-| `sidebar` | 是 | 侧边栏入口（lucide-react 图标） |
+| `sidebar` | 是 | 侧边栏入口（[图标三源](#图标三源)） |
 | `ui.entry` | 是 | 前端入口 HTML 路径 |
 | `hide_header` | 否 | `true` 时隐藏 iframe 上方标题栏（插件名称+版本号信息条），默认 `false`。设为 `true` 后插件需自行管理全部 UI（包括返回按钮等导航） |
+| `actions` | 否 | 附带的 Flow 积木动作。纯页面插件（如音乐播放器）可不声明 |
 
 完整字段说明请查阅 [Manifest 参考](/api/manifest)。
+
+## 图标三源
+
+`sidebar.icon` 与 `actions[].icon` 字段支持三种图标来源（Beta9 起）：
+
+| 写法 | 来源 | 示例 |
+|---|---|---|
+| `"Music"` | lucide 图标名（默认，Exero 内置图标库，无需打包资源） | `"Puzzle"`、`"Code"` |
+| `"segoe:E8B7"` | Segoe 系统图标字体码点（Win11 Segoe Fluent Icons，Win10 自动回退 Segoe MDL2 Assets） | `"segoe:E713"`（设置齿轮） |
+| `"img:icons/logo.svg"` | 扩展包目录内的图片文件（SVG/PNG/ICO 随包分发） | `"img:assets/icon.png"` |
+
+- lucide 名大小写敏感，完整列表见 [lucide.dev/icons](https://lucide.dev/icons)
+- `segoe:` 后跟十六进制码点，查阅微软 [Fluent Icons 字形表](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font)
+- `img:` 路径相对扩展包根目录，随 `.exero-pack` 一起分发，加载时由后端重写为 `plugin.localhost` URL
 
 ## 前端 iframe 开发
 
@@ -258,18 +268,38 @@ img.src = 'http://local-file.localhost/' + encodeURIComponent(imgPath);
 
 桥接 API 详情请查阅 [桥接 API 参考](/api/bridge-api)。
 
+## 生命周期与持久运行（Beta9）
+
+插件 iframe 由常驻宿主层（`PluginHostLayer`）管理，生命周期类似 Chrome 扩展的后台页：
+
+| 事件 | 行为 |
+|---|---|
+| 首次打开插件页 | iframe 创建并加载，注册到宿主层 |
+| 切换到其他页面 | iframe 隐藏（`display:none`）但**不卸载**——音频播放、定时器、后台任务继续 |
+| 再次进入插件页 | 瞬时恢复显示，无重新加载 |
+| 离开插件页（keep-alive 开，默认） | 插件继续存活 |
+| 离开插件页（keep-alive 关） | iframe 销毁，下次进入重新加载 |
+| 用户「强制停止」 | iframe 立即销毁（设置 → 插件） |
+
+对开发者的意义：
+
+- **有状态体验免费获得**：播放器切页不停歌、监控插件后台持续采集，无需自己实现保活
+- **初始化逻辑放页面加载时一次执行即可**：iframe src 全生命周期稳定，React/主窗口重渲染不会重载你的页面
+- **感知销毁**：keep-alive 关闭或强制停止时 iframe 被移除，`beforeunload` 等常规页面卸载语义适用；需要持久化的数据务必及时写入 `window.exero.storage`（见上方存储 API），不要只在卸载时保存
+- keep-alive 是**用户侧设置**（设置 → 插件，按插件独立开关），插件无法强制改变，设计时两种模式都要能正确工作
+
 ## 打包发布
 
 ### 打包前准备
 
 确保以下文件在插件目录根层级：
 - `manifest.json`
-- `my_plugin.dll`（从 `C:\cargo-target-dominate\release\` 复制过来）
+- `my_plugin.dll`（从 `target\release\` 复制过来）
 - `index.html` + 所有前端资源
 
 ```powershell
 # 复制 .dll 到插件目录
-Copy-Item C:\cargo-target-dominate\release\my_plugin.dll .\my-plugin\
+Copy-Item target\release\my_plugin.dll .\my-plugin\
 
 # 打包为 .exero-pack（zip 格式）
 Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force
@@ -288,7 +318,7 @@ Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force
 
 官方示例：
 - `examples/hello-plugin/`：入门示例（1 个 Rust 动作 + 按钮页面）
-- `examples/music-player/`：音乐播放器（文件选择 + 元数据读取 + 封面提取 + local-file 协议播放 + hide_header）
+- `examples/music-player/`：音乐播放器（纯页面插件，无动作积木；文件选择 + 元数据读取 + 封面提取 + local-file 协议播放 + hide_header + 持久运行典范——切页音乐不停）
 
 ## 下一步
 

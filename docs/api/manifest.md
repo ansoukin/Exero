@@ -36,7 +36,7 @@
 | `executor_id` | string | ✅ | — | 执行器标识，含义取决于 executor_type（见下表） |
 | `label` | string | ✅ | — | 动作显示名（中文） |
 | `category` | string | ✅ | — | 类别：`app` / `media` / `system` / `notification` / `control` / `lua` |
-| `icon` | string | | `"Code"` | lucide-react 图标名（如 `"AppWindow"`、`"Volume2"`） |
+| `icon` | string | | `"Code"` | 图标，支持[三源写法](#图标字段三源)（Beta9 起）：lucide 名 / `segoe:码点` / `img:路径` |
 | `default_params` | object | | `{}` | 创建节点时的初始参数值 |
 | `ports` | PortsManifest | | `{inputs:[],outputs:[]}` | 输入输出端口配置（见下节） |
 | `summarize_template` | string | | `""` | 参数摘要模板（如 `"启动 {path}"`），变量用 `{param_name}` 占位 |
@@ -120,8 +120,24 @@
 |---|---|---|---|---|
 | `id` | string | ✅ | — | 入口唯一标识（建议与插件 id 一致） |
 | `label` | string | ✅ | — | 侧边栏显示名 |
-| `icon` | string | ✅ | — | lucide-react 图标名（如 `"Puzzle"`、`"Calculator"`） |
+| `icon` | string | ✅ | — | 图标，支持[三源写法](#图标字段三源)（Beta9 起） |
 | `page_type` | string | | `"detail"` | 页面类型：插件固定使用 `"web"`（iframe 页面） |
+
+---
+
+## 图标字段三源（Beta9）
+
+`actions[].icon` 与 `sidebar.icon` 均支持以下三种写法：
+
+| 写法 | 解析结果 | 示例 |
+|---|---|---|
+| lucide 图标名 | Exero 内置 lucide 图标库组件（默认，无需打包资源） | `"Music"`、`"AppWindow"` |
+| `segoe:{十六进制码点}` | Segoe 系统图标字体字符（Win11 Segoe Fluent Icons，Win10 自动回退 Segoe MDL2 Assets） | `"segoe:E713"` |
+| `img:{相对路径}` | 扩展包目录内图片文件（SVG/PNG/ICO），加载时由后端重写为 `plugin.localhost` URL | `"img:assets/icon.png"` |
+
+- lucide 名大小写敏感，查不到时回退默认图标
+- Segoe 码点查阅 [Fluent Icons 字形表](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font)
+- `img:` 路径相对扩展包根目录，必须随 `.exero-pack` 打包分发
 
 ---
 
@@ -166,3 +182,6 @@
 | `rust_library` | Beta5 | 自定义 .dll 动作支持 |
 | `actions[].params` | Beta5 | Lua 参数表单定义 |
 | `actions[].permissions` | Beta5 | Lua 沙箱权限声明 |
+| `hide_header` | Beta8 | 沉浸式插件（隐藏宿主标题栏） |
+| `icon` 三源写法（`segoe:` / `img:`） | Beta9 | 图标支持 Segoe 字体码点与包内图片 |
+| 插件 `actions` 可空 | Beta9 | 纯页面插件无需声明动作（如音乐播放器） |

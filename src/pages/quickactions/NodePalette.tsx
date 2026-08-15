@@ -3,6 +3,7 @@ import { Search, Loader2, PackageOpen, Store } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PackIcon } from "@/components/PackIcon";
 import {
   NODE_CATEGORIES,
   getCategoryColor,
@@ -14,13 +15,13 @@ import {
 } from "@/lib/actionCatalog";
 import { useAppStore } from "@/stores/app";
 import { useQuickActionsStore } from "@/stores/quickactions";
-import type { ActionTypeKind } from "@/lib/tauri";
+import type { NodeKind } from "@/lib/nodeCatalog";
 
 interface NodePaletteProps {
   /** 拖拽开始：携带节点类型到画布 */
-  onDragStart: (kind: ActionTypeKind, event: React.DragEvent) => void;
+  onDragStart: (kind: NodeKind, event: React.DragEvent) => void;
   /** 点击：直接在画布中央创建节点 */
-  onClick: (kind: ActionTypeKind) => void;
+  onClick: (kind: NodeKind) => void;
 }
 
 /**
@@ -155,8 +156,8 @@ function PaletteItem({
   onClick,
 }: {
   meta: NodeMeta;
-  onDragStart: (kind: ActionTypeKind, event: React.DragEvent) => void;
-  onClick: (kind: ActionTypeKind) => void;
+  onDragStart: (kind: NodeKind, event: React.DragEvent) => void;
+  onClick: (kind: NodeKind) => void;
 }) {
   const Icon = meta.icon;
   return (
@@ -171,7 +172,12 @@ function PaletteItem({
       )}
       title={`添加 ${meta.label} 节点`}
     >
-      <Icon className={cn("h-4 w-4 shrink-0", getCategoryColor(meta.category))} />
+      {typeof Icon === "string" ? (
+        // Beta9 任务15：扩展包三源图标 spec（segoe:/图片 URL）
+        <PackIcon spec={Icon} size={16} className={cn("shrink-0", getCategoryColor(meta.category))} />
+      ) : (
+        <Icon className={cn("h-4 w-4 shrink-0", getCategoryColor(meta.category))} />
+      )}
       <span className="truncate">{meta.label}</span>
     </button>
   );

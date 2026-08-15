@@ -87,11 +87,21 @@ impl ExtensionPackRegistry {
     ///
     /// 返回所有可用动作的 manifest 元数据，供前端 NodePalette 渲染。
     /// base-pack 作为只读扩展包，其 20 种动作通过此方法暴露。
+    ///
+    /// Beta9 任务15（三源图标）：icon 以 `img:` 开头的动作（自定义图片图标），
+    /// 在此重写为完整 plugin.localhost URL（前端 <PackIcon> 直接按图片渲染）。
+    /// 侧边栏入口图标由前端用 packId 构造 URL，无需后端处理。
     pub fn get_action_catalog(&self) -> Vec<ActionManifest> {
         let packs = self.packs.read();
         let mut catalog = Vec::new();
         for pack in packs.iter() {
-            catalog.extend(pack.manifest.actions.clone());
+            for mut action in pack.manifest.actions.clone() {
+                if action.icon.starts_with("img:") {
+                    let rel = action.icon["img:".len()..].trim_start_matches('/');
+                    action.icon = format!("http://plugin.localhost/{}/{}", pack.manifest.id, rel);
+                }
+                catalog.push(action);
+            }
         }
         catalog
     }

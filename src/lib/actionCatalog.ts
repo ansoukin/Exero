@@ -39,6 +39,7 @@ import {
 import { extensionPackCommands, type ActionManifest } from "@/lib/tauri";
 import {
   NODE_REGISTRY,
+  TRIGGER_NODES,
   type NodeCategory,
   type NodeMeta,
   type NodePort,
@@ -151,7 +152,12 @@ function manifestToNodeMeta(manifest: ActionManifest): NodeMeta {
   if (local) return local;
 
   // 扩展包新增动作：构造 NodeMeta
-  const icon = ICON_MAP[manifest.icon] ?? Code;
+  // 图标解析（Beta9 任务15 三源）：lucide 名查映射 → segoe:/img: spec 原样保留（后端已重写 img: 为完整 URL）
+  const icon = manifest.icon.startsWith("segoe:") ||
+    manifest.icon.startsWith("http://") ||
+    manifest.icon.startsWith("https://")
+    ? manifest.icon
+    : (ICON_MAP[manifest.icon] ?? Code);
   const { inputs, outputs } = toNodePorts(manifest.ports);
 
   return {
@@ -219,7 +225,10 @@ export function useActionCatalog(): UseActionCatalogResult {
 
   // 后端成功响应：使用后端目录（可能为空，表示无扩展包）
   // 后端调用失败：回退到本地 NODE_REGISTRY（保证编辑器可用）
-  const catalog = loaded ? manifests.map(manifestToNodeMeta) : NODE_REGISTRY;
+  // 触发器节点始终追加（Beta9 · 任务1，不来自扩展包）
+  const catalog = loaded
+    ? [...manifests.map(manifestToNodeMeta), ...TRIGGER_NODES]
+    : [...NODE_REGISTRY, ...TRIGGER_NODES];
 
   return { catalog, loading, error, reload: load };
 }

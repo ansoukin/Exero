@@ -14,7 +14,8 @@
 @layer base {
   :root {
     /* shadcn/ui 基础色板（slate，浅色） */
-    --background: 0 0% 100%;
+    /* Beta9 亚克力调优：浅色背景从纯白改为微蓝灰，带色相才像原生亚克力着色层 */
+    --background: 215 25% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -52,6 +53,37 @@
     --sidebar: 210 40% 98%;
     --sidebar-foreground: 222.2 47.4% 11.2%;
     --sidebar-accent: 206 100% 42%;
+
+    /* ============================================================
+     * 亚克力分层方案（Beta9 任务17 · 最终修复 2026-08-15）
+     * - 模糊层：Tauri 原生 Effect::Acrylic 系统级 DWM 模糊（Rust 侧应用）
+     *   （CSS backdrop-filter 无法模糊壁纸：Chromium backdrop 只含同渲染树
+     *    内容，全透明窗口里 blur 的是"空气"，已实测确认并移除）
+     * - CSS 侧只负责：半透明着色层 + 噪点纹理 + 光影描边（见下方变量）
+     * - Win11: DWMWCP_ROUND 物理圆角裁剪系统亚克力
+     * - Win10: 纯 CSS 圆角（系统亚克力为矩形直角，系统限制）
+     * ============================================================ */
+    --alpha-bg: 1;
+    --alpha-card: 1;
+    --alpha-sidebar: 1;
+    --alpha-titlebar: 1;
+    --alpha-popover: 1;
+    --glass-noise: none;
+  }
+
+  /* 亚克力模式：模糊由系统 Acrylic 提供，CSS 叠加质感三层
+   * 第一层（系统）：Effect::Acrylic DWM 模糊桌面壁纸（Rust 侧）
+   * 第二层：带色相的半透明着色层（--background 微蓝灰，透出壁纸光晕）
+   * 第三层：inset box-shadow 光影描边（::after 伪元素，增加玻璃厚度感）
+   * 第四层：SVG feTurbulence 噪点纹理（亚克力的灵魂，没这层就是廉价塑料）
+   * 层次：背景 0.88（厚着色层，壁纸只透出光晕）> 侧边栏/标题栏 0.85 > 卡片 0.80 */
+  [data-acrylic="true"] {
+    --alpha-bg: 0.88;
+    --alpha-card: 0.80;
+    --alpha-sidebar: 0.85;
+    --alpha-titlebar: 0.85;
+    --alpha-popover: 0.93;
+    --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
   }
 
   .dark {
@@ -138,11 +170,27 @@
 }
 
 @layer base {
+  /* html/body/#root：三层全部强制 transparent
+   * backdrop-filter 只在父级背景全透明时才模糊桌面壁纸
+   * 少一层不透明，blur 模糊的就是父级背景而非壁纸 → 变成"透明塑料片" */
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent !important;
+  }
+
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    /* Beta9 任务17：去掉 bg-background，让 Tauri transparent 窗口 + 亚克力透出 */
+    @apply text-foreground;
+    background: transparent !important;
     font-family: "Segoe UI Variable", "Segoe UI", -apple-system,
       BlinkMacSystemFont, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
     /* SPEC 3.1：200ms 动画过渡 */
@@ -165,10 +213,10 @@
     box-sizing: border-box;
   }
 
-  /* 侧边栏宽度过渡优化 */
+  /* 侧边栏宽度过渡优化
+   * 注意：不加 transform: translateZ(0)，会创建合成层干扰 backdrop-filter */
   aside {
     will-change: width;
-    transform: translateZ(0);
   }
 
   /* 滚动容器优化：使用 inertial scroll */
@@ -200,6 +248,85 @@
 
 /* 滚动条样式（Win11 Fluent 风格） */
 @layer utilities {
+  /* ============================================================
+   * Surface 玻璃工具类（Beta9 任务17 · 最终修复）
+   * 模糊由系统 Acrylic 提供（Rust 侧 Effect::Acrylic），CSS 只叠质感层：
+   * 1. background-color: 带色相半透明着色层（--background 已调微蓝灰）
+   * 2. background-image: SVG 噪点纹理 + background-blend-mode: overlay 混合
+   * 3. inset box-shadow: 由根 div ::after 伪元素提供光影描边
+   * 注：不加 backdrop-filter —— 它模糊不到壁纸（同渲染树限制），纯耗性能
+   * ============================================================ */
+  .surface-bg {
+    background-color: hsl(var(--background) / var(--alpha-bg));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+  }
+  .surface-card {
+    background-color: hsl(var(--card) / var(--alpha-card));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+  }
+  .surface-sidebar {
+    background-color: hsl(var(--sidebar) / var(--alpha-sidebar));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+  }
+  .surface-titlebar {
+    background-color: hsl(var(--background) / var(--alpha-titlebar));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+  }
+  /* 弹层例外：popover/dropdown 背后是 WebView 内实际页面内容，
+   * backdrop-filter 在渲染树内有效，保留轻量 blur 形成 Win11 弹层磨砂 */
+  .surface-popover {
+    background-color: hsl(var(--popover) / var(--alpha-popover));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* ============================================================
+   * 全局卡片半透明覆盖（Beta9 任务17）
+   * 当 data-acrylic="true" 时，所有 .bg-card 自动半透明 + 噪点
+   * 优先级高于 shadcn 默认 .bg-card，无需改 Card 组件源码
+   * ============================================================ */
+  [data-acrylic="true"] .bg-card,
+  [data-acrylic="true"] .bg-popover {
+    background-color: hsl(var(--card) / var(--alpha-card));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+  }
+  [data-acrylic="true"] .bg-popover {
+    background-color: hsl(var(--popover) / var(--alpha-popover));
+    background-image: var(--glass-noise);
+    background-blend-mode: overlay;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* ============================================================
+   * 亚克力光影描边（Beta9：第三层 inset shadow）
+   * 根 div ::after 伪元素覆盖在所有内容之上
+   * 1px 白色 inset 描边模拟玻璃边缘高光
+   * 注：不加 30px 大范围内阴影——浅色模式下会在微蓝灰着色层上
+   * 晕染出灰蓝色光晕（用户实测反馈，2026-08-15 已移除）
+   * pointer-events:none 不影响交互，z-index 低于弹窗/dialog
+   * 受根 div clip-path 裁剪，圆角内渲染
+   * ============================================================ */
+  [data-acrylic] {
+    position: relative;
+  }
+  [data-acrylic="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 50;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
   .scrollbar-fluent {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
@@ -220,156 +347,68 @@
   }
 
   /* ============================================================
-   * 页面切换 & 微交互动画（性能优化）
+   * 动画变量 & 微交互（Beta9 任务9：@keyframes 已迁移到 framer-motion）
    * ============================================================ */
 
-  /* Win11 Fluent 标准曲线：起步快、收尾平滑，提升跟手性 */
+  /* Win11 Fluent 标准曲线：起步快、收尾平滑，提升跟手性
+   * 供 framer-motion 的 EASE_FLUENT 常量参考（值一致） */
   :root {
     --ease-fluent: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* 页面切换 fade-in 动画（30Hz 兼容：200ms + 微位移） */
-  .animate-page-fade-in {
-    animation: page-fade-in 200ms var(--ease-fluent);
+  /* ============================================================
+   * 外观扩充（Beta9 · 任务17：密度 / 字体 / LiquidGlass）
+   * html data 属性由 applyAppearance 写入，Layout 根 div 同步绑定
+   * ============================================================ */
+
+  /* 界面密度：作用于标记 .density-aware 的页面根容器（间距/内边距缩放） */
+  [data-density="compact"] .density-aware {
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+  }
+  [data-density="comfortable"] .density-aware {
+    padding: 2rem !important;
+    gap: 1.5rem !important;
+  }
+  /* 标准值显式声明（从其他密度切换回来时覆盖页面默认类） */
+  [data-density="standard"] .density-aware {
+    padding: 1.5rem !important;
+    gap: 1.25rem !important;
   }
 
-  @keyframes page-fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(2px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  /* 等宽字体模式（body.font-mono-app 由 applyAppearance 切换）
+   * Win10 兼容：Cascadia 缺失时落 Consolas */
+  body.font-mono-app {
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New",
+      "Microsoft YaHei UI", "Microsoft YaHei", monospace;
   }
 
-  /* OOBE 开屏动画（Beta6） */
-  /* logo 切出 + 字母展开循环播放：每 3s 一个完整周期 */
-  /* 入场和出场统一为从左到右方向 */
-  .oobe-logo-clip {
-    animation: oobe-logo-clip 3s var(--ease-fluent) infinite;
+  /* ============================================================
+   * LiquidGlass 实验性玻璃效果（Beta9 任务17 · 默认关闭）
+   * 仅作用于标记 .liquid-glass 的展示组件（关于 Hero / 首页卡片），
+   * 不全局铺开避免性能开销。backdrop-filter 在渲染树内有效（模糊的是
+   * 页面内容 + 亚克力着色层，非壁纸）
+   * ============================================================ */
+  [data-liquid-glass="true"] .liquid-glass {
+    background-image: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.03) 45%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 8px 32px rgba(0, 0, 0, 0.12);
   }
-  @keyframes oobe-logo-clip {
-    0% {
-      /* 隐藏：从左侧完全裁切 */
-      clip-path: inset(0 100% 0 0);
-      opacity: 0;
-    }
-    20%, 80% {
-      /* 600ms-2400ms 保持完整显示 */
-      clip-path: inset(0 0 0 0);
-      opacity: 1;
-    }
-    100% {
-      /* 出场：从左到右逐渐裁切消失（左侧先消失，向右推进） */
-      clip-path: inset(0 0 0 100%);
-      opacity: 0;
-    }
-  }
-
-  .oobe-letter {
-    animation: oobe-letter 3s var(--ease-fluent) infinite;
-  }
-  @keyframes oobe-letter {
-    0% {
-      /* 入场：从左侧滑入 */
-      transform: translateX(-20px);
-      opacity: 0;
-    }
-    16%, 80% {
-      /* 500ms-2400ms 保持展开状态 */
-      transform: translateX(0);
-      opacity: 1;
-    }
-    100% {
-      /* 出场：向右侧滑出（从左到右方向消失） */
-      transform: translateX(20px);
-      opacity: 0;
-    }
-  }
-
-  @keyframes oobe-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  /* OOBE 开始按钮入场动画（scale + fade） */
-  .oobe-start-enter {
-    animation: oobe-start-enter 500ms var(--ease-fluent) both;
-  }
-  @keyframes oobe-start-enter {
-    from {
-      opacity: 0;
-      transform: translateY(12px) scale(0.96);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* 按钮按下反馈（100ms 按压 + 150ms 背景色过渡） */
-  .btn-press {
-    transition: transform 100ms var(--ease-fluent),
-                background-color 150ms var(--ease-fluent),
-                color 150ms var(--ease-fluent);
-  }
-  .btn-press:active {
-    transform: scale(0.96);
-  }
-
-  /* 卡片 hover 提升（200ms 上抬 + 阴影） */
-  .card-hover {
-    transition: transform 200ms var(--ease-fluent),
-                box-shadow 200ms var(--ease-fluent);
-    will-change: transform;
-  }
-  .card-hover:hover {
-    transform: translateY(-2px);
-  }
-
-  /* 淡入动画工具类 */
-  .animate-fade-in {
-    animation: fade-in 200ms var(--ease-fluent);
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  /* 滑入动画工具类 */
-  .animate-slide-up {
-    animation: slide-up 250ms var(--ease-fluent);
-  }
-
-  @keyframes slide-up {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* 缩放入场动画工具类（弹窗/卡片入场） */
-  .animate-scale-in {
-    animation: scale-in 200ms var(--ease-fluent);
-    will-change: opacity, transform;
-  }
-
-  @keyframes scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.96);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+  /* 深色模式微调：高光减弱避免过曝 */
+  .dark [data-liquid-glass="true"] .liquid-glass,
+  [data-liquid-glass="true"] .dark .liquid-glass {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      0 8px 32px rgba(0, 0, 0, 0.30);
   }
 
   /* 统一过渡工具类（200ms，兼容 30Hz） */
@@ -377,7 +416,8 @@
     transition: all 200ms var(--ease-fluent);
   }
 
-  /* 统一交互反馈（hover 背景 + active 按压，提升跟手性） */
+  /* 统一交互反馈（hover 背景 + active 按压，提升跟手性）
+   * CSS transition 实现，性能优于 JS（framer-motion whileTap 等价但避免 JS 开销） */
   .interactive {
     transition: background-color 150ms var(--ease-fluent),
                 color 150ms var(--ease-fluent),

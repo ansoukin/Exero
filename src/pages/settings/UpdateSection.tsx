@@ -37,10 +37,9 @@ import {
 import { useUpdateStore } from "@/stores/updateStore";
 import { cn } from "@/lib/utils";
 
-/** 更新检查频率选项 */
+/** 更新检查频率选项（Beta9 任务5：删 each-startup 重复项，startup 即启动时） */
 const CHECK_FREQUENCIES = [
   { key: "startup", label: "启动后后台" },
-  { key: "each-startup", label: "每次启动" },
   { key: "daily", label: "每日定时" },
   { key: "manual", label: "仅手动" },
 ] as const;
@@ -95,7 +94,7 @@ export function UpdateSection() {
       }),
     ]).then(([autoUpdateSetting, frequencySetting, statusSetting, ignoredSetting]) => {
       if (autoUpdateSetting) setAutoUpdate(autoUpdateSetting.value === "true");
-      if (frequencySetting && ["startup", "each-startup", "daily", "manual"].includes(frequencySetting.value)) {
+      if (frequencySetting && ["startup", "daily", "manual"].includes(frequencySetting.value)) {
         setCheckFrequency(frequencySetting.value as CheckFrequency);
       }
       if (statusSetting) {

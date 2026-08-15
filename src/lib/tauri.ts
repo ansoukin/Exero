@@ -147,7 +147,9 @@ export interface Setting {
 export const SettingKeys = {
   themeMode: "theme.mode",
   themeColor: "theme.color",
-  themeMicaEnabled: "theme.mica_enabled",
+  themeAcrylicEnabled: "theme.acrylic_enabled",
+  /** 自定义主题色（hex 字符串，设置后覆盖预设色） */
+  themeCustomColor: "theme.custom_color",
   generalAutostart: "general.autostart",
   generalCloseBehavior: "general.close_behavior",
   generalSidebarCollapsed: "general.sidebar_collapsed",
@@ -489,11 +491,28 @@ export interface CpuStatus {
   core_count: number;
 }
 
+/** GPU 状态（Beta9 · 任务3） */
+export interface GpuStatus {
+  name: string;
+  usage: number | null;
+  temperature: number | null;
+  total_memory_bytes: number | null;
+  used_memory_bytes: number | null;
+}
+
 /** 内存状态 */
 export interface MemoryStatus {
   total_bytes: number;
   used_bytes: number;
   available_bytes: number;
+}
+
+/** 存储状态（Beta9 · 任务3） */
+export interface StorageStatus {
+  total_bytes: number;
+  used_bytes: number;
+  available_bytes: number;
+  disk_count: number;
 }
 
 /** 温度读数 */
@@ -506,7 +525,9 @@ export interface TemperatureReading {
 /** 硬件状态总览 */
 export interface HardwareStatus {
   cpu: CpuStatus;
+  gpu: GpuStatus;
   memory: MemoryStatus;
+  storage: StorageStatus;
   temperatures: TemperatureReading[];
 }
 
@@ -639,13 +660,14 @@ export type ThemeColor =
 export interface ThemeConfig {
   mode: ThemeMode;
   color: ThemeColor;
-  mica_enabled: boolean;
+  /** 亚克力磨砂背景开关（默认开启，低性能机器可关闭） */
+  acrylic_enabled: boolean;
 }
 
 export const themeCommands = {
-  /** 读取主题配置（缺失项回退默认 system/blue/false） */
+  /** 读取主题配置（缺失项回退默认 system/blue/true） */
   getConfig: () => invoke<ThemeConfig>("get_theme_config"),
-  /** 保存主题配置并立即应用（含 Mica 窗口效果） */
+  /** 保存主题配置并立即应用（含 Acrylic 窗口效果） */
   setConfig: (config: ThemeConfig) =>
     invoke<ThemeConfig>("set_theme_config", { config }),
 };

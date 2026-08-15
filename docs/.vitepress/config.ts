@@ -15,7 +15,8 @@ export default defineConfig({
 
   // 构建产物输出到 docs/docs/（GitHub Pages 静态站点目录）
   // outDir 相对于 srcDir（docs/），'docs' → docs/docs/
-  srcExclude: ['docs/**'],
+  // SPEC.md 是内部设计规格，不随开发者文档发布（faq.md「内部文档说明」）
+  srcExclude: ['docs/**', 'SPEC.md'],
   outDir: 'docs',
 
   head: [

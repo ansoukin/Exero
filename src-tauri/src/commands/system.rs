@@ -3,7 +3,7 @@
 //! 提供应用退出、窗口隐藏等系统集成相关命令，
 //! 供前端关闭行为弹窗与托盘交互调用。
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::error::Result;
 
@@ -40,5 +40,19 @@ pub async fn restart_app(app_handle: tauri::AppHandle) -> Result<()> {
     app_handle.restart();
     // restart() 不会返回，但 Rust 类型系统要求返回 Result
     #[allow(unreachable_code)]
+    Ok(())
+}
+
+/// 检查更新并显示主窗口（Beta9 · 任务4，托盘菜单"检查更新"项调用）
+///
+/// 显示主窗口并 emit "check-update" 事件，主窗口前端监听后触发更新检查。
+#[tauri::command]
+pub async fn check_update_and_show(app_handle: tauri::AppHandle) -> Result<()> {
+    if let Some(main) = app_handle.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.unminimize();
+        let _ = main.set_focus();
+    }
+    let _ = app_handle.emit("check-update", ());
     Ok(())
 }

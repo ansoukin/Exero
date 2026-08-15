@@ -37,10 +37,17 @@ import {
   Repeat,
   Variable,
   Code,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 
 import type { ActionTypeKind } from "@/lib/tauri";
+
+/** 触发器节点 kind（区别于 ActionTypeKind，触发器不进 actions 表） */
+export type TriggerNodeKind = "TimeTrigger";
+
+/** 所有节点 kind（动作 + 触发器） */
+export type NodeKind = ActionTypeKind | TriggerNodeKind;
 
 // ============================================================
 // 类别定义
@@ -90,14 +97,16 @@ export interface NodePort {
 // ============================================================
 
 export interface NodeMeta {
-  /** 动作类型 kind 标签 */
-  kind: ActionTypeKind;
+  /** 节点 kind 标签（动作或触发器） */
+  kind: NodeKind;
   /** 中文显示名（镜像 ActionType::display_name） */
   label: string;
   /** 所属类别 */
   category: NodeCategory;
-  /** 图标 */
-  icon: LucideIcon;
+  /** 图标：内置节点为 LucideIcon 组件；扩展包节点可能为 string
+   *  （Beta9 任务15 三源 spec：lucide 名 / "segoe:XXXX" / "img:路径"或完整 URL，
+   *   渲染统一走 <NodeIcon>，见 @/components/PackIcon） */
+  icon: LucideIcon | string;
   /** 默认参数（创建节点时初始化） */
   defaultParams: Record<string, unknown>;
   /** 输入端口列表 */
@@ -379,15 +388,86 @@ export const NODE_REGISTRY: NodeMeta[] = [
 ];
 
 // ============================================================
+// 触发器节点（Beta9 · 任务1，不进 actions 表，存 triggers 表）
+// ============================================================
+
+/**
+ * 时间触发器节点元数据
+ *
+ * 画布上作为动作链视觉起点，单输出端口 triggered 连接到第一个动作。
+ * 配置两种触发类型：
+ * - Cron：重复规则（每天/每周/每N天/指定日期）+ 时间，前端转 cron 表达式
+ * - CourseStart：课程 + 触发时机（课前N分钟/课中/课后），仅校园模式显示
+ */
+export const TRIGGER_NODES: NodeMeta[] = [
+  {
+    kind: "TimeTrigger",
+    label: "时间触发",
+    category: "control",
+    icon: Clock,
+    defaultParams: {
+      triggerType: "Cron", // "Cron" | "CourseStart"
+      // Cron 配置
+      repeat: "daily", // daily | weekly | interval | once
+      time: "08:00", // HH:mm
+      weekdays: [1, 2, 3, 4, 5], // weekly 时（0=周日）
+      intervalDays: 2, // interval 时
+      date: "", // once 时 YYYY-MM-DD
+      // CourseStart 配置
+      courseId: "", // 关联课程 ID
+      timing: "Before", // Before | During | After
+      minutes: 0, // Before 时（0=课程开始即触发）
+    },
+    inputs: [], // 触发器无输入端口，是动作链起点
+    outputs: [{ id: "triggered", position: "bottom", label: "triggered" }],
+    summarize: (p) => {
+      const tt = (p.triggerType as string) || "Cron";
+      if (tt === "CourseStart") {
+        const timing = (p.timing as string) || "Before";
+        const label =
+          timing === "Before"
+            ? `课前 ${typeof p.minutes === "number" ? p.minutes : 0} 分钟`
+            : timing === "During"
+              ? "课中"
+              : "课后";
+        return (p.courseId as string) ? `课表触发 · ${label}` : "未选择课程";
+      }
+      const repeat = (p.repeat as string) || "daily";
+      const time = (p.time as string) || "00:00";
+      switch (repeat) {
+        case "daily":
+          return `每天 ${time}`;
+        case "weekly": {
+          const days = (p.weekdays as number[]) ?? [];
+          const names = ["日", "一", "二", "三", "四", "五", "六"];
+          return `每周${days.map((d) => names[d] ?? d).join("")} ${time}`;
+        }
+        case "interval":
+          return `每 ${typeof p.intervalDays === "number" ? p.intervalDays : 1} 天 ${time}`;
+        case "once":
+          return `${(p.date as string) || "未设置日期"} ${time}`;
+        default:
+          return time;
+      }
+    },
+  },
+];
+
+/** 判断 kind 是否为触发器节点 */
+export function isTriggerKind(kind: NodeKind): kind is TriggerNodeKind {
+  return kind === "TimeTrigger";
+}
+
+// ============================================================
 // 查询工具
 // ============================================================
 
-const KIND_INDEX: Map<ActionTypeKind, NodeMeta> = new Map(
-  NODE_REGISTRY.map((m) => [m.kind, m]),
+const KIND_INDEX: Map<NodeKind, NodeMeta> = new Map(
+  [...NODE_REGISTRY, ...TRIGGER_NODES].map((m) => [m.kind, m]),
 );
 
-/** 按 kind 查询节点元数据 */
-export function getNodeMeta(kind: ActionTypeKind): NodeMeta | undefined {
+/** 按 kind 查询节点元数据（动作 + 触发器） */
+export function getNodeMeta(kind: NodeKind): NodeMeta | undefined {
   return KIND_INDEX.get(kind);
 }
 
@@ -399,4 +479,9 @@ export function getNodesByCategory(category: NodeCategory): NodeMeta[] {
 /** 获取节点所属类别的主题色 class（用于图标着色） */
 export function getCategoryColor(category: NodeCategory): string {
   return NODE_CATEGORIES.find((c) => c.id === category)?.color ?? "";
+}
+
+/** 获取节点所属类别的背景色 class（Beta9 任务13：卡片左侧竖条着色，从文字色派生） */
+export function getCategoryBarColor(category: NodeCategory): string {
+  return getCategoryColor(category).replace("text-", "bg-");
 }

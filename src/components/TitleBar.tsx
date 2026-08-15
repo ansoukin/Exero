@@ -39,7 +39,7 @@ export function TitleBar() {
   return (
     <div
       data-tauri-drag-region
-      className="flex h-12 shrink-0 items-center justify-between bg-background select-none"
+      className="flex h-12 shrink-0 items-center justify-between surface-titlebar select-none"
     >
       {/* 左侧：演示模式标识（SPEC 11.2，仅 demo_mode=true 时显示） */}
       <div data-tauri-drag-region="false" className="flex items-center pl-3">

@@ -5,35 +5,28 @@ import {
   Loader2,
   AlertCircle,
   User,
-  FileCode,
   Tag,
   FolderOpen,
-  Boxes,
   Sidebar,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PackIcon } from "@/components/PackIcon";
 import {
   extensionPackCommands,
   type PackDetail,
   type ActionManifest,
 } from "@/lib/tauri";
 import { useAppStore } from "@/stores/app";
-import { PluginPage } from "@/pages/PluginPage";
+import { PluginActivator } from "@/components/PluginHostLayer";
 
 /** 来源标签映射 */
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   builtin: { label: "内置", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   user: { label: "用户", color: "bg-green-500/10 text-green-600 dark:text-green-400" },
   custom: { label: "自定义", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400" },
-};
-
-/** 动作图标映射（复用 actionCatalog 的图标集） */
-const ACTION_ICONS: Record<string, LucideIcon> = {
-  AppWindow: Boxes,
-  Code: FileCode,
 };
 
 /** 类别中文显示名 */
@@ -121,9 +114,9 @@ export function ExtensionPackDetailPage({ packId }: ExtensionPackDetailPageProps
     );
   }
 
-  // 插件类型：分发到 PluginPage（iframe 加载插件前端，Phase 3）
+  // 插件类型：注册到常驻宿主层（Beta9 任务6 持久运行，iframe 切页保活）
   if (pack.manifest.pack_type === "plugin") {
-    return <PluginPage packId={packId} />;
+    return <PluginActivator packId={packId} />;
   }
 
   const sourceInfo = SOURCE_LABELS[pack.summary.source] ?? SOURCE_LABELS.user;
@@ -174,7 +167,7 @@ export function ExtensionPackDetailPage({ packId }: ExtensionPackDetailPageProps
       </div>
 
       {/* 内容区 */}
-      <div className="flex-1 overflow-y-auto scrollbar-fluent p-6">
+      <div className="flex-1 overflow-y-auto scrollbar-fluent p-6 density-aware">
         <div className="mx-auto max-w-4xl space-y-6">
           {/* 元数据卡片 */}
           <section className="rounded-lg border bg-card p-5">
@@ -264,14 +257,18 @@ function MetaItem({
 
 /** 动作列表行 */
 function ActionRow({ action }: { action: ActionManifest }) {
-  const Icon = ACTION_ICONS[action.icon] ?? FileCode;
   const categoryLabel = CATEGORY_LABELS[action.category] ?? action.category;
   const executorLabel =
     action.executor_type === "rust" ? "Rust" : "Lua";
 
   return (
     <div className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-accent/50">
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* Beta9 任务15：三源图标（lucide 名 / segoe: / img: URL）统一渲染 */}
+      <PackIcon
+        spec={action.icon}
+        size={16}
+        className="shrink-0 text-muted-foreground"
+      />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">{action.label}</p>
         <p className="font-mono text-xs text-muted-foreground">{action.id}</p>

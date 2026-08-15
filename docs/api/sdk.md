@@ -227,7 +227,6 @@ return Err(format!(
 ### .dll 目标
 
 ```powershell
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
 cargo build --release       # 默认目标 x86_64-pc-windows-msvc
 ```
 

@@ -1,6 +1,6 @@
 //! 主题模型（SPEC 3.2 主题系统）
 //!
-//! 定义主题模式、主题色、Mica 开关等配置结构，
+//! 定义主题模式、主题色、Acrylic 窗口效果开关等配置结构，
 //! 持久化到 settings 表（key 前缀 `theme.`）。
 
 use serde::{Deserialize, Serialize};
@@ -92,19 +92,38 @@ impl ThemeColor {
 }
 
 /// 主题配置（一次性返回给前端，避免多次 get_setting 调用）
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeConfig {
     /// 主题模式
     pub mode: ThemeMode,
     /// 主题色
     pub color: ThemeColor,
-    /// 是否启用 Mica 背景（默认关闭，纯色背景）
-    pub mica_enabled: bool,
+    /// 是否启用 Acrylic 窗口效果（亚克力磨砂玻璃，默认开启）
+    /// Win10/Win11 均可用；低性能机器可关闭降级为纯色背景
+    #[serde(default = "default_acrylic_enabled")]
+    pub acrylic_enabled: bool,
+}
+
+/// Acrylic 默认开启（低性能机器可关闭）
+fn default_acrylic_enabled() -> bool {
+    true
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        Self {
+            mode: ThemeMode::System,
+            color: ThemeColor::Blue,
+            acrylic_enabled: true,
+        }
+    }
 }
 
 /// settings 表中主题相关键名
 pub mod keys {
     pub const MODE: &str = "theme.mode";
     pub const COLOR: &str = "theme.color";
-    pub const MICA_ENABLED: &str = "theme.mica_enabled";
+    pub const ACRYLIC_ENABLED: &str = "theme.acrylic_enabled";
+    /// 自定义主题色（hex 字符串，如 "#FF6B35"），设置后覆盖预设色
+    pub const CUSTOM_COLOR: &str = "theme.custom_color";
 }

@@ -24,21 +24,18 @@
 
 ## 环境配置
 
-### CARGO_TARGET_DIR 为什么要设？
+### CARGO_TARGET_DIR 需要设置吗？
 
-Tauri 增量构建清理时会删除旧的 target 目录，删除的文件会进回收站。target 目录动辄几十 GB，回收站会爆。设置 `CARGO_TARGET_DIR=C:\cargo-target-dominate` 把目标目录放到受控位置（在沙箱外，清理时永久删除不进回收站）。
+可选。将 `CARGO_TARGET_DIR` 指向项目外的固定目录有两个好处：
+1. 多个插件/项目共享编译缓存，重复编译明显变快
+2. target 产物（动辄数 GB）不污染插件源码目录
 
-::: danger 所有终端会话都要设
-这是环境变量，不是配置文件。每个新 PowerShell 窗口打开后要**重新设一次**。推荐加到 PowerShell profile：
+不设置也能正常编译，产物在默认的 `target/` 目录。想持久生效可以加到 PowerShell profile：
+
 ```powershell
-# $PROFILE 里加一行：
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
+# $PROFILE 里加一行（路径自定）：
+$env:CARGO_TARGET_DIR="C:\cargo-target"
 ```
-:::
-
-### 为什么 cargo 必须手动跑？
-
-TRAE IDE 的 RunCommand 在 sandbox 中执行，sandbox 清理时会触发 cargo target 中的文件删除（导致回收站爆）。因此 cargo 命令一律在 **TRAE IDE 终端（非 sandbox）** 手动执行。
 
 ---
 
@@ -63,9 +60,13 @@ TRAE IDE 的 RunCommand 在 sandbox 中执行，sandbox 清理时会触发 cargo
 
 ### 怎么给图标？需要打包图片吗？
 
-不需要。图标字段 `icon` 是 **lucide-react 图标名**（纯字符串），Exero 前端内置此图标库。图标名大小写敏感。常用名：`Code` `AppWindow` `Volume2` `Puzzle` `Calculator` `Clock` `Globe`。
+三种方式任选（Beta9 起）：
 
-完整列表：[lucide.dev/icons](https://lucide.dev/icons)
+1. **lucide 图标名**（默认）：`icon` 填 Exero 内置图标库的名字，无需打包任何资源。常用名：`Code` `AppWindow` `Volume2` `Puzzle` `Calculator` `Clock` `Globe`（大小写敏感，完整列表 [lucide.dev/icons](https://lucide.dev/icons)）
+2. **Segoe 系统图标**：`"segoe:E713"` 形式的十六进制码点，走 Windows 系统字体（Win11 Fluent / Win10 MDL2 自动回退），同样零资源
+3. **自定义图片**：`"img:assets/icon.png"` 引用扩展包内的 SVG/PNG/ICO，需要把图片随包打包
+
+详见 [Manifest → 图标字段三源](/api/manifest#图标字段三源-beta9)。
 
 ---
 
@@ -116,8 +117,12 @@ TRAE IDE 的 RunCommand 在 sandbox 中执行，sandbox 清理时会触发 cargo
 ### invoke 调用有超时限制吗？
 
 前端 Promise 端没有超时（硬上限 = Rust 端没做超时）。但：
-- 长耗时动作会卡住主窗口 UI（PluginPage 是同步 await）
+- 长耗时动作会卡住插件页面 UI（桥接是同步 await）
 - 推荐**长耗时拆异步**：Rust 端启动任务后立即返回 job_id，UI 轮询 `window.exero.invoke('get_status', {job_id})` 拿进度
+
+### 切换页面后插件还在运行吗？
+
+在（Beta9 默认行为）。插件由常驻宿主层管理：切页只是隐藏 iframe，音频/定时器/后台任务继续。用户可在「设置 → 插件」按插件关闭「退出页面后保持运行」或强制停止。详见[插件生命周期](/guides/plugin#生命周期与持久运行-beta9)。
 
 ---
 
@@ -136,9 +141,9 @@ $bom = @(0xEF, 0xBB, 0xBF)
 
 ### 我是第三方开发者，想发布到官方市场？
 
-当前官方市场 = GitHub 仓库 ansoukin/Exero 的 `Market/` 目录。提交 PR 把 `.exero-pack` 加到对应目录并更新 index，CR 后合入即可。
+当前官方市场 = GitHub 仓库 ansoukin/Exero 的 `Market/` 目录（Gitee 备源自动同步，无需单独发布）。提交 PR 把 `.exero-pack` 加到对应目录并更新 index，CR 后合入即可。
 
-未来（Beta7+）计划支持第三方市场源（多个 index.json URL 配置）。
+未来计划支持第三方市场源（多个 index.json URL 配置）。
 
 ---
 
@@ -147,13 +152,13 @@ $bom = @(0xEF, 0xBB, 0xBF)
 ### 升级 Exero 后旧扩展包用不了？
 
 检查：
-1. 扩展包 `exero_api_version` 在新版本兼容区间内（Beta7 兼容所有 `0.4.x`）
+1. 扩展包 `exero_api_version` 在新版本兼容区间内（当前版本兼容所有 `0.4.x`）
 2. Manifest 结构没变（Beta5 重构过一次扩展机制，`pack_type` 字段有变化）
-3. 插件重新编译 .dll（Beta7 Rust MSRV 没升，但 linker 改动可能导致旧 dll 加载失败）
+3. 插件重新编译 .dll（Rust MSRV 没升，但 linker 改动可能导致旧 dll 加载失败）
 
 ### 如何知道当前文档适用哪个 Exero 版本？
 
-本套文档每页顶部都有 `适用版本：V0.4.0-Beta7` 徽章。前后端每次 Beta 变更时需同步更新徽章版本号和对应文档内容。
+本套文档每页顶部都有 `适用版本：V0.4.0-Beta9` 徽章。前后端每次 Beta 变更时需同步更新徽章版本号和对应文档内容。
 
 ---
 
@@ -161,7 +166,7 @@ $bom = @(0xEF, 0xBB, 0xBF)
 
 ### Lua 动作 10 秒超时能调吗？
 
-Beta7 不支持（硬编码 `10_000` ms）。需要更长执行时间请写 Rust 动作。
+暂不支持调整（硬编码 `10_000` ms）。需要更长执行时间请写 Rust 动作。
 
 ### 插件 .dll 越大加载越慢？
 
@@ -185,7 +190,7 @@ Beta7 不支持（硬编码 `10_000` ms）。需要更长执行时间请写 Rust
 
 ### 插件能读取 Exero 的数据库吗？
 
-间接可以（.dll 端自己开 rusqlite 连接读 SQLite 文件路径）。但 Beta7 不提供"官方数据库访问 API"——这是有意为之的隔离边界。如果确实需要：
+间接可以（.dll 端自己开 rusqlite 连接读 SQLite 文件路径）。但 Exero 不提供"官方数据库访问 API"——这是有意为之的隔离边界。如果确实需要：
 - 读：自己找 `%APPDATA%\Exero\exero.db`
 - 写：不推荐，可能写坏主程序状态。用 invoke 返回给主程序，主程序再写入
 

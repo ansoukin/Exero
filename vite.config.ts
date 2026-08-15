@@ -28,8 +28,8 @@ export default defineConfig(() => ({
   },
   envPrefix: ["VITE_", "TAURI_"],
   optimizeDeps: {
-    // 只扫描根 index.html，排除 docs/index.html 干扰
-    entries: ["index.html"],
+    // 扫描根 index.html + tray-menu.html（Beta9 任务4 托盘菜单独立入口）
+    entries: ["index.html", "tray-menu.html"],
     // 预声明所有懒加载页面的依赖，避免首次访问时重新优化导致整页刷新
     include: [
       "react",
@@ -67,5 +67,12 @@ export default defineConfig(() => ({
     target: ["es2021", "chrome100", "safari13"],
     minify: !process.env.TAURI_DEBUG ? ("esbuild" as const) : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    // 多入口打包（Beta9 任务4：main + tray-menu 独立入口）
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        "tray-menu": path.resolve(__dirname, "tray-menu.html"),
+      },
+    },
   },
 }));

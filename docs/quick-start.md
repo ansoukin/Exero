@@ -17,8 +17,8 @@
 | Node.js | LTS | 运行打包脚本 |
 | 代码编辑器 | 任意 | 推荐 VS Code / TRAE IDE |
 
-::: warning CARGO_TARGET_DIR
-编译 .dll 前**必须**设置环境变量 `CARGO_TARGET_DIR=C:\cargo-target-dominate`，防止 cargo 增量清理污染回收站。
+::: tip 编译目录建议（可选）
+建议将环境变量 `CARGO_TARGET_DIR` 指向项目外的固定目录（如 `C:\cargo-target`）：多个插件共享编译缓存、不污染插件源码目录。不设置也能编译，产物默认在插件目录的 `target/` 下。
 :::
 
 ## 创建第一个动作包（Lua）
@@ -120,7 +120,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-exero-plugin-sdk = { path = "../../src-tauri/crates/exero-plugin-sdk" }
+exero-plugin-sdk = { path = "../../exero-plugin-sdk" }
 serde_json = "1"
 ```
 
@@ -203,12 +203,12 @@ declare_actions! {
 ### 6. 编译打包
 
 ```powershell
-# 设置 CARGO_TARGET_DIR（每个终端会话只需一次）
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
-
-# 编译 .dll
+# 编译 .dll（可选：先设置 CARGO_TARGET_DIR 指向项目外的固定目录）
 cd my-plugin
 cargo build --release
+
+# 复制产物到插件目录根（crate name 中的 - 自动转为 _）
+Copy-Item target\release\my_plugin.dll .
 
 # 打包（项目根目录执行）
 cd ..
@@ -216,6 +216,10 @@ Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force
 ```
 
 安装后侧边栏会出现 "My Plugin" 入口，点击进入插件页面。
+
+::: tip 插件在后台持续运行
+Beta9 起插件默认**持久运行**：切换到其他页面后插件（如正在播放的音乐）继续工作，可在「设置 → 插件」按插件开关此行为或手动停止。详见[插件开发指南](/guides/plugin#生命周期与持久运行)。
+:::
 
 ## 下一步
 

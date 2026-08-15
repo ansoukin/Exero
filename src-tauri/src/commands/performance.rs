@@ -14,14 +14,14 @@ use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
-use sysinfo::System;
+use sysinfo::{Disks, System};
 use tauri::State;
 
 use crate::db::Repository;
 use crate::error::Result;
 use crate::models::performance::{
-    CpuStatus, HardwareStatus, MemoryStatus, OptimizeResult, ProcessInfo, ProcessPriority,
-    ProcessSortBy, TemperatureReading,
+    CpuStatus, GpuStatus, HardwareStatus, MemoryStatus, OptimizeResult, ProcessInfo,
+    ProcessPriority, ProcessSortBy, StorageStatus, TemperatureReading,
 };
 use crate::state::AppState;
 
@@ -91,7 +91,8 @@ pub async fn get_hardware_status() -> Result<HardwareStatus> {
 
     // CPU
     let cpus = sys.cpus();
-    let cpu_name = cpus.first().map(|c| c.name().to_string()).unwrap_or_default();
+    // 注意：sysinfo 0.32 的 name() 返回逻辑名（如 "cpu0"），brand() 才是品牌名
+    let cpu_name = cpus.first().map(|c| c.brand().to_string()).unwrap_or_default();
     let overall_usage = sys.global_cpu_usage();
     let core_usages: Vec<f32> = cpus.iter().map(|c| c.cpu_usage()).collect();
     let core_count = cpus.len();
@@ -108,6 +109,23 @@ pub async fn get_hardware_status() -> Result<HardwareStatus> {
         total_bytes: sys.total_memory(),
         used_bytes: sys.used_memory(),
         available_bytes: sys.available_memory(),
+    };
+
+    // GPU（Beta9 · 任务3：从 LHM 传感器读取，支持 NVIDIA/AMD/Intel）
+    // LHM 不可用时字段为 None，前端显示"--"
+    let gpu = read_gpu_from_lhm();
+
+    // 存储（Beta9 · 任务3：sysinfo Disks 汇总所有逻辑磁盘）
+    let storage = {
+        let disks = Disks::new_with_refreshed_list();
+        let total: u64 = disks.list().iter().map(|d| d.total_space()).sum();
+        let available: u64 = disks.list().iter().map(|d| d.available_space()).sum();
+        StorageStatus {
+            total_bytes: total,
+            used_bytes: total.saturating_sub(available),
+            available_bytes: available,
+            disk_count: disks.list().len(),
+        }
     };
 
     // 温度（Phase 4 占位：返回 4 个组件的 None 读数，待 LHB 集成）
@@ -136,7 +154,9 @@ pub async fn get_hardware_status() -> Result<HardwareStatus> {
 
     Ok(HardwareStatus {
         cpu,
+        gpu,
         memory,
+        storage,
         temperatures,
     })
 }
@@ -486,6 +506,114 @@ fn kill_process_win32(pid: u32) -> Result<()> {
 /// 清理进程工作集（跨平台封装）
 fn empty_working_set_win32(pid: u32) -> bool {
     w::empty_working_set(pid)
+}
+
+// ============================================================
+// LHM 传感器读取（Beta9 · 任务3，GPU/CPU 温度数据源）
+// ============================================================
+
+/// 从 LHM 传感器读取 GPU 状态
+///
+/// LHM 不可用或读取失败时返回全 None 的 GpuStatus（前端显示"--"）。
+/// 支持多 GPU：取第一个非 Intel 核显的 GPU（与 NexBox 策略一致）。
+fn read_gpu_from_lhm() -> GpuStatus {
+    use crate::sensors::read_sensors;
+    use crate::sensors::bridge::SensorReading;
+
+    let response = match read_sensors() {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::debug!("LHM 传感器读取失败，GPU 降级为 None: {}", e);
+            return empty_gpu();
+        }
+    };
+
+    // 按 hardwareType 分组 GPU（LHM 用 GpuNvidia/GpuAmd/GpuIntel 区分）
+    let gpu_types: Vec<&str> = {
+        let mut types: Vec<&str> = response
+            .sensors
+            .iter()
+            .filter(|s| {
+                let t = s.hardware_type.to_lowercase();
+                t.starts_with("gpu")
+            })
+            .map(|s| s.hardware_type.as_str())
+            .collect();
+        types.dedup();
+        types
+    };
+
+    // 优先选 GpuAmd/GpuNvidia，跳过 GpuIntel 核显
+    let target_type = gpu_types
+        .iter()
+        .find(|t| {
+            let tl = t.to_lowercase();
+            tl.contains("amd") || tl.contains("nvidia")
+        })
+        .or_else(|| gpu_types.first())
+        .copied();
+
+    let target_type = match target_type {
+        Some(t) => t,
+        None => return empty_gpu(),
+    };
+
+    // 收集目标 GPU 的传感器
+    let gpu_sensors: Vec<&SensorReading> = response
+        .sensors
+        .iter()
+        .filter(|s| s.hardware_type == target_type)
+        .collect();
+
+    let name = gpu_sensors
+        .first()
+        .map(|s| s.hardware.clone())
+        .unwrap_or_default();
+
+    // GPU 使用率：sensor_type="Load" 且 name 含 "GPU Core"
+    let usage = gpu_sensors
+        .iter()
+        .filter(|s| s.sensor_type == "Load" && (s.name.contains("GPU Core") || s.name == "D3D 3D"))
+        .map(|s| s.value as f32)
+        .next();
+
+    // GPU 温度：sensor_type="Temperature" 且 name 含 "GPU Core"
+    let temperature = gpu_sensors
+        .iter()
+        .filter(|s| s.sensor_type == "Temperature" && s.name.contains("GPU Core"))
+        .map(|s| s.value as f32)
+        .next();
+
+    // 显存：sensor_type="SmallData" name 含 "GPU Memory" / "GPU Memory Used" / "GPU Memory Total"
+    let used_memory_bytes = gpu_sensors
+        .iter()
+        .filter(|s| s.sensor_type == "SmallData" && s.name.to_lowercase().contains("memory used"))
+        .map(|s| (s.value * 1024.0 * 1024.0 * 1024.0) as u64)
+        .next();
+    let total_memory_bytes = gpu_sensors
+        .iter()
+        .filter(|s| s.sensor_type == "SmallData" && s.name.to_lowercase().contains("memory total"))
+        .map(|s| (s.value * 1024.0 * 1024.0 * 1024.0) as u64)
+        .next();
+
+    GpuStatus {
+        name,
+        usage,
+        temperature,
+        total_memory_bytes,
+        used_memory_bytes,
+    }
+}
+
+/// 空 GPU 状态（LHM 不可用时的降级值）
+fn empty_gpu() -> GpuStatus {
+    GpuStatus {
+        name: String::new(),
+        usage: None,
+        temperature: None,
+        total_memory_bytes: None,
+        used_memory_bytes: None,
+    }
 }
 
 #[cfg(test)]

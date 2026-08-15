@@ -11,7 +11,8 @@
  * - 分页：上一页/下一页 + 页码
  * - 每页显示数：12 / 24 / 48
  * - 类型筛选 Tag：全部 / 动作包 / Lua 脚本
- * - 响应式卡片：宽屏长横幅（类 Modrinth），窄屏回退网格
+ * - 视图模式切换（Beta9 任务14）：横幅/网格并列两按钮，持久化到 settings
+ * - 响应式卡片：auto 模式宽屏横幅，窄屏回退网格
  * - 骨架屏加载动画（零布局跳动）
  */
 
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   Download,
   Info,
+  LayoutGrid,
   Loader2,
   Package,
   RefreshCw,
@@ -56,7 +58,9 @@ import {
 import {
   extensionPackCommands,
   extensionPackMarketCommands,
+  settingCommands,
   type MarketPack,
+  type Setting,
 } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app";
@@ -109,7 +113,42 @@ export function ExtensionMarketTab() {
 
   // 容器宽度检测（响应式切换横幅/网格）
   const listRef = useRef<HTMLDivElement>(null);
-  const [useBanner, setUseBanner] = useState(true);
+  const [autoBanner, setAutoBanner] = useState(true);
+
+  // Beta9 任务14：视图模式切换（banner 横幅 / grid 卡片网格）
+  // 用户手动选择会覆盖容器宽度自动判断，持久化到 settings
+  const VIEW_MODE_KEY = "extensions.view_mode";
+  const [viewMode, setViewMode] = useState<"banner" | "grid" | "auto">("auto");
+
+  // 启动时从 settings 加载用户视图偏好
+  useEffect(() => {
+    settingCommands
+      .get(VIEW_MODE_KEY)
+      .then((setting) => {
+        if (setting && ["banner", "grid", "auto"].includes(setting.value)) {
+          setViewMode(setting.value as "banner" | "grid" | "auto");
+        }
+      })
+      .catch((e) => console.error("[market] 加载视图偏好失败:", e));
+  }, []);
+
+  // 切换视图模式 + 持久化
+  function handleViewModeChange(mode: "banner" | "grid" | "auto") {
+    setViewMode(mode);
+    const setting: Setting = {
+      key: VIEW_MODE_KEY,
+      value: mode,
+      value_type: "string",
+    };
+    settingCommands.set(setting).catch((e) =>
+      console.error("[market] 保存视图偏好失败:", e),
+    );
+  }
+
+  // 实际使用 banner 还是 grid：
+  // - viewMode="banner" 强制横幅；"grid" 强制网格；"auto" 跟随容器宽度
+  const useBanner =
+    viewMode === "banner" ? true : viewMode === "grid" ? false : autoBanner;
 
   const loadMarket = useCallback(async () => {
     setLoading(true);
@@ -140,13 +179,13 @@ export function ExtensionMarketTab() {
     return () => clearTimeout(timer);
   }, [searchQuery, debouncedQuery]);
 
-  // 容器宽度监听：宽屏用横幅卡片，窄屏回退网格
+  // 容器宽度监听：宽屏用横幅卡片，窄屏回退网格（viewMode="auto" 时生效）
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0].contentRect.width;
-      setUseBanner(width >= BANNER_MIN_WIDTH);
+      setAutoBanner(width >= BANNER_MIN_WIDTH);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -295,6 +334,36 @@ export function ExtensionMarketTab() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Beta9 任务14：视图模式切换（Modrinth 式并列两按钮） */}
+        <div className="flex items-center overflow-hidden rounded-md border">
+          <button
+            onClick={() => handleViewModeChange("banner")}
+            title="横幅视图"
+            className={cn(
+              "flex h-9 items-center gap-1 px-2.5 text-xs font-medium transition-colors",
+              viewMode === "banner"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            )}
+          >
+            <LayoutPanelLeft className="h-4 w-4" />
+            横幅
+          </button>
+          <button
+            onClick={() => handleViewModeChange("grid")}
+            title="网格视图"
+            className={cn(
+              "flex h-9 items-center gap-1 px-2.5 text-xs font-medium transition-colors",
+              viewMode === "grid"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            网格
+          </button>
         </div>
 
         <Button onClick={loadMarket} size="sm" variant="outline" className="gap-1">

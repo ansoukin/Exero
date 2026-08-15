@@ -10,10 +10,48 @@ use serde::{Deserialize, Serialize};
 pub struct HardwareStatus {
     /// CPU 状态
     pub cpu: CpuStatus,
+    /// GPU 状态（Beta9 · 任务3 新增）
+    pub gpu: GpuStatus,
     /// 内存状态
     pub memory: MemoryStatus,
+    /// 存储状态（Beta9 · 任务3 新增）
+    pub storage: StorageStatus,
     /// 温度读数列表（Phase 4 占位：返回空 note 标记"待 LHB 集成"）
     pub temperatures: Vec<TemperatureReading>,
+}
+
+/// GPU 状态（Beta9 · 任务3）
+///
+/// 数据源 LibreHardwareMonitorLib（通过 NexBoxMonitor.exe 子进程）。
+/// 支持 NVIDIA/AMD/Intel 显卡的使用率、温度、显存。
+/// LHM 不可用时字段为 None，前端显示"--"。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuStatus {
+    /// GPU 型号名
+    pub name: String,
+    /// GPU 使用率（0-100），None 表示不支持
+    pub usage: Option<f32>,
+    /// GPU 温度（摄氏度），None 表示不支持
+    pub temperature: Option<f32>,
+    /// 显存总量（字节），None 表示不支持
+    pub total_memory_bytes: Option<u64>,
+    /// 已用显存（字节），None 表示不支持
+    pub used_memory_bytes: Option<u64>,
+}
+
+/// 存储状态（Beta9 · 任务3）
+///
+/// 数据源 sysinfo Disks，汇总所有逻辑磁盘。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageStatus {
+    /// 总容量（字节，所有盘汇总）
+    pub total_bytes: u64,
+    /// 已用容量（字节）
+    pub used_bytes: u64,
+    /// 可用容量（字节）
+    pub available_bytes: u64,
+    /// 磁盘数量
+    pub disk_count: usize,
 }
 
 /// CPU 使用率

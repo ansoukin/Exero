@@ -19,13 +19,11 @@
       href="/favicon-dark.ico"
       media="(prefers-color-scheme: dark)"
     />
-    <!-- 防止首帧白屏闪烁：React/CSS 加载前根据系统偏好预设背景色 + .dark 类 -->
+    <!-- 防止首帧白屏闪烁：body 透明让 Tauri transparent 窗口 + CSS 亚克力透出 -->
+    <!-- 首帧防闪由 #boot-splash div 自带背景色负责，不需要 body 白底 -->
     <style>
       html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-      body { background: #ffffff; }
-      @media (prefers-color-scheme: dark) {
-        body { background: #0a0a0f; }
-      }
+      html, body { background: transparent; }
     </style>
     <script>
       (function () {

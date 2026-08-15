@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { Home as HomeIcon, RefreshCw, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { TodayTasks } from "@/pages/home/TodayTasks";
+import { WorkflowPanel } from "@/pages/home/WorkflowPanel";
 import { RecentLogs } from "@/pages/home/RecentLogs";
 import { SystemStatus } from "@/pages/home/SystemStatus";
-import { QuickActionsPanel } from "@/pages/home/QuickActionsPanel";
 import {
   flowCommands,
   executionCommands,
@@ -14,13 +13,12 @@ import {
 } from "@/lib/tauri";
 
 /**
- * 首页 Dashboard（SPEC 3.5.1 页面 1）
+ * 首页 Dashboard（SPEC 3.5.1 页面 1 · Beta9 任务18 方案 C 重做）
  *
- * 4 模块布局：
- * - 今日任务预览（按时间排序）
- * - 最近执行记录（成功/失败状态）
- * - 系统状态卡片（CPU/内存，Phase 2 占位）
- * - 快捷动作（常用指令一键运行）
+ * 聚焦工作流风布局：
+ * - 顶部：精简欢迎条 + 日期 + 刷新按钮
+ * - 左大卡（60%）：任务工作流（合并原 TodayTasks + QuickActionsPanel，消除内容重叠）
+ * - 右栏（40%）：上方系统状态（CPU/内存迷你折线）+ 下方最近执行记录
  */
 export default function HomePage() {
   const [flows, setFlows] = useState<AutomationFlow[]>([]);
@@ -73,7 +71,7 @@ export default function HomePage() {
   });
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
+    <div className="flex flex-1 flex-col gap-6 p-6 density-aware">
       {/* 顶部欢迎区 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -107,17 +105,22 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 4 模块网格：2x2 响应式布局 */}
-      <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-        <TodayTasks flows={flows} loading={loading} />
-        <SystemStatus />
-        <QuickActionsPanel
-          flows={flows}
-          loading={loading}
-          executingId={executingId}
-          onExecute={handleExecute}
-        />
-        <RecentLogs logs={logs} loading={loading} />
+      {/* 主内容区：左 60% 任务工作流 + 右 40% 系统状态/最近记录（Beta9 任务18 方案 C） */}
+      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-5">
+        {/* 左大卡：任务工作流（合并原 TodayTasks + QuickActionsPanel） */}
+        <div className="lg:col-span-3">
+          <WorkflowPanel
+            flows={flows}
+            loading={loading}
+            executingId={executingId}
+            onExecute={handleExecute}
+          />
+        </div>
+        {/* 右栏：系统状态 + 最近执行记录，垂直堆叠 */}
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <SystemStatus />
+          <RecentLogs logs={logs} loading={loading} />
+        </div>
       </div>
     </div>
   );

@@ -1,20 +1,21 @@
 /**
- * 硬件监控面板（SPEC 3.6 页面 4）
+ * 硬件监控面板（Beta9 · 任务3 重做）
  *
- * 展示 CPU 使用率（总体 + 各核心）/ 内存（已用/可用/总量）/ 温度（占位待 LHB 集成）。
- * 数据由父组件 Performance.tsx 统一轮询，通过 props 传入。
+ * 参考 NexBox HardwarePage 的 StatCard 设计，精简为四卡片：
+ * CPU / GPU / 内存 / 存储，每卡片含图标+标题+大数值+副数值+底部 recharts 折线趋势图。
+ *
+ * 历史数据：组件内部维护 60 点滚动窗口（约 2 分钟，2 秒轮询），
+ * 每次 hardware props 更新时 push 一个采样点。
  */
 
-import { Cpu, MemoryStick, Thermometer, Loader2 } from "lucide-react";
+import { useEffect, useState, type ComponentType } from "react";
+import { Cpu, Monitor, MemoryStick, Database, Loader2 } from "lucide-react";
 
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Sparkline, pushPoint } from "@/components/ui/Sparkline";
 import type { HardwareStatus } from "@/lib/tauri";
 
 interface HardwareMonitorProps {
@@ -23,39 +24,103 @@ interface HardwareMonitorProps {
   error: string | null;
 }
 
+/** 历史数据状态 */
+interface HistoryState {
+  cpu: number[];
+  gpu: number[];
+  mem: number[];
+  storage: number[];
+}
+
 /** 字节格式化为 GB */
 function formatBytes(bytes: number): string {
   const gb = bytes / 1024 / 1024 / 1024;
   return gb.toFixed(1);
 }
 
-/** 根据使用率返回颜色 */
-function usageColor(usage: number): string {
-  if (usage >= 80) return "bg-red-500";
-  if (usage >= 50) return "bg-amber-500";
-  return "bg-emerald-500";
+/** 百分比格式化（null 显示"--"） */
+function formatPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "--";
+  return `${value.toFixed(0)}%`;
 }
 
-/** 根据使用率返回文字颜色 */
-function usageText(usage: number): string {
-  if (usage >= 80) return "text-red-500";
-  if (usage >= 50) return "text-amber-500";
-  return "text-emerald-500";
+/** 四卡片配置色（参考 NexBox） */
+const COLORS = {
+  cpu: "#3b82f6",
+  gpu: "#22c55e",
+  memory: "#06b6d4",
+  storage: "#a855f7",
+};
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  subValue: string;
+  /** 型号名（独立行小字，可截断，可选） */
+  model?: string;
+  color: string;
+  history: number[];
+  gradId: string;
+  icon: ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
-/** 进度条 */
-function ProgressBar({ value, className }: { value: number; className?: string }) {
+/** 统计卡片：图标+标题+型号+大数值+副数值+底部折线趋势图 */
+function StatCard({ title, value, subValue, model, color, history, gradId, icon: Icon }: StatCardProps) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className={cn("h-full rounded-full transition-all duration-500", className)}
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
+    <Card className="overflow-hidden">
+      <CardContent className="relative p-4">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4" style={{ color }} />
+          <span className="text-sm font-medium text-muted-foreground">{title}</span>
+        </div>
+        {/* 型号名（Beta9 任务10：CPU/GPU 型号显示） */}
+        {model && (
+          <div
+            className="mt-0.5 truncate text-xs text-muted-foreground/80"
+            title={model}
+          >
+            {model}
+          </div>
+        )}
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-3xl font-bold tracking-tight">{value}</span>
+          <span className="text-xs text-muted-foreground">{subValue}</span>
+        </div>
+        <div className="mt-2">
+          <Sparkline data={history} color={color} gradId={gradId} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 export function HardwareMonitor({ hardware, loading, error }: HardwareMonitorProps) {
+  const [history, setHistory] = useState<HistoryState>({
+    cpu: [],
+    gpu: [],
+    mem: [],
+    storage: [],
+  });
+
+  // hardware 更新时追加历史采样点
+  useEffect(() => {
+    if (!hardware) return;
+    const memPercent =
+      hardware.memory.total_bytes > 0
+        ? (hardware.memory.used_bytes / hardware.memory.total_bytes) * 100
+        : 0;
+    const storagePercent =
+      hardware.storage.total_bytes > 0
+        ? (hardware.storage.used_bytes / hardware.storage.total_bytes) * 100
+        : 0;
+    setHistory((prev) => ({
+      cpu: pushPoint(prev.cpu, hardware.cpu.overall_usage),
+      gpu: pushPoint(prev.gpu, hardware.gpu.usage ?? 0),
+      mem: pushPoint(prev.mem, memPercent),
+      storage: pushPoint(prev.storage, storagePercent),
+    }));
+  }, [hardware]);
+
   if (loading && !hardware) {
     return (
       <div className="flex h-48 items-center justify-center text-muted-foreground">
@@ -77,141 +142,80 @@ export function HardwareMonitor({ hardware, loading, error }: HardwareMonitorPro
 
   if (!hardware) return null;
 
-  const memUsagePercent = hardware.memory.total_bytes > 0
-    ? (hardware.memory.used_bytes / hardware.memory.total_bytes) * 100
-    : 0;
+  const memPercent =
+    hardware.memory.total_bytes > 0
+      ? (hardware.memory.used_bytes / hardware.memory.total_bytes) * 100
+      : 0;
+  const storagePercent =
+    hardware.storage.total_bytes > 0
+      ? (hardware.storage.used_bytes / hardware.storage.total_bytes) * 100
+      : 0;
+
+  // Beta9 任务10：LHM 是否就绪（GPU name 非空说明 LHM 读取成功）
+  const lhmReady = !!hardware.gpu.name;
+  // GPU 副数值：温度优先，其次显存，最后占位
+  const gpuSubValue = hardware.gpu.temperature !== null
+    ? `${hardware.gpu.temperature.toFixed(0)}°C`
+    : hardware.gpu.used_memory_bytes !== null && hardware.gpu.total_memory_bytes !== null
+      ? `${formatBytes(hardware.gpu.used_memory_bytes)} / ${formatBytes(hardware.gpu.total_memory_bytes)} GB`
+      : lhmReady
+        ? "--"
+        : "LHM 未就绪";
 
   return (
-    <div className="space-y-4">
-      {/* CPU + 内存 双卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* CPU 卡片 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Cpu className="h-4 w-4 text-primary" />
-              CPU
-            </CardTitle>
-            <CardDescription className="truncate text-xs">
-              {hardware.cpu.name || "未知型号"} · {hardware.cpu.core_count} 核心
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* 总体使用率 */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">总体使用率</span>
-                <span className={cn("font-mono font-semibold", usageText(hardware.cpu.overall_usage))}>
-                  {hardware.cpu.overall_usage.toFixed(1)}%
-                </span>
-              </div>
-              <ProgressBar
-                value={hardware.cpu.overall_usage}
-                className={usageColor(hardware.cpu.overall_usage)}
-              />
-            </div>
-            {/* 各核心使用率（紧凑网格） */}
-            {hardware.cpu.core_usages.length > 0 && (
-              <div className="space-y-1">
-                <div className="text-[10px] text-muted-foreground">各核心</div>
-                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
-                  {hardware.cpu.core_usages.map((usage, i) => (
-                    <div key={i} className="space-y-0.5">
-                      <div className="text-center text-[9px] text-muted-foreground">
-                        {i + 1}
-                      </div>
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn("h-full rounded-full", usageColor(usage))}
-                          style={{ width: `${Math.min(100, usage)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 内存卡片 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <MemoryStick className="h-4 w-4 text-primary" />
-              内存
-            </CardTitle>
-            <CardDescription className="text-xs">
-              已用 {formatBytes(hardware.memory.used_bytes)} GB / 共{" "}
-              {formatBytes(hardware.memory.total_bytes)} GB
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">使用率</span>
-                <span className={cn("font-mono font-semibold", usageText(memUsagePercent))}>
-                  {memUsagePercent.toFixed(1)}%
-                </span>
-              </div>
-              <ProgressBar
-                value={memUsagePercent}
-                className={usageColor(memUsagePercent)}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="rounded-md bg-muted/50 py-1.5">
-                <div className="text-muted-foreground">已用</div>
-                <div className="font-mono font-semibold">
-                  {formatBytes(hardware.memory.used_bytes)}
-                </div>
-              </div>
-              <div className="rounded-md bg-muted/50 py-1.5">
-                <div className="text-muted-foreground">可用</div>
-                <div className="font-mono font-semibold">
-                  {formatBytes(hardware.memory.available_bytes)}
-                </div>
-              </div>
-              <div className="rounded-md bg-muted/50 py-1.5">
-                <div className="text-muted-foreground">总量</div>
-                <div className="font-mono font-semibold">
-                  {formatBytes(hardware.memory.total_bytes)}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="CPU"
+          value={formatPercent(hardware.cpu.overall_usage)}
+          subValue={`${hardware.cpu.core_count} 核心`}
+          model={hardware.cpu.name || undefined}
+          color={COLORS.cpu}
+          history={history.cpu}
+          gradId="grad-cpu"
+          icon={Cpu}
+        />
+        <StatCard
+          title="GPU"
+          value={formatPercent(hardware.gpu.usage)}
+          subValue={gpuSubValue}
+          model={hardware.gpu.name || "未检测到 GPU"}
+          color={COLORS.gpu}
+          history={history.gpu}
+          gradId="grad-gpu"
+          icon={Monitor}
+        />
+        <StatCard
+          title="内存"
+          value={formatPercent(memPercent)}
+          subValue={`${formatBytes(hardware.memory.used_bytes)} / ${formatBytes(hardware.memory.total_bytes)} GB`}
+          color={COLORS.memory}
+          history={history.mem}
+          gradId="grad-mem"
+          icon={MemoryStick}
+        />
+        <StatCard
+          title="存储"
+          value={formatPercent(storagePercent)}
+          subValue={`${formatBytes(hardware.storage.used_bytes)} / ${formatBytes(hardware.storage.total_bytes)} GB`}
+          color={COLORS.storage}
+          history={history.storage}
+          gradId="grad-storage"
+          icon={Database}
+        />
       </div>
 
-      {/* 温度卡片（Phase 4 占位，待 LHB 集成） */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Thermometer className="h-4 w-4 text-primary" />
-            温度监控
-          </CardTitle>
-          <CardDescription className="text-xs">
-            待集成 LibreHardwareMonitorLib（未来版本）
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {hardware.temperatures.map((temp) => (
-              <div
-                key={temp.component}
-                className="rounded-md border border-dashed bg-muted/30 px-3 py-2.5 text-center"
-              >
-                <div className="text-xs font-medium text-muted-foreground">
-                  {temp.component}
-                </div>
-                <div className="mt-1 font-mono text-sm text-muted-foreground/60">
-                  — °C
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* GPU 占位提示（Beta9 任务10：LHM 资源缺失时显示根因 + 解决方案） */}
+      {!lhmReady && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+          <span className="font-medium">GPU 数据不可用：</span>
+          LHM 子进程未启动。根因：<code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">NexBoxMonitor.exe</code>
+          及依赖 DLL（共 12 个文件）被 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">.gitignore</code> 的
+          <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">*.exe / *.dll</code> 规则排除入库。
+          请从 NexBox 项目 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">src-tauri/resources/monitor/</code>
+          复制这些二进制资源到 Exero 同名目录后重启应用。
+        </div>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Exero
   text: 开发者文档
-  tagline: Windows 桌面自动化管理工具 · 可视化积木 + 快捷指令 + 扩展市场
+  tagline: Windows 桌面自动化管理工具 · 时间触发器 + 插件持久运行 + Win11 亚克力 + 可视化积木
   actions:
     - theme: brand
       text: 快速入门
@@ -18,9 +18,11 @@ hero:
 
 features:
   - title: 可视化积木编辑器
-    details: 拖拽连线组合工作流，6 大类 20 种动作节点，无需写一行代码。基于 React Flow 实现。
+    details: 拖拽连线组合工作流，6 大类 20 种动作节点 + 时间触发器积木（重复规则 / 课表触发），无需写一行代码。基于 React Flow 实现。
   - title: 双扩展形态
     details: 动作包（Action Pack）提供 Flow 积木，插件（Plugin）提供完整 UI 页面。支持 Rust .dll 和 Lua 两种执行器。
+  - title: 插件持久运行
+    details: 类 Chrome 扩展的常驻 iframe 宿主层，切换页面音乐不停；设置→插件分区提供 keep-alive 开关、缓存清理、强制停止与权限徽章。
   - title: Rust 高性能后端
     details: Tauri v2 + Rust，libloading 动态加载 .dll，C ABI 稳定接口，exero-plugin-sdk 宏自动生成。
   - title: Lua 脚本沙箱
@@ -29,6 +31,10 @@ features:
     details: iframe 隔离 + Tauri 自定义协议 + postMessage 桥接 API，插件崩溃不影响主程序。
   - title: 🎵 官方音乐播放器插件
     details: 本地音频播放器：播放控制、播放模式、持久化播放列表、专辑封面与内嵌歌词显示，适配明暗模式。与宿主存储 API 的完美示范。
+  - title: Win11 亚克力与外观定制
+    details: 系统级 Acrylic 磨砂（Win10 自动降级）+ DWM 圆角；界面密度、字体、图标风格、LiquidGlass 实验玻璃与自定义主题色。
+  - title: 性能监控四卡片
+    details: CPU / GPU / 内存 / 存储四卡片 + recharts 实时趋势折线与型号显示，LHM 子进程提供 GPU 真实数据。
   - title: 在线扩展市场
     details: GitHub 仓库分发，market-index.json 索引优化，一键安装/更新/卸载，镜像加速 + 离线兜底。
 ---

@@ -14,7 +14,8 @@ export type PageId =
   | "quick-actions"
   | "extensions"
   | "performance"
-  | "settings";
+  | "settings"
+  | "changelog";
 
 /**
  * 动态页面 id 前缀

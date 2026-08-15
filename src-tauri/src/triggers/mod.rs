@@ -10,6 +10,7 @@
 
 pub mod scheduler;
 pub mod cron;
+pub mod course;
 pub mod system_event;
 pub mod manual;
 

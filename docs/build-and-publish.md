@@ -52,20 +52,16 @@ $zip.Dispose()
 
 ### 1. 编译 .dll
 
-::: danger 每个终端会话先执行！
-```powershell
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
-```
-防止 cargo 增量构建清理时污染回收站。
-:::
-
 ```powershell
 cd my-plugin
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
 cargo build --release
 ```
 
-产物：`C:\cargo-target-dominate\release\my_plugin.dll`
+产物：`target\release\my_plugin.dll`（若设置了 `CARGO_TARGET_DIR` 环境变量，则在对应目录的 `release\` 下）
+
+::: tip CARGO_TARGET_DIR（可选）
+将 `CARGO_TARGET_DIR` 指向项目外的固定目录（如 `C:\cargo-target`）可以让多个插件共享编译缓存，并保持插件源码目录干净。这是可选项，不设置不影响编译。
+:::
 
 ::: tip 产物名规则
 Cargo `name` 字段中的 `-` 自动转为 `_`：
@@ -84,7 +80,7 @@ Cargo `name` 字段中的 `-` 自动转为 `_`：
 #   ├── index.html
 #   └── assets/...
 
-Copy-Item C:\cargo-target-dominate\release\my_plugin.dll .\my-plugin\
+Copy-Item target\release\my_plugin.dll .\my-plugin\
 ```
 
 ### 3. 打包
@@ -105,7 +101,7 @@ Compress-Archive -Path my-plugin\* -DestinationPath my-plugin.exero-pack -Force
 5. 扫描所有 `.exero-pack` 读取 manifest，生成 `Market/market-index.json`（**无 BOM UTF-8**）
 
 ```powershell
-# 必须在项目根目录 e:\Project\Exero 执行
+# 在项目根目录执行
 powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1
 ```
 
@@ -175,7 +171,8 @@ Market/
 
 | 项 | 值 |
 |---|---|
-| 仓库 | `ansoukin/Exero`（main 分支） |
+| 主仓库 | `ansoukin/Exero`（main 分支） |
+| 备源仓库 | `gitee.com/ansoukin/Exero`（GitHub Actions 自动同步，内容一致） |
 | 动作包路径 | `Market/action-packs/<file_name>` |
 | 插件路径 | `Market/plugins/<file_name>` |
 | 索引路径 | `Market/market-index.json` |
@@ -184,19 +181,18 @@ Market/
 ### 发布步骤
 
 ```powershell
-# 1. 编译所有插件 .dll（用户手动在 TRAE IDE Terminal 执行）
+# 1. 编译插件 .dll
 cd examples\hello-plugin
-$env:CARGO_TARGET_DIR="C:\cargo-target-dominate"
 cargo build --release
 cd ..\..
 
-# 2. 构建市场（含打包 + 索引）（用户手动在 TRAE IDE Terminal 执行）
+# 2. 构建市场（含打包 + 索引）
 powershell -ExecutionPolicy Bypass -File scripts\build-packs.ps1
 
 # 3. 验证（检查 index 是否包含新包）
 Get-Content Market\market-index.json | ConvertFrom-Json
 
-# 4. 提交 + Push（用户手动）
+# 4. 提交 + Push
 git add Market/
 git commit -m "feat(market): add xxx plugin"
 git push
@@ -206,8 +202,11 @@ git push
 
 Exero 内部下载时的降级顺序：
 1. `github.com` 直连
-2. `ghproxy` 镜像加速（直连失败）
-3. **离线模式**：仅展示/使用已安装包（完全断网时）
+2. `gitee.com` 备源（与 GitHub 内容自动同步，直连失败时切换）
+3. `ghproxy` 镜像加速（前两者均失败）
+4. **离线模式**：仅展示/使用已安装包（完全断网时）
+
+应用更新（UpdateManager 下载安装包）走同样的四级降级。
 
 ---
 

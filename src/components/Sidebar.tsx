@@ -14,6 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Home,
   CalendarDays,
@@ -23,17 +24,13 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
-  Package,
-  Boxes,
-  Layers,
-  Puzzle,
-  Wrench,
   GripVertical,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PackIcon } from "@/components/PackIcon";
 import {
   useAppStore,
   type PageId,
@@ -41,25 +38,39 @@ import {
   packPageId,
 } from "@/stores/app";
 import { extensionPackCommands, settingCommands, type Setting } from "@/lib/tauri";
+import { useThemeStore } from "@/stores/theme";
 
-/** 侧边栏图标名称 -> 组件映射（扩展包入口用） */
-const SIDEBAR_ICON_MAP: Record<string, LucideIcon> = {
-  Package,
-  Boxes,
-  Layers,
-  Puzzle,
-  Wrench,
-  Store,
-  Home,
-  CalendarDays,
-  Zap,
-  Gauge,
-  Settings,
-};
+/** framer-motion 缓动曲线（对齐 CSS --ease-fluent） */
+const EASE_FLUENT = [0.16, 1, 0.3, 1] as const;
 
-/** 按名称获取侧边栏图标，找不到用 Package 默认 */
-function getSidebarIcon(name: string): LucideIcon {
-  return SIDEBAR_ICON_MAP[name] ?? Package;
+/**
+ * 折叠/展开文字过渡组件
+ * 配合侧边栏宽度动画，让文字标签平滑淡入淡出，避免突变
+ */
+function CollapseText({
+  show,
+  children,
+  className,
+}: {
+  show: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <AnimatePresence initial={false}>
+      {show && (
+        <motion.span
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -8 }}
+          transition={{ duration: 0.15, ease: EASE_FLUENT }}
+          className={cn("whitespace-nowrap", className)}
+        >
+          {children}
+        </motion.span>
+      )}
+    </AnimatePresence>
+  );
 }
 
 /** 内置导航项定义（SPEC 3.3：6 项导航，Beta3 扩展市场独立） */
@@ -67,16 +78,39 @@ interface NavItem {
   id: PageId;
   label: string;
   icon: LucideIcon;
+  /** Segoe Fluent Icons 码点（Beta9 任务17c：图标风格切换用，Win10 落 MDL2 同形） */
+  segoeChar: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "home", label: "首页", icon: Home },
-  { id: "timeline", label: "时间轴", icon: CalendarDays },
-  { id: "quick-actions", label: "快捷指令", icon: Zap },
-  { id: "extensions", label: "扩展市场", icon: Store },
-  { id: "performance", label: "性能优化", icon: Gauge },
-  { id: "settings", label: "设置", icon: Settings },
+  { id: "home", label: "首页", icon: Home, segoeChar: "E80F" },
+  { id: "timeline", label: "时间轴", icon: CalendarDays, segoeChar: "E787" },
+  { id: "quick-actions", label: "快捷指令", icon: Zap, segoeChar: "E945" },
+  { id: "extensions", label: "扩展市场", icon: Store, segoeChar: "E719" },
+  { id: "performance", label: "性能优化", icon: Gauge, segoeChar: "E9D9" },
+  { id: "settings", label: "设置", icon: Settings, segoeChar: "E713" },
 ];
+
+/** Segoe 系统图标字体 fallback 链（Win11 Fluent → Win10 MDL2） */
+const SEGOE_FONT = '"Segoe Fluent Icons","Segoe MDL2 Assets"';
+
+/** 导航图标渲染：按用户图标风格偏好切换 lucide / Segoe（Beta9 任务17c） */
+function NavIcon({ item, className }: { item: NavItem; className?: string }) {
+  const iconStyle = useThemeStore((s) => s.appearance.iconStyle);
+  if (iconStyle === "segoe") {
+    return (
+      <span
+        aria-hidden
+        className={cn("flex h-5 w-5 shrink-0 items-center justify-center leading-none", className)}
+        style={{ fontFamily: SEGOE_FONT, fontSize: "15px" }}
+      >
+        {String.fromCodePoint(parseInt(item.segoeChar, 16))}
+      </span>
+    );
+  }
+  const Icon = item.icon;
+  return <Icon className={cn("h-5 w-5 shrink-0", className)} />;
+}
 
 /** settings 表中存储侧边栏排序的键 */
 const SIDEBAR_ORDER_KEY = "extension_pack.sidebar_order";
@@ -273,7 +307,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r bg-[hsl(var(--sidebar))] transition-[width] duration-200 ease-in-out",
+        "flex h-full flex-col surface-sidebar transition-[width] duration-200 ease-in-out",
         collapsed ? "w-16" : "w-60",
       )}
     >
@@ -281,16 +315,16 @@ export function Sidebar() {
       <div
         data-tauri-drag-region
         className={cn(
-          "flex h-12 shrink-0 items-center border-b",
+          "flex h-12 shrink-0 items-center border-b overflow-hidden",
           collapsed ? "justify-center px-0" : "gap-2 px-4",
         )}
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <span className="text-sm font-bold leading-none">E</span>
         </div>
-        {!collapsed && (
+        <CollapseText show={!collapsed}>
           <span className="text-base font-bold tracking-tight">EXERO</span>
-        )}
+        </CollapseText>
       </div>
 
       {/* 中部导航项（鼠标悬停滚动滚轮可无限循环切换页面） */}
@@ -301,8 +335,10 @@ export function Sidebar() {
       >
         {/* 内置导航（固定顺序，不可拖拽） */}
         {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = currentPage === item.id;
+          // Beta9 任务8：changelog 视为 settings 的二级页面，settings 高亮
+          const active =
+            currentPage === item.id ||
+            (item.id === "settings" && currentPage === "changelog");
           return (
             <button
               key={item.id}
@@ -310,15 +346,17 @@ export function Sidebar() {
               onClick={() => setPage(item.id)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "interactive flex h-12 items-center rounded-md text-sm font-medium",
+                "interactive flex h-12 items-center rounded-md text-sm font-medium overflow-hidden",
                 collapsed ? "justify-center px-0" : "px-3",
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-[hsl(var(--sidebar-foreground))] hover:bg-accent hover:text-accent-foreground",
               )}
             >
-              <Icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span className="ml-3">{item.label}</span>}
+              <NavIcon item={item} />
+              <CollapseText show={!collapsed} className="ml-3">
+                {item.label}
+              </CollapseText>
             </button>
           );
         })}
@@ -370,15 +408,17 @@ export function Sidebar() {
           variant="ghost"
           size="icon"
           onClick={toggleSidebar}
-          className={cn("h-12 w-full", collapsed && "px-0")}
+          className={cn("h-12 w-full overflow-hidden", collapsed && "px-0")}
           title={collapsed ? "展开侧边栏" : "折叠侧边栏"}
         >
           {collapsed ? (
             <PanelLeftOpen className="h-5 w-5" />
           ) : (
             <>
-              <PanelLeftClose className="h-5 w-5" />
-              <span className="ml-2">折叠</span>
+              <PanelLeftClose className="h-5 w-5 shrink-0" />
+              <CollapseText show={!collapsed} className="ml-2">
+                折叠
+              </CollapseText>
             </>
           )}
         </Button>
@@ -396,21 +436,23 @@ interface SidebarButtonProps {
 }
 
 function SidebarButton({ entry, active, collapsed, onClick }: SidebarButtonProps) {
-  const Icon = getSidebarIcon(entry.iconName);
   return (
     <button
       onClick={onClick}
       title={collapsed ? entry.label : undefined}
       className={cn(
-        "interactive flex h-12 items-center rounded-md text-sm font-medium",
+        "interactive flex h-12 items-center rounded-md text-sm font-medium overflow-hidden",
         collapsed ? "justify-center px-0" : "px-3",
         active
           ? "bg-primary/10 text-primary"
           : "text-[hsl(var(--sidebar-foreground))] hover:bg-accent hover:text-accent-foreground",
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
-      {!collapsed && <span className="ml-3">{entry.label}</span>}
+      {/* Beta9 任务15：三源图标（lucide / segoe: / img:），img: 用 packId 构造 URL */}
+      <PackIcon spec={entry.iconName} packId={entry.packId} size={20} className="shrink-0" />
+      <CollapseText show={!collapsed} className="ml-3">
+        {entry.label}
+      </CollapseText>
     </button>
   );
 }
@@ -435,8 +477,6 @@ function SortableSidebarButton({
     transition,
     isDragging,
   } = useSortable({ id: entry.packId });
-
-  const Icon = getSidebarIcon(entry.iconName);
 
   return (
     <div
@@ -471,7 +511,7 @@ function SortableSidebarButton({
         className="interactive flex h-12 flex-1 items-center pr-3"
         title={entry.label}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <PackIcon spec={entry.iconName} packId={entry.packId} size={20} className="shrink-0" />
         <span className="ml-3">{entry.label}</span>
       </button>
     </div>

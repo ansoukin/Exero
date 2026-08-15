@@ -5,7 +5,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=white)](https://v2.tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![Version](https://img.shields.io/badge/Version-0.4.0--Beta8-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.4.0--Beta9-orange.svg)]()
 [![Phase](https://img.shields.io/badge/Phase-6%20All%20Complete-brightgreen.svg)]()
 
 个人自动化助手 - 基于 Tauri v2 + Rust 的 Windows 桌面自动化工具。
@@ -14,7 +14,19 @@
 
 ## 当前状态
 
-**V0.4.0 Beta8** - 宿主存储 API + 扩展更新安装修复 + 音乐播放器 v0.2.2：
+**V0.4.0 Beta9** - 时间触发器 + 插件持久运行 + 系统亚克力 + 全面视觉升级：
+
+**Beta9**：
+
+- ⏰ **时间触发器积木**（重点）：控制流分组新增时间触发积木，重复规则（每天 / 每周 / 每 N 天 / 指定日期）+ 课表触发（课前 N 分钟 / 课中 / 课后，周次适配），属性面板常驻配置
+- 🔌 **插件持久运行协议**：类 Chrome 扩展的常驻 iframe 宿主层，切换页面音乐不停；设置新增「插件」分区（keep-alive 开关 / 缓存清理 / 强制停止 / 权限徽章）
+- 🪟 **Win11 系统亚克力**：DWMSB 系统背景（Win10 自动降级）+ DWM 物理圆角，彻底根治无边框黑边，默认开启、可关闭
+- 🎨 **外观定制扩充**：自定义主题色取色器、界面密度、字体族与字号、图标风格（Lucide / Segoe Fluent Icons）切换、LiquidGlass 实验性玻璃
+- 📊 **性能页四卡片**：CPU / GPU / 内存 / 存储卡片 + recharts 实时趋势折线 + CPU/GPU 型号显示，LHM 子进程提供 GPU 真实数据
+- 🏠 **首页工作流布局**：今日任务 + 快捷指令合并为「任务工作流」大卡，系统状态新增 CPU / 内存迷你折线
+- 视觉与体验全面升级：开屏动画统一（老用户自动跳过打字机）、托盘 Apple 风自绘菜单、关于页 Win11 设置风 + 鸣谢区、更新弹窗流式进度条 + GitHub→Gitee→ghproxy 三级备源、扩展市场横幅 / 网格双视图切换、更新历史二级页面、扩展包图标三源支持（lucide / segoe / img）
+- 动画体系迁移 framer-motion、通知迁移 sonner、控制流积木视觉优化（类别竖条 / 端口反馈 / 连线蚂蚁线动画）、sidebar 折叠动画修复
+- 移除：音乐插件动作积木（改纯页面插件）、更新频率「每次启动」选项、手写 CSS 动画体系
 
 **Beta8**：
 

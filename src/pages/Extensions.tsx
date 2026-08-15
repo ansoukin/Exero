@@ -20,7 +20,7 @@ import { ExtensionMarketTab } from "@/pages/quickactions/ExtensionMarketTab";
  */
 export default function ExtensionsPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-6">
+    <div className="flex flex-1 flex-col gap-4 p-6 density-aware">
       {/* 顶部标题 */}
       <div className="flex items-center gap-3">
         <Store className="h-6 w-6 text-primary" />

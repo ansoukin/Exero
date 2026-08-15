@@ -8,16 +8,19 @@
 //! 调度器由 AppState 持有，启动时加载所有启用的触发器并启动后台任务。
 
 use std::sync::Arc;
+use std::time::Duration;
 
+use chrono::Utc;
 use parking_lot::RwLock;
 use tauri::AppHandle;
 use tauri::async_runtime::{spawn, JoinHandle};
 
-use crate::db::Database;
+use crate::db::{Database, Repository};
 use crate::error::{AppError, Result};
 use crate::models::common::TriggerType;
-use crate::models::trigger::CronTriggerParams;
+use crate::models::trigger::{CourseTriggerParams, CronTriggerParams};
 
+use super::course;
 use super::cron::CronTrigger;
 use super::manual::ManualTriggerHandle;
 use super::system_event::{build_event_match, EventCallback, SystemEventMonitor};
@@ -102,6 +105,7 @@ impl TriggerScheduler {
         tracing::info!("加载 {} 个启用的触发器", triggers.len());
 
         let mut cron_count = 0;
+        let mut course_count = 0;
         let mut event_count = 0;
         let mut other_count = 0;
 
@@ -143,8 +147,16 @@ impl TriggerScheduler {
                     other_count += 1;
                 }
                 TriggerType::CourseStart => {
-                    tracing::debug!("课表触发器 Phase 1 暂不调度 (trigger={})", trigger.id);
-                    other_count += 1;
+                    if let Err(e) = self.start_course_trigger(&trigger) {
+                        tracing::error!(
+                            "启动课表触发器失败 {} (flow={}): {}",
+                            trigger.id,
+                            trigger.flow_id,
+                            e
+                        );
+                    } else {
+                        course_count += 1;
+                    }
                 }
                 TriggerType::Manual => {
                     // 手动触发器无需后台任务
@@ -165,8 +177,8 @@ impl TriggerScheduler {
 
         *started = true;
         tracing::info!(
-            "触发器调度器已启动：{} 个 Cron 任务，{} 个系统事件规则，{} 个待实现事件",
-            cron_count, event_count, other_count
+            "触发器调度器已启动：{} 个 Cron 任务，{} 个课表触发，{} 个系统事件规则，{} 个待实现事件",
+            cron_count, course_count, event_count, other_count
         );
         Ok(())
     }
@@ -302,6 +314,67 @@ impl TriggerScheduler {
 
                 // 短暂休眠避免在边界情况下重复触发
                 tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+            }
+        });
+
+        self.cron_tasks.write().push(task);
+        Ok(())
+    }
+
+    /// 启动单个课表触发器（Beta9 · 任务1）
+    ///
+    /// 读取课程/节次/学期，按 timing 计算下一次触发时间，到点执行后重新计算。
+    fn start_course_trigger(&self, trigger: &crate::models::Trigger) -> Result<()> {
+        let params: CourseTriggerParams = serde_json::from_value(trigger.params.clone())?;
+        let db = self.db.clone();
+        let trigger_id = trigger.id.clone();
+        let flow_id = trigger.flow_id.clone();
+        let callback = self
+            .execute_callback
+            .read()
+            .clone()
+            .ok_or_else(|| AppError::Trigger("未注入执行回调".into()))?;
+
+        let task = spawn(async move {
+            tracing::info!("课表触发器已启动: trigger={} flow={}", trigger_id, flow_id);
+            loop {
+                let repo = Repository::new(&db);
+                let next = match course::next_fire_time(&repo, &params) {
+                    Ok(Some(t)) => t,
+                    Ok(None) => {
+                        tracing::warn!(
+                            "课表触发器 {} 无法计算下一次触发时间，1 小时后重试",
+                            trigger_id
+                        );
+                        tokio::time::sleep(Duration::from_secs(3600)).await;
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::error!("课表触发器 {} 计算失败: {}", trigger_id, e);
+                        tokio::time::sleep(Duration::from_secs(3600)).await;
+                        continue;
+                    }
+                };
+                let now = Utc::now();
+                let delay_ms = if next > now {
+                    (next - now).num_milliseconds().max(0) as u64
+                } else {
+                    0
+                };
+                tracing::info!(
+                    "课表触发器 {} 下一次触发: {} ({}ms 后)",
+                    trigger_id,
+                    next,
+                    delay_ms
+                );
+                tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                tracing::info!("课表触发器 {} 触发执行 flow={}", trigger_id, flow_id);
+
+                let fid = flow_id.clone();
+                let cb = callback.clone();
+                let _ = tokio::task::spawn_blocking(move || cb(fid)).await;
+                // 短暂休眠避免边界重复触发
+                tokio::time::sleep(Duration::from_millis(1000)).await;
             }
         });
 

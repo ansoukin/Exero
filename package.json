@@ -1,7 +1,7 @@
 {
   "name": "exero",
   "private": true,
-  "version": "0.4.0-Beta8",
+  "version": "0.4.0-Beta9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -34,11 +34,14 @@
     "clsx": "^2.1.1",
     "cron-parser": "^5.8.1",
     "driver.js": "^1.8.0",
+    "framer-motion": "^13.1.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
+    "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "zustand": "^4.5.5"

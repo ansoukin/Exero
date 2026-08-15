@@ -14,15 +14,91 @@ pub mod commands;
 pub mod state;
 pub mod extension_pack;
 pub mod plugin_storage;
+pub mod sensors;
 
 use std::sync::Arc;
 
-use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, WindowEvent};
 
 use crate::db::Repository;
 use crate::state::AppState;
+
+// Windows DWM 物理窗口圆角（Win11+）
+// DWMWA_WINDOW_CORNER_PREFERENCE = 33
+// DWMWCP_ROUND = 2（系统标准圆角，约 8px）
+#[cfg(windows)]
+const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
+#[cfg(windows)]
+const DWMWCP_ROUND: i32 = 2;
+/// DWM 边框颜色属性（Win11 22H2+）
+#[cfg(windows)]
+const DWMWA_BORDER_COLOR: u32 = 34;
+/// 无边框颜色值（移除 Win11 原生边框）
+#[cfg(windows)]
+const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE;
+
+/// 检测是否 Windows 11（build >= 22000）
+/// Win11 才支持 DWM 物理窗口圆角，Win10 不支持
+#[cfg(windows)]
+fn is_windows_11() -> bool {
+    use windows_sys::Win32::System::SystemInformation::{
+        GetVersionExW, OSVERSIONINFOEXW,
+    };
+    unsafe {
+        let mut info: OSVERSIONINFOEXW = std::mem::zeroed();
+        info.dwOSVersionInfoSize = std::mem::size_of::<OSVERSIONINFOEXW>() as u32;
+        if GetVersionExW(&mut info as *mut _ as *mut _) != 0 {
+            info.dwBuildNumber >= 22000
+        } else {
+            false
+        }
+    }
+}
+
+/// 应用 DWM 物理窗口圆角（Win11+）
+/// 让亚克力在圆角窗口内渲染，避免 4 角三角形溢出
+/// Win10 不调用此函数（保持原生矩形）
+#[cfg(windows)]
+fn apply_dwm_round_corner(hwnd: *mut std::ffi::c_void) {
+    use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+    let preference = DWMWCP_ROUND;
+    let result = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const _ as *const std::ffi::c_void,
+            std::mem::size_of::<i32>() as u32,
+        )
+    };
+    if result == 0 {
+        tracing::info!("DWM 物理窗口圆角已启用（DWMWCP_ROUND）");
+    } else {
+        tracing::warn!("DWM 圆角设置失败 hr={}", result);
+    }
+}
+
+/// 移除 Win11 原生窗口边框颜色（DWMWA_BORDER_COLOR = COLOR_NONE）
+/// 根治 transparent 窗口边缘的 1px 黑色直角边框
+/// Win10 不支持此属性，静默跳过
+#[cfg(windows)]
+fn remove_dwm_border_color(hwnd: *mut std::ffi::c_void) {
+    use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+    let color = DWMWA_COLOR_NONE;
+    let result = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &color as *const _ as *const std::ffi::c_void,
+            std::mem::size_of::<u32>() as u32,
+        )
+    };
+    if result == 0 {
+        tracing::info!("DWM 原生边框颜色已移除（COLOR_NONE）");
+    } else {
+        tracing::debug!("DWM 边框颜色设置失败 hr={}（Win10 不支持，正常）", result);
+    }
+}
 
 /// 应用启动入口
 pub fn run() {
@@ -246,44 +322,122 @@ pub fn run() {
             app.manage(Arc::new(state));
             tracing::info!("应用状态已初始化");
 
-            // 系统托盘创建（Phase 6a · SPEC 4.1）
-            // 菜单：显示主窗口 / 退出
-            let show_item = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            // 启动时应用窗口效果（Beta9 · 任务17 · 最终修复 2026-08-15）
+            // 产品策略（最终方案）：
+            // - 使用 Tauri 原生 Effect::Acrylic 系统级 DWM 模糊（模糊的就是桌面壁纸本身）
+            //   （CSS backdrop-filter 物理上无法模糊壁纸：Chromium backdrop 只含同渲染树内容，
+            //    全透明窗口里 blur 模糊的是"空气"，已实测确认并废弃）
+            // - Win11：DWMWCP_ROUND 物理圆角，DWM 沿窗口圆角自行裁剪亚克力（根治边缘溢出）
+            // - Win10：亚克力降级为 ACCENT_ENABLE_ACRYLICBLURBEHIND（矩形，系统限制可接受）
+            // - CSS 层保留半透明着色 + 噪点 + 光影，与系统模糊叠加成完整亚克力质感
+            // - DB 的 acrylic_enabled 运行时切换走 set_theme_config → apply_acrylic
+            {
+                let state_ref = app.state::<Arc<AppState>>();
+                let repo = Repository::new(&state_ref.db);
+                let acrylic_enabled = repo
+                    .get_setting(crate::models::theme::keys::ACRYLIC_ENABLED)
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(true);
 
-            let mut tray_builder = TrayIconBuilder::new()
-                .tooltip("Exero")
-                .menu(&menu)
-                .on_menu_event(|app, event| {
-                    match event.id().as_ref() {
-                        "show" => {
-                            if let Some(main) = app.get_webview_window("main") {
-                                let _ = main.show();
-                                let _ = main.set_focus();
-                                tracing::info!("托盘菜单：显示主窗口");
+                if let Some(main) = app.get_webview_window("main") {
+                    // 1. set_background_color: WebView2 背景透明（防白底，亚克力透出的前提）
+                    // 2. shadow:false（tauri.conf.json）：禁用 DWM 阴影
+                    // 3. DWMWA_BORDER_COLOR = COLOR_NONE：移除 Win11 原生边框颜色（根治 1px 黑边）
+                    // 4. DWMWCP_ROUND：Win11 物理圆角（DWM 自行裁剪系统亚克力，无溢出）
+                    // 5. Effect::Acrylic：系统级模糊桌面壁纸
+                    // 6. CSS clip-path + 着色层 + 噪点 + 光影：内容圆角与质感（Layout.tsx / index.css）
+                    use tauri::window::Color;
+                    let _ = main.set_background_color(Some(Color(0, 0, 0, 0)));
+
+                    #[cfg(windows)]
+                    {
+                        if let Ok(hwnd) = main.hwnd() {
+                            if is_windows_11() {
+                                apply_dwm_round_corner(hwnd.0);
+                            }
+                            remove_dwm_border_color(hwnd.0);
+                        }
+                    }
+
+                    if let Err(e) =
+                        crate::commands::theme::apply_acrylic(&main, acrylic_enabled)
+                    {
+                        tracing::warn!("启动应用亚克力失败: {e}");
+                    }
+
+                    tracing::info!(
+                        "窗口效果初始化完成（系统 Acrylic + DWM 圆角，enabled={}）",
+                        acrylic_enabled
+                    );
+                }
+
+                // 托盘菜单窗口也应用 DWM 圆角（Win11）
+                // 只需设置一次，后续 show/hide 不影响
+                #[cfg(windows)]
+                {
+                    if let Some(menu_window) = app.get_webview_window("tray-menu") {
+                        if let Ok(hwnd) = menu_window.hwnd() {
+                            if is_windows_11() {
+                                apply_dwm_round_corner(hwnd.0);
                             }
                         }
-                        "quit" => {
-                            tracing::info!("托盘菜单：退出应用");
-                            app.exit(0);
+                    }
+                }
+            }
+
+            // 系统托盘创建（Beta9 · 任务4：自绘透明窗口菜单，移除原生 Menu）
+            // 左键单击显示主窗口，右键单击显示自绘 tray-menu 窗口
+            let mut tray_builder = TrayIconBuilder::new()
+                .tooltip("Exero")
+                .on_tray_icon_event(|tray, event| {
+                    let app = tray.app_handle();
+                    match event {
+                        // 左键单击：显示主窗口
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            if let Some(main) = app.get_webview_window("main") {
+                                let _ = main.show();
+                                let _ = main.unminimize();
+                                let _ = main.set_focus();
+                            }
+                        }
+                        // 右键单击：显示自绘 tray-menu 窗口（位置对齐托盘图标顶部）
+                        TrayIconEvent::Click {
+                            button: MouseButton::Right,
+                            button_state: MouseButtonState::Up,
+                            rect,
+                            ..
+                        } => {
+                            if let Some(menu_window) = app.get_webview_window("tray-menu") {
+                                // 计算位置：菜单底部对齐托盘图标顶部，水平居中
+                                // 菜单窗口 160x114，居中偏移 -80
+                                let (px, py) = match rect.position {
+                                    tauri::Position::Physical(p) => (p.x, p.y),
+                                    tauri::Position::Logical(p) => (p.x as i32, p.y as i32),
+                                };
+                                let (sw, _sh) = match rect.size {
+                                    tauri::Size::Physical(s) => (s.width as i32, s.height as i32),
+                                    tauri::Size::Logical(s) => (s.width as i32, s.height as i32),
+                                };
+                                // x：托盘图标中心 - 菜单宽度一半（160/2=80）
+                                let x = (px + sw / 2 - 80).max(0);
+                                // y：托盘图标顶部 - 菜单高度（114），钳制到屏幕工作区
+                                let y = (py - 114).max(0);
+                                let _ = menu_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                                    x,
+                                    y,
+                                }));
+                                let _ = menu_window.set_always_on_top(true);
+                                let _ = menu_window.show();
+                                let _ = menu_window.set_focus();
+                            }
                         }
                         _ => {}
-                    }
-                })
-                .on_tray_icon_event(|tray, event| {
-                    // 单击托盘图标显示主窗口
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(main) = app.get_webview_window("main") {
-                            let _ = main.show();
-                            let _ = main.set_focus();
-                        }
                     }
                 });
 
@@ -299,6 +453,10 @@ pub fn run() {
             // main 窗口 visible:true 直接显示，index.html 内置 boot-splash 占位 DOM
             // 前端 React 挂载 + 主题初始化 + onboarding 状态检测完成后隐藏 boot-splash
             // 后端无需管理窗口切换，仅初始化应用状态
+
+            // 启动 LHM 传感器子进程（Beta9 · 任务3，GPU/CPU/温度数据源）
+            // 找不到 NexBoxMonitor.exe 时静默跳过，性能页 GPU 卡片降级显示"--"
+            sensors::start_sensor_process(app);
 
             Ok(())
         })
@@ -418,6 +576,8 @@ pub fn run() {
             commands::system::exit_app,
             commands::system::hide_main_window,
             commands::system::restart_app,
+            // 托盘菜单"检查更新"命令（Beta9 任务4）
+            commands::system::check_update_and_show,
             // 课表初始化向导命令（Phase 6a · SPEC 11.2）
             commands::onboarding::get_onboarding_status,
             commands::onboarding::complete_onboarding,
@@ -467,6 +627,14 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");
+
+    // 应用退出清理（Beta9 · 任务3：停止 LHM 子进程）
+    // run() 返回后执行
+    if let Some(bridge) = sensors::bridge::take_bridge() {
+        let mut bridge = bridge;
+        bridge.shutdown();
+        tracing::info!("NexBoxMonitor 子进程已关闭");
+    }
 }
 
 // ============================================================

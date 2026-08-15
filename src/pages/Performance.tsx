@@ -55,11 +55,11 @@ export default function PerformancePage() {
         <h1 className="text-2xl font-semibold tracking-tight">性能优化</h1>
       </div>
 
+      {/* 硬件监控（上方四卡片 · Beta9 任务3） */}
+      <HardwareMonitor hardware={hardware} loading={loading} error={error} />
+
       {/* 一键优化 */}
       <OptimizePanel />
-
-      {/* 硬件监控 */}
-      <HardwareMonitor hardware={hardware} loading={loading} error={error} />
 
       {/* 进程列表 */}
       <ProcessList />

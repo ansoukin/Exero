@@ -11,19 +11,27 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Emitter, State};
 
 use crate::error::{AppError, Result};
 use crate::state::AppState;
 use crate::Repository;
 
 /// GitHub Release latest API（主源）
-const RELEASE_API: &str = "https://api.github.com/repos/ansoukin/Exero/releases/latest";
+const GITHUB_RELEASE_API: &str = "https://api.github.com/repos/ansoukin/Exero/releases/latest";
+/// Gitee Release latest API（备源，与 GitHub 通过 GitHub Actions 自动同步）
+const GITEE_RELEASE_API: &str = "https://gitee.com/api/v5/repos/ansoukin/Exero/releases/latest";
 /// GitHub Releases 列表 API（主源，最近 10 条）
-const RELEASES_LIST_API: &str =
+const GITHUB_RELEASES_LIST_API: &str =
     "https://api.github.com/repos/ansoukin/Exero/releases?per_page=10";
+/// Gitee Releases 列表 API（备源）
+const GITEE_RELEASES_LIST_API: &str =
+    "https://gitee.com/api/v5/repos/ansoukin/Exero/releases?page=1&per_page=10";
 /// ghproxy 镜像前缀（SPEC 7.4 网络后备）
 const GHPROXY_BASE: &str = "https://ghproxy.com";
+/// GitHub 仓库域名（用于将 GitHub 资产下载 URL 转为 Gitee 对应 URL）
+const GITHUB_HOST: &str = "https://github.com";
+const GITEE_HOST: &str = "https://gitee.com";
 /// 强制更新标记（SPEC 7.2 / 13.6.1）
 const FORCE_UPDATE_MARKER: &str = "[强制更新]";
 /// 推荐更新标记（SPEC 7.2 / 13.6.2）
@@ -65,17 +73,19 @@ struct GithubAsset {
     browser_download_url: String,
 }
 
-/// GitHub Release 响应（仅取需要的字段）
+/// GitHub/Gitee Release 响应（仅取需要的字段，兼容两个平台）
 #[derive(Debug, Deserialize)]
 struct GithubRelease {
     /// Tag 名（如 v0.4.0-Alpha1，SPEC 13.10）
     tag_name: String,
-    /// 发布时间（ISO 8601）
-    published_at: String,
+    /// 发布时间（ISO 8601，Gitee 可能缺失，用 Option 兼容）
+    #[serde(default)]
+    published_at: Option<String>,
     /// Release 正文（Markdown）
     body: Option<String>,
     /// Release HTML 页面链接
-    html_url: String,
+    #[serde(default)]
+    html_url: Option<String>,
     /// 资产列表（下载文件）
     #[serde(default)]
     assets: Vec<GithubAsset>,
@@ -290,8 +300,8 @@ pub async fn check_for_updates(
         current_version: current_version.clone(),
         latest_version: latest_version.clone(),
         update_available,
-        published_at: release.as_ref().map(|r| r.published_at.clone()),
-        release_url: release.as_ref().map(|r| r.html_url.clone()),
+        published_at: release.as_ref().and_then(|r| r.published_at.clone()),
+        release_url: release.as_ref().and_then(|r| r.html_url.clone()),
         force_update_required,
         recommend_update,
         minimum_version,
@@ -349,24 +359,30 @@ pub async fn get_changelog_path() -> Result<String> {
 
 // ============ 内部辅助函数 ============
 
-/// 拉取 GitHub Release latest（SPEC 7.4：主源 -> ghproxy 后备）
+/// 拉取 Release latest（SPEC 7.4：GitHub 主源 -> Gitee 备源 -> ghproxy 镜像）
 async fn fetch_latest_release() -> Result<Option<GithubRelease>> {
     let client = reqwest::Client::builder()
         .user_agent("Exero-App")
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
 
-    // 主源：api.github.com
-    match fetch_release_from(&client, RELEASE_API).await {
+    // 1. 主源：GitHub api.github.com
+    match fetch_release_from(&client, GITHUB_RELEASE_API).await {
         Ok(result) => return Ok(result),
-        Err(e) => tracing::warn!("GitHub Release 主源失败，尝试 ghproxy 后备: {}", e),
+        Err(e) => tracing::warn!("GitHub Release 主源失败，尝试 Gitee 备源: {}", e),
     }
 
-    // 备源：ghproxy 镜像
-    let mirror = format!("{}/{}", GHPROXY_BASE, RELEASE_API);
+    // 2. 备源：Gitee（通过 GitHub Actions 自动同步）
+    match fetch_release_from(&client, GITEE_RELEASE_API).await {
+        Ok(result) => return Ok(result),
+        Err(e) => tracing::warn!("Gitee Release 备源失败，尝试 ghproxy 镜像: {}", e),
+    }
+
+    // 3. 末源：ghproxy 镜像（代理 GitHub API）
+    let mirror = format!("{}/{}", GHPROXY_BASE, GITHUB_RELEASE_API);
     fetch_release_from(&client, &mirror)
         .await
-        .map_err(|e| AppError::Other(format!("GitHub Release 拉取失败（含 ghproxy 后备）: {}", e)))
+        .map_err(|e| AppError::Other(format!("Release 拉取失败（GitHub/Gitee/ghproxy 均不可用）: {}", e)))
 }
 
 /// 从指定 URL 拉取单个 Release（返回 None 表示 404 无 Release）
@@ -389,24 +405,30 @@ async fn fetch_release_from(
     Ok(Some(release))
 }
 
-/// 拉取 GitHub Releases 列表（最近 10 条，SPEC 7.4：主源 -> ghproxy 后备）
+/// 拉取 Releases 列表（最近 10 条，SPEC 7.4：GitHub 主源 -> Gitee 备源 -> ghproxy 镜像）
 async fn fetch_releases_list() -> Result<Vec<ChangelogEntry>> {
     let client = reqwest::Client::builder()
         .user_agent("Exero-App")
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
 
-    // 主源：api.github.com
-    match fetch_releases_from(&client, RELEASES_LIST_API).await {
+    // 1. 主源：GitHub api.github.com
+    match fetch_releases_from(&client, GITHUB_RELEASES_LIST_API).await {
         Ok(entries) => return Ok(entries),
-        Err(e) => tracing::warn!("GitHub Releases 列表主源失败，尝试 ghproxy 后备: {}", e),
+        Err(e) => tracing::warn!("GitHub Releases 列表主源失败，尝试 Gitee 备源: {}", e),
     }
 
-    // 备源：ghproxy 镜像
-    let mirror = format!("{}/{}", GHPROXY_BASE, RELEASES_LIST_API);
+    // 2. 备源：Gitee
+    match fetch_releases_from(&client, GITEE_RELEASES_LIST_API).await {
+        Ok(entries) => return Ok(entries),
+        Err(e) => tracing::warn!("Gitee Releases 列表备源失败，尝试 ghproxy 镜像: {}", e),
+    }
+
+    // 3. 末源：ghproxy 镜像
+    let mirror = format!("{}/{}", GHPROXY_BASE, GITHUB_RELEASES_LIST_API);
     fetch_releases_from(&client, &mirror)
         .await
-        .map_err(|e| AppError::Other(format!("GitHub Releases 列表拉取失败（含 ghproxy 后备）: {}", e)))
+        .map_err(|e| AppError::Other(format!("Releases 列表拉取失败（GitHub/Gitee/ghproxy 均不可用）: {}", e)))
 }
 
 /// 从指定 URL 拉取 Releases 列表
@@ -426,9 +448,9 @@ async fn fetch_releases_from(
         .into_iter()
         .map(|r| ChangelogEntry {
             version: r.tag_name.trim_start_matches(['v', 'V']).to_string(),
-            published_at: r.published_at,
+            published_at: r.published_at.unwrap_or_default(),
             body: r.body.unwrap_or_default(),
-            html_url: r.html_url,
+            html_url: r.html_url.unwrap_or_default(),
         })
         .collect())
 }
@@ -643,20 +665,44 @@ pub async fn download_and_install_update(
         .timeout(std::time::Duration::from_secs(300))
         .build()?;
 
-    let download_urls = [
-        asset.browser_download_url.clone(),
-        format!("{}/{}", GHPROXY_BASE, asset.browser_download_url),
-    ];
+    // 三级下载源（SPEC 7.4：GitHub 主源 -> Gitee 备源 -> ghproxy 镜像）
+    let github_url = asset.browser_download_url.clone();
+    let gitee_url = github_url.replacen(GITHUB_HOST, GITEE_HOST, 1);
+    let ghproxy_url = format!("{}/{}", GHPROXY_BASE, github_url);
+    let download_urls = [github_url, gitee_url, ghproxy_url];
 
     let mut downloaded = false;
     for url in &download_urls {
         tracing::info!("尝试下载: {}", url);
         match client.get(url).send().await {
             Ok(resp) if resp.status().is_success() => {
-                let bytes = resp.bytes().await?;
-                std::fs::write(&file_path, &bytes)?;
+                // 流式下载 + 进度事件（Beta9 任务7：供前端 framer-motion 进度条）
+                let total = resp.content_length().unwrap_or(0);
+                use futures_util::StreamExt;
+                let mut stream = resp.bytes_stream();
+                let mut file = std::fs::File::create(&file_path)?;
+                let mut downloaded_bytes: u64 = 0;
+                while let Some(chunk) = stream.next().await {
+                    let chunk = chunk?;
+                    std::io::Write::write_all(&mut file, &chunk)?;
+                    downloaded_bytes += chunk.len() as u64;
+                    // 发送下载进度事件（percent 0-100，total=0 时为 0）
+                    let percent = if total > 0 {
+                        (downloaded_bytes * 100 / total) as u8
+                    } else {
+                        0
+                    };
+                    let _ = app.emit(
+                        "update://download-progress",
+                        serde_json::json!({
+                            "downloaded": downloaded_bytes,
+                            "total": total,
+                            "percent": percent,
+                        }),
+                    );
+                }
                 downloaded = true;
-                tracing::info!("安装包已下载: {} ({} bytes)", file_path.display(), bytes.len());
+                tracing::info!("安装包已下载: {} ({} bytes)", file_path.display(), downloaded_bytes);
                 break;
             }
             Ok(resp) => {

@@ -61,3 +61,6 @@ desktop.ini
 # ===== VitePress 文档系统 =====
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+# 内部设计规格仅本地保留（Beta8 起不再随仓库发布，文档构建也已 srcExclude）
+docs/SPEC.md
+docs/SPEC.html

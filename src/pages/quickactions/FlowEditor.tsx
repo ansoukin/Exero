@@ -23,22 +23,27 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { scaleInVariants } from "@/components/ui/motion";
 import { ArrowLeft, Save, Loader2, AlertCircle, Play, Menu, X, Plus, Minus, Maximize } from "lucide-react";
 import {
   actionCommands,
   executionCommands,
   flowCommands,
-  type ActionTypeKind,
+  triggerCommands,
   type AutomationFlow,
 } from "@/lib/tauri";
-import { getNodeMeta } from "@/lib/nodeCatalog";
+import { getNodeMeta, type NodeKind } from "@/lib/nodeCatalog";
+import { NodeIcon } from "@/components/PackIcon";
 import { NodePalette } from "@/pages/quickactions/NodePalette";
 import { PropertyPanel } from "@/pages/quickactions/PropertyPanel";
-import { ActionNodeView } from "@/pages/quickactions/ActionNodeView";
+import { ActionNodeView, TriggerNodeView } from "@/pages/quickactions/ActionNodeView";
 import {
   actionsToGraph,
   createNode,
   graphToActions,
+  nodesToTriggers,
+  triggersToNodes,
   type ActionNodeData,
 } from "@/pages/quickactions/graphTransform";
 
@@ -89,14 +94,17 @@ function FlowControls() {
     <div className="absolute bottom-4 left-4 z-10 flex flex-col-reverse items-center gap-1.5">
       {expanded &&
         buttons.map((btn, i) => (
-          <button
+          <motion.button
             key={i}
             onClick={btn.onClick}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border bg-card text-foreground shadow-sm transition-colors hover:bg-accent animate-scale-in"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
             title={btn.label}
+            variants={scaleInVariants}
+            initial="hidden"
+            animate="visible"
           >
             <btn.Icon className="h-4 w-4" />
-          </button>
+          </motion.button>
         ))}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -121,19 +129,26 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // 属性面板折叠状态（默认折叠，点击节点时自动展开）
   const [panelCollapsed, setPanelCollapsed] = useState(true);
+  // 拖拽预览（Beta9 任务11）：从节点库拖出时跟随光标的 ghost 卡片
+  const [dragGhost, setDragGhost] = useState<{ kind: NodeKind; x: number; y: number } | null>(null);
+  // screenToFlowPosition：DOM 坐标 → React Flow 流坐标（修正 pan/zoom 下 drop 偏移）
+  const { screenToFlowPosition } = useReactFlow();
 
   // 加载 Flow + Actions
   const loadFlow = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [flowData, actionsData] = await Promise.all([
+      const [flowData, actionsData, triggersData] = await Promise.all([
         flowCommands.get(flowId),
         actionCommands.list(flowId),
+        triggerCommands.list(flowId),
       ]);
       setFlow(flowData);
       const { nodes: graphNodes, edges: graphEdges } = actionsToGraph(actionsData);
-      setNodes(graphNodes);
+      // 合并触发器节点到画布（触发器存 triggers 表，Beta9 任务1）
+      const triggerNodes = triggersToNodes(triggersData);
+      setNodes([...graphNodes, ...triggerNodes]);
       setEdges(graphEdges);
       setDirty(false);
     } catch (e) {
@@ -153,7 +168,12 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
     setError(null);
     try {
       const actions = graphToActions(nodes, edges, flowId);
-      await actionCommands.set(flowId, actions);
+      const triggers = nodesToTriggers(nodes, flowId);
+      // 动作存 actions 表，触发器存 triggers 表（Beta9 任务1）
+      await Promise.all([
+        actionCommands.set(flowId, actions),
+        triggerCommands.set(flowId, triggers),
+      ]);
       setDirty(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -185,11 +205,17 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
     }
   }, [dirty, flow, flowId, handleSave]);
 
-  // 节点库拖拽创建
+  // 节点库拖拽创建（Beta9 任务11：记录拖拽中的节点类型，画布渲染跟随光标的 ghost）
   const handleDragStart = useCallback(
-    (kind: ActionTypeKind, event: React.DragEvent) => {
+    (kind: NodeKind, event: React.DragEvent) => {
       event.dataTransfer.setData("application/x-action-kind", kind);
       event.dataTransfer.effectAllowed = "move";
+      // 抑制浏览器默认半透明快照，避免与自定义 ghost 双影
+      const blank = document.createElement("canvas");
+      blank.width = 1;
+      blank.height = 1;
+      event.dataTransfer.setDragImage(blank, 0, 0);
+      setDragGhost({ kind, x: event.clientX, y: event.clientY });
     },
     [],
   );
@@ -198,25 +224,30 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const kind = event.dataTransfer.getData("application/x-action-kind") as ActionTypeKind;
+      const kind = event.dataTransfer.getData("application/x-action-kind") as NodeKind;
       if (!kind) return;
 
-      // 计算放置位置（相对画布）
-      const bounds = event.currentTarget.getBoundingClientRect();
+      // 计算放置位置：screenToFlowPosition 修正画布 pan/zoom 偏移
+      // （Beta9 任务11：此前用 DOM 坐标直减，缩放/平移后落点偏移）
+      const flowPos = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
       const position: XYPosition = {
-        x: event.clientX - bounds.left - 100, // 节点宽度 208px 的一半约 100
-        y: event.clientY - bounds.top - 30,
+        x: flowPos.x - 100, // 节点宽度 208px 的一半约 100，光标对准节点中心
+        y: flowPos.y - 24,
       };
       const newNode = createNode(kind, position);
       setNodes((nds) => [...nds, newNode]);
       setDirty(true);
+      setDragGhost(null);
     },
-    [setNodes],
+    [setNodes, screenToFlowPosition],
   );
 
   // 点击节点库直接创建（在画布中央偏移）
   const handlePaletteClick = useCallback(
-    (kind: ActionTypeKind) => {
+    (kind: NodeKind) => {
       const position: XYPosition = {
         x: 200 + Math.random() * 80,
         y: 100 + nodes.length * 20,
@@ -329,8 +360,11 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
     [setNodes, setEdges],
   );
 
-  // 自定义节点类型注册
-  const nodeTypes = useMemo(() => ({ actionNode: ActionNodeView }), []);
+  // 自定义节点类型注册（actionNode 动作 + triggerNode 触发器）
+  const nodeTypes = useMemo(
+    () => ({ actionNode: ActionNodeView, triggerNode: TriggerNodeView }),
+    [],
+  );
 
   if (loading) {
     return (
@@ -408,7 +442,17 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
+            // 更新 ghost 位置（Beta9 任务11：拖拽卡片跟随光标）
+            setDragGhost((g) => (g ? { ...g, x: e.clientX, y: e.clientY } : g));
           }}
+          // 拖拽离开画布 / 松手（无论是否有效 drop）都清除 ghost
+          onDragLeave={(e) => {
+            const related = e.relatedTarget as unknown as globalThis.Node | null;
+            if (!related || !e.currentTarget.contains(related)) {
+              setDragGhost(null);
+            }
+          }}
+          onDragEnd={() => setDragGhost(null)}
         >
           <ReactFlow
             nodes={nodes}
@@ -424,7 +468,16 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
             onPaneClick={() => setSelectedNodeId(null)}
             fitView
             fitViewOptions={{ padding: 0.2 }}
-            defaultEdgeOptions={{ type: "bezier" }}
+            // Beta9 任务13：连接线主题色 + 蚂蚁线流动动画（React Flow animated 内置）
+            defaultEdgeOptions={{
+              type: "bezier",
+              animated: true,
+              style: { stroke: "hsl(var(--primary) / 0.55)", strokeWidth: 1.5 },
+            }}
+            // 画布滚轮不拦截：允许滚动整个页面（B9 优化）
+            // zoomOnScroll=false 禁用滚轮缩放（改用左下角按钮）；preventScrolling=false 恢复页面滚动
+            zoomOnScroll={false}
+            preventScrolling={false}
             className="bg-background"
           >
             <Background gap={16} size={1} color="hsl(var(--border))" />
@@ -444,8 +497,35 @@ function FlowEditorInner({ flowId, onExit }: FlowEditorProps) {
           )}
         </div>
 
+        {/* 拖拽跟随预览（Beta9 任务11）：fixed 定位跟随光标，松手/离画布自动消失 */}
+        {dragGhost && (() => {
+          const meta = getNodeMeta(dragGhost.kind);
+          return (
+            <div
+              className="pointer-events-none fixed z-50"
+              style={{ left: dragGhost.x, top: dragGhost.y }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1, rotate: -2 }}
+                transition={{ duration: 0.15 }}
+                className="w-52 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-primary/50 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <NodeIcon icon={meta?.icon ?? "Package"} size={14} className="text-primary" />
+                  <span className="truncate text-sm font-medium">
+                    {meta?.label ?? dragGhost.kind}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">松开放置到画布</p>
+              </motion.div>
+            </div>
+          );
+        })()}
+
         <PropertyPanel
           selectedNode={selectedNode}
+          nodes={nodes}
           onParamsChange={handleParamsChange}
           onNoteChange={handleNoteChange}
           onFaultStrategyChange={handleFaultStrategyChange}

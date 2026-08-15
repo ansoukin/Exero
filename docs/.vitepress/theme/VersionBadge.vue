@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 版本徽章组件 - 在每个文档页面顶部显示适用版本号
 // 用法：在 markdown 文件顶部写 <VersionBadge />
-const version = 'V0.4.0-Beta8'
+const version = 'V0.4.0-Beta9'
 </script>
 
 <template>

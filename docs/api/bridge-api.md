@@ -4,6 +4,10 @@
 
 插件页面（iframe）与 Exero 主程序通信的 JavaScript 接口。Exero 自动在每个插件 HTML 页面的 `</head>` 前注入桥接脚本，开发者无需手动引入任何 JS 文件。
 
+::: tip 页面切换不影响通信（Beta9）
+插件由常驻宿主层（`PluginHostLayer`）管理，切换页面不卸载 iframe——桥接连接、页面状态、播放中的媒体在页面切换后均保持。详见[插件生命周期](/guides/plugin#生命周期与持久运行-beta9)。
+:::
+
 ## 快速示例
 
 ```javascript
@@ -136,7 +140,7 @@ iframe.contentWindow.postMessage({
 
 ## iframe 沙箱属性
 
-插件 iframe 的 sandbox 配置（硬编码于 [PluginPage.tsx](file:///e:/Project/Exero/src/pages/PluginPage.tsx#L189)）：
+插件 iframe 的 sandbox 配置（硬编码于 PluginHostLayer.tsx）：
 
 ```
 allow-scripts allow-forms allow-popups allow-modals
@@ -258,7 +262,7 @@ img.src = 'http://local-file.localhost/' + encodeURIComponent(imagePath);
   │  ── postMessage({type:'exero-invoke', id:1, actionId:'add', params:{a:1,b:2}}) ──▶
   │                                                                                      │
   ▼                                                                                      ▼
-PluginPage (React 主窗口)
+PluginHostLayer (React 主窗口，常驻)
   │  extensionPackCommands.executePluginAction('my-plugin', 'add', {a:1, b:2})
   │  ── Tauri IPC → Rust 后端 ──▶
   ▼
@@ -266,7 +270,7 @@ RustLibraryRegistry::execute
   │  C ABI 调用 .dll：exero_execute_action("add", "{\"a\":1,\"b\":2}")
   │  ← JSON 字符串 "{\"sum\":3}" 或 NULL（exero_last_error() 取错误）
   ▼
-PluginPage
+PluginHostLayer
   │  postMessage({type:'exero-result', id:1, result:{sum:3}}) ◀── 结果
   │
   ▼
@@ -281,14 +285,14 @@ PluginPage
   │  ── postMessage({type:'exero-storage', id:2, op:'set', key:'volume', value:0.8}) ──▶
   │
   ▼
-PluginPage (React 主窗口)
+PluginHostLayer (React 主窗口，常驻)
   │  extensionPackCommands.pluginStorageSet('my-plugin', 'volume', 0.8)
   │  ── Tauri IPC → Rust 后端 ──▶
   ▼
 PluginStorage::set
   │  更新内存缓存 + 写盘 %APPDATA%/Exero/plugin-data/my-plugin.json
   ▼
-PluginPage
+PluginHostLayer
   │  postMessage({type:'exero-result', id:2, result:null}) ◀── 完成
   │
   ▼

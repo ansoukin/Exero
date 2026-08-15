@@ -50,6 +50,9 @@ pub struct CourseTriggerParams {
     pub course_id: String,
     /// 触发时机
     pub timing: CourseTiming,
+    /// Before 时的提前分钟数（None 视为 0，即课程开始即触发）
+    #[serde(default)]
+    pub minutes: Option<i32>,
 }
 
 /// 课表触发时机

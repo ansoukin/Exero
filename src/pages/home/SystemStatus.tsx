@@ -8,18 +8,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Sparkline, pushPoint } from "@/components/ui/Sparkline";
 import { cn } from "@/lib/utils";
 import { performanceCommands, type HardwareStatus } from "@/lib/tauri";
 
 /**
- * 系统状态卡片（SPEC 3.5 页面 1 模块 3）
+ * 系统状态卡片（SPEC 3.5 页面 1 模块 3 · Beta9 任务18 加迷你折线）
  *
  * Phase 4：接入真实硬件监控数据（复用 performanceCommands.getHardwareStatus）。
- * 2 秒轮询，展示 CPU 总体使用率 + 内存使用率（首页简化版，详细数据见性能优化页）。
+ * 2 秒轮询，展示 CPU 总体使用率 + 内存使用率 + 迷你折线趋势。
  */
 export function SystemStatus() {
   const [hardware, setHardware] = useState<HardwareStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Beta9 任务18：CPU/内存历史采样窗口（60 点约 2 分钟）
+  const [history, setHistory] = useState<{ cpu: number[]; mem: number[] }>({
+    cpu: [],
+    mem: [],
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -42,13 +48,26 @@ export function SystemStatus() {
     };
   }, []);
 
+  // hardware 更新时追加历史采样点（Beta9 任务18）
+  useEffect(() => {
+    if (!hardware) return;
+    const memPercent =
+      hardware.memory.total_bytes > 0
+        ? (hardware.memory.used_bytes / hardware.memory.total_bytes) * 100
+        : 0;
+    setHistory((prev) => ({
+      cpu: pushPoint(prev.cpu, hardware.cpu.overall_usage),
+      mem: pushPoint(prev.mem, memPercent),
+    }));
+  }, [hardware]);
+
   const cpuUsage = hardware?.cpu.overall_usage ?? 0;
   const memUsed = hardware?.memory.used_bytes ?? 0;
   const memTotal = hardware?.memory.total_bytes ?? 0;
   const memUsage = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
 
   return (
-    <Card className="flex flex-col">
+    <Card className="liquid-glass flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
@@ -114,6 +133,13 @@ export function SystemStatus() {
               style={{ width: `${Math.min(100, cpuUsage)}%` }}
             />
           </div>
+          {/* CPU 迷你折线趋势（Beta9 任务18） */}
+          <Sparkline
+            data={history.cpu}
+            color="#3b82f6"
+            gradId="grad-cpu-home"
+            height={24}
+          />
         </div>
 
         {/* 内存使用率 */}
@@ -151,6 +177,13 @@ export function SystemStatus() {
               style={{ width: `${Math.min(100, memUsage)}%` }}
             />
           </div>
+          {/* 内存迷你折线趋势（Beta9 任务18） */}
+          <Sparkline
+            data={history.mem}
+            color="#06b6d4"
+            gradId="grad-mem-home"
+            height={24}
+          />
         </div>
 
         {/* 错误提示（内联，不破坏卡片布局） */}

@@ -81,7 +81,7 @@
 |---|---|
 | `error[E0463]: can't find crate for exero_plugin_sdk` | Cargo.toml `dependency.path` 算错了。从 Cargo.toml 所在目录相对算到 `exero-plugin-sdk\Cargo.toml` 的父目录 |
 | `crate-type must be cdylib` | Cargo.toml 少了 `[lib] crate-type = ["cdylib"]` |
-| `could not find native static library` | 没设置 `$env:CARGO_TARGET_DIR` 或被其他进程占用 | 设对目录，关闭正在运行的 Exero（会锁定已加载 .dll） |
+| `could not find native static library` | 编译产物目录被其他进程占用。关闭正在运行的 Exero（会锁定已加载 .dll）后重试 |
 
 ---
 
@@ -139,13 +139,46 @@ window.exero.invoke('my_action', { foo: 'bar' })
 
 ---
 
+## 插件运行排错
+
+### 切换页面后插件停止运行（如音乐停了）
+
+Beta9 起插件默认持久运行（keep-alive）。若切页后停止：
+
+1. 「设置 → 插件」检查该插件的「退出页面后保持运行」开关是否被关闭
+2. 是否点了「强制停止」——下次进入会重新加载（预期行为）
+3. keep-alive 关闭属于用户选择，插件侧无法覆盖；需要连续工作的功能请引导用户开启该开关
+
+### 插件页面状态丢失
+
+keep-alive 关闭或强制停止会销毁 iframe。未及时写入宿主存储的数据会丢失——持久化请随时调用 `window.exero.storage.set()`，不要只在 `beforeunload` 里保存。
+
+---
+
+## 性能页排错
+
+### GPU 卡片显示 "--" / "LHM 未就绪"
+
+GPU 数据来自 LibreHardwareMonitor 子进程（`resources/monitor/NexBoxMonitor.exe`）：
+
+| 检查项 | 定位方法 |
+|---|---|
+| 子进程资源齐全 | 安装目录 `resources/monitor/` 下应有 NexBoxMonitor.exe + LibreHardwareMonitorLib.dll 等依赖；缺失时从完整安装包重装 |
+| .NET Framework 4.8+ | 系统需具备（Win10/11 默认已装） |
+| 首次轮询 | 子进程刚启动时第一次读取可能为空，等几秒第二次轮询起正常 |
+| 日志 | 搜索 `NexBoxMonitor` / `sensors` 关键字 |
+
+CPU/内存/存储数据来自 sysinfo（不依赖子进程），GPU 失败不影响这三项。
+
+---
+
 ## 扩展市场排错
 
 ### 市场列表为空 / 加载失败
 
-1. 网络不可用：浏览器访问 `https://github.com/ansoukin/Exero/blob/main/Market/market-index.json?raw=true` 看能否下载
+1. 网络不可用：浏览器访问 `https://github.com/ansoukin/Exero/blob/main/Market/market-index.json?raw=true` 看能否下载；GitHub 不通时 Exero 自动尝试 Gitee 备源（`gitee.com/ansoukin/Exero`）
 2. market-index.json 含 UTF-8 BOM：`Format-Hex Market\market-index.json | Select-Object -First 1`，首字节是 `EF BB BF` 就是有 BOM → 用 `build-packs.ps1` 重新生成
-3. 镜像加速也失效：Exero 自动降级离线模式，可用已安装包
+3. 三级源（GitHub → Gitee → ghproxy）均失效：Exero 自动降级离线模式，可用已安装包
 
 ### 安装后版本没变
 

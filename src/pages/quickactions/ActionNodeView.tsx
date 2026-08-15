@@ -2,7 +2,8 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { cn } from "@/lib/utils";
-import { getCategoryColor, getNodeMeta } from "@/lib/nodeCatalog";
+import { getCategoryBarColor, getCategoryColor, getNodeMeta } from "@/lib/nodeCatalog";
+import { PackIcon } from "@/components/PackIcon";
 import type { ActionNodeData } from "@/pages/quickactions/graphTransform";
 
 /**
@@ -28,18 +29,27 @@ function ActionNodeViewImpl({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        "relative w-52 rounded-lg border bg-card shadow-sm transition-all duration-200",
+        "group relative w-52 rounded-lg border bg-card shadow-sm transition-all duration-200",
         selected
           ? "border-primary ring-2 ring-primary/30"
-          : "border-border hover:border-primary/40",
+          : "border-border hover:border-primary/40 hover:shadow-md",
       )}
     >
-      {/* 输入端口（top） */}
+      {/* 类别色竖条（Beta9 任务13：左侧 3px 类别标识，一眼区分节点类型）
+       * 注：不能用 overflow-hidden 裁剪，否则端口（Handle）突出卡片的半圆被裁掉 */}
+      <div
+        className={cn(
+          "absolute bottom-0 left-0 top-0 w-[3px] rounded-l-lg",
+          meta ? getCategoryBarColor(meta.category) : "bg-border",
+        )}
+      />
+
+      {/* 输入端口（top，hover 放大增强连接反馈） */}
       <Handle
         id="in"
         type="target"
         position={Position.Top}
-        className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground/60"
+        className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground/60 transition-transform duration-150 hover:scale-125"
       />
 
       {/* 节点头部：图标 + 类别色 + 标题 */}
@@ -51,7 +61,11 @@ function ActionNodeViewImpl({ data, selected }: NodeProps) {
               meta ? getCategoryColor(meta.category) : "",
             )}
           >
-            <Icon className="h-3.5 w-3.5" />
+            {typeof Icon === "string" ? (
+              <PackIcon spec={Icon} size={14} />
+            ) : (
+              <Icon className="h-3.5 w-3.5" />
+            )}
           </div>
         )}
         <span className="truncate text-sm font-medium">{nodeData.label}</span>
@@ -94,7 +108,7 @@ function renderOutputHandles(kind: ActionNodeData["kind"]) {
             id="then"
             type="source"
             position={Position.Bottom}
-            className="!h-3 !w-3 !border-2 !border-background !bg-emerald-500"
+            className="!h-3 !w-3 !border-2 !border-background !bg-emerald-500 transition-transform duration-150 hover:scale-125"
           />
         </div>
         <div className="absolute bottom-0 right-1/4 translate-x-1/2">
@@ -105,7 +119,7 @@ function renderOutputHandles(kind: ActionNodeData["kind"]) {
             id="else"
             type="source"
             position={Position.Bottom}
-            className="!h-3 !w-3 !border-2 !border-background !bg-rose-500"
+            className="!h-3 !w-3 !border-2 !border-background !bg-rose-500 transition-transform duration-150 hover:scale-125"
           />
         </div>
       </>
@@ -122,7 +136,7 @@ function renderOutputHandles(kind: ActionNodeData["kind"]) {
           id="body"
           type="source"
           position={Position.Bottom}
-          className="!h-3 !w-3 !border-2 !border-background !bg-amber-500"
+          className="!h-3 !w-3 !border-2 !border-background !bg-amber-500 transition-transform duration-150 hover:scale-125"
         />
       </div>
     );
@@ -133,9 +147,68 @@ function renderOutputHandles(kind: ActionNodeData["kind"]) {
       id="out"
       type="source"
       position={Position.Bottom}
-      className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground/60"
+      className="!h-3 !w-3 !border-2 !border-background !bg-muted-foreground/60 transition-transform duration-150 hover:scale-125"
     />
   );
 }
 
 export const ActionNodeView = memo(ActionNodeViewImpl);
+
+/**
+ * 触发器节点视图（Beta9 · 任务1）
+ *
+ * 触发器节点是动作链的视觉起点，无输入端口，单输出端口 triggered。
+ * 视觉与动作节点区分：primary 色边框 + primary/5 头部背景。
+ */
+function TriggerNodeViewImpl({ data, selected }: NodeProps) {
+  const nodeData = data as ActionNodeData;
+  const meta = getNodeMeta(nodeData.kind);
+  const Icon = meta?.icon;
+
+  return (
+    <div
+      className={cn(
+        "group relative w-52 rounded-lg border bg-card shadow-sm transition-all duration-200",
+        selected
+          ? "border-primary ring-2 ring-primary/30"
+          : "border-primary/40 hover:border-primary/60 hover:shadow-md",
+      )}
+    >
+      {/* 节点头部：图标 + 标题（触发器用 primary 色调强调） */}
+      <div className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2">
+        {Icon && (
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-primary">
+            {typeof Icon === "string" ? (
+              <PackIcon spec={Icon} size={14} />
+            ) : (
+              <Icon className="h-3.5 w-3.5" />
+            )}
+          </div>
+        )}
+        <span className="truncate text-sm font-medium">{nodeData.label}</span>
+      </div>
+
+      {/* 参数摘要 */}
+      <div className="px-3 py-2">
+        <p className="truncate text-xs text-muted-foreground">
+          {nodeData.summary || "未配置"}
+        </p>
+      </div>
+
+      {/* 输出端口 triggered（无输入端口，触发器是起点） */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-primary">
+          triggered
+        </span>
+        <Handle
+          id="triggered"
+          type="source"
+          position={Position.Bottom}
+          className="!h-3 !w-3 !border-2 !border-background !bg-primary transition-transform duration-150 hover:scale-125"
+        />
+      </div>
+    </div>
+  );
+}
+
+export const TriggerNodeView = memo(TriggerNodeViewImpl);

@@ -9,10 +9,12 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Minus, Square, X, Copy } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Button } from "@/components/ui/button";
+import { pageFadeVariants } from "@/components/ui/motion";
 import { useOobeStore, type OobeStage } from "@/stores/oobe";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { applyThemeMode } from "@/lib/theme";
@@ -232,10 +234,13 @@ export function OobeShell({
         <div className="absolute left-1/2 top-[-15%] h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/[0.08] blur-[100px]" />
       </div>
 
-      {/* 内容区（阶段切换淡入动画） */}
-      <div
+      {/* 内容区（阶段切换动画 · Beta9 任务9：framer-motion 替代 CSS animate-page-fade-in） */}
+      <motion.div
         key={stage}
-        className="relative flex flex-1 flex-col overflow-y-auto scrollbar-fluent animate-page-fade-in"
+        className="relative flex flex-1 flex-col overflow-y-auto scrollbar-fluent"
+        variants={pageFadeVariants}
+        initial="hidden"
+        animate="visible"
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col px-16 py-12">
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
@@ -246,7 +251,7 @@ export function OobeShell({
           )}
           <div className="mt-10">{children}</div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 底部：进度条 + 导航按钮（统一一行，参考 Win11 OOBE 底部布局） */}
       <div className="relative flex shrink-0 flex-col gap-4 px-16 pb-6">
