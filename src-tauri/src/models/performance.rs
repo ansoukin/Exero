@@ -22,7 +22,7 @@ pub struct HardwareStatus {
 
 /// GPU 状态（Beta9 · 任务3）
 ///
-/// 数据源 LibreHardwareMonitorLib（通过 NexBoxMonitor.exe 子进程）。
+/// 数据源 LibreHardwareMonitorLib（通过 ExeroMonitor.exe 子进程）。
 /// 支持 NVIDIA/AMD/Intel 显卡的使用率、温度、显存。
 /// LHM 不可用时字段为 None，前端显示"--"。
 #[derive(Debug, Clone, Serialize, Deserialize)]

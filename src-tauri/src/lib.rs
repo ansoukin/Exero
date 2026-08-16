@@ -456,7 +456,7 @@ pub fn run() {
             // 后端无需管理窗口切换，仅初始化应用状态
 
             // 启动 LHM 传感器子进程（Beta9 · 任务3，GPU/CPU/温度数据源）
-            // 找不到 NexBoxMonitor.exe 时静默跳过，性能页 GPU 卡片降级显示"--"
+            // 找不到 ExeroMonitor.exe 时静默跳过，性能页 GPU 卡片降级显示"--"
             sensors::start_sensor_process(app);
 
             Ok(())
@@ -636,7 +636,7 @@ pub fn run() {
     if let Some(bridge) = sensors::bridge::take_bridge() {
         let mut bridge = bridge;
         bridge.shutdown();
-        tracing::info!("NexBoxMonitor 子进程已关闭");
+        tracing::info!("ExeroMonitor 子进程已关闭");
     }
 }
 

@@ -159,14 +159,14 @@ keep-alive 关闭或强制停止会销毁 iframe。未及时写入宿主存储�
 
 ### GPU 卡片显示 "--" / "LHM 未就绪"
 
-GPU 数据来自 LibreHardwareMonitor 子进程（`resources/monitor/NexBoxMonitor.exe`）：
+GPU 数据来自 LibreHardwareMonitor 子进程（`resources/monitor/ExeroMonitor.exe`，源码见仓库 `monitor/` 子项目）：
 
 | 检查项 | 定位方法 |
 |---|---|
-| 子进程资源齐全 | 安装目录 `resources/monitor/` 下应有 NexBoxMonitor.exe + LibreHardwareMonitorLib.dll 等依赖；缺失时从完整安装包重装 |
+| 子进程资源齐全 | 安装目录 `resources/monitor/` 下应有 ExeroMonitor.exe + LibreHardwareMonitorLib.dll 等依赖；缺失时从完整安装包重装 |
 | .NET Framework 4.8+ | 系统需具备（Win10/11 默认已装） |
 | 首次轮询 | 子进程刚启动时第一次读取可能为空，等几秒第二次轮询起正常 |
-| 日志 | 搜索 `NexBoxMonitor` / `sensors` 关键字 |
+| 日志 | 搜索 `ExeroMonitor` / `sensors` 关键字 |
 
 CPU/内存/存储数据来自 sysinfo（不依赖子进程），GPU 失败不影响这三项。
 

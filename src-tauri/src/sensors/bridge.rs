@@ -1,7 +1,6 @@
-//! NexBoxMonitor 子进程桥接（Beta9 · 任务3）
+//! 监测器子进程桥接（Beta9 · 任务3）
 //!
-//! 移植自 NexBox src-tauri/src/sensor.rs，适配 Exero 模块结构。
-//! 管理 NexBoxMonitor.exe 子进程的 stdin/stdout 管道通信。
+//! 管理 ExeroMonitor.exe 子进程的 stdin/stdout 管道通信。
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
@@ -32,7 +31,7 @@ pub struct SensorsResponse {
     pub sensors: Vec<SensorReading>,
 }
 
-/// 管道桥接：管理 NexBoxMonitor 子进程的 stdin/stdout
+/// 管道桥接：管理监测器子进程的 stdin/stdout
 pub struct SensorBridge {
     pub child: Child,
     reader: BufReader<std::process::ChildStdout>,
@@ -88,8 +87,7 @@ static SENSOR_BRIDGE: Mutex<Option<SensorBridge>> = Mutex::new(None);
 /// - 开发：src-tauri/target/{debug,release}/exero.exe，资源在 src-tauri/resources/
 /// - 生产：安装目录/exero.exe，资源在 安装目录/resources/
 ///
-/// 探测顺序：ExeroMonitor.exe（自有，源码在仓库 monitor/ 子项目）
-///          → NexBoxMonitor.exe（旧版二进制，向后兼容部署）
+/// 探测顺序：编译期源码路径（dev 直达）→ exe 旁路径（生产）
 pub fn find_monitor_exe() -> Option<std::path::PathBuf> {
     let exe_dir = std::env::current_exe()
         .ok()?
@@ -97,38 +95,35 @@ pub fn find_monitor_exe() -> Option<std::path::PathBuf> {
         .map(|p| p.to_path_buf())
         .unwrap_or(std::path::PathBuf::from("."));
 
-    // 候选 exe 名（前者优先）
-    let exe_names = ["ExeroMonitor.exe", "NexBoxMonitor.exe"];
+    let exe_name = "ExeroMonitor.exe";
 
-    // 候选路径（相对 exe 目录）
+    // 候选路径
     let candidates: Vec<std::path::PathBuf> = {
         let mut list = Vec::new();
-        for name in exe_names {
-            // 编译期源码路径（B9 三阶段 BUG 修复：CARGO_TARGET_DIR 外置到 C 盘时，
-            // 从 exe 目录向上回溯永远跨不到源码盘符，dev 模式 LHM 从未启动过的根因）
+        // 编译期源码路径（B9 三阶段 BUG 修复：CARGO_TARGET_DIR 外置到 C 盘时，
+        // 从 exe 目录向上回溯永远跨不到源码盘符，dev 模式 LHM 从未启动过的根因）
+        list.push(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("resources")
+                .join("monitor")
+                .join(exe_name),
+        );
+        // 生产安装：resources/monitor/{name}
+        list.push(exe_dir.join("resources").join("monitor").join(exe_name));
+        // 开发：src-tauri/resources/monitor/{name}（exe 在 target/debug 下）
+        // 向上回溯最多 5 级查找 src-tauri
+        let mut probe = exe_dir.clone();
+        for _ in 0..6 {
             list.push(
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                probe
+                    .join("src-tauri")
                     .join("resources")
                     .join("monitor")
-                    .join(name),
+                    .join(exe_name),
             );
-            // 生产安装：resources/monitor/{name}
-            list.push(exe_dir.join("resources").join("monitor").join(name));
-            // 开发：src-tauri/resources/monitor/{name}（exe 在 target/debug 下）
-            // 向上回溯最多 5 级查找 src-tauri
-            let mut probe = exe_dir.clone();
-            for _ in 0..6 {
-                list.push(
-                    probe
-                        .join("src-tauri")
-                        .join("resources")
-                        .join("monitor")
-                        .join(name),
-                );
-                list.push(probe.join("resources").join("monitor").join(name));
-                if !probe.pop() {
-                    break;
-                }
+            list.push(probe.join("resources").join("monitor").join(exe_name));
+            if !probe.pop() {
+                break;
             }
         }
         list
@@ -142,7 +137,7 @@ pub fn find_monitor_exe() -> Option<std::path::PathBuf> {
     }
 
     tracing::warn!(
-        "未找到 ExeroMonitor.exe / NexBoxMonitor.exe (exe_dir: {}), 已尝试路径: {:?}",
+        "未找到 ExeroMonitor.exe (exe_dir: {}), 已尝试路径: {:?}",
         exe_dir.display(),
         candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>()
     );

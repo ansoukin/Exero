@@ -18,7 +18,7 @@
 | 数据库 | SQLite (rusqlite + refinery) | WAL 模式，便携式存储 |
 | Lua 引擎 | LuaJIT (mlua crate) | 严格沙箱，10 秒超时 |
 | 动态库加载 | libloading + C ABI | 运行时加载 .dll，extern "C" 接口 |
-| 硬件传感器 | LibreHardwareMonitorLib 子进程 | GPU 使用率/温度/显存 + CPU 温度（NexBoxMonitor.exe） |
+| 硬件传感器 | LibreHardwareMonitorLib 子进程 | GPU 使用率/温度/显存 + CPU 温度（ExeroMonitor.exe） |
 | 状态管理 | Zustand | 轻量级状态管理 |
 | 包管理器 | pnpm | corepack 管理 |
 
@@ -80,7 +80,7 @@
 │  └── 动作超时 (Lua 默认 10s)                                 │
 │                                                              │
 │  传感器子系统 sensors/（Beta9）                              │
-│  ├── bridge.rs: NexBoxMonitor.exe 子进程管理（stdin/stdout） │
+│  ├── bridge.rs: ExeroMonitor.exe 子进程管理（stdin/stdout） │
 │  └── reader.rs: GPU/CPU 温度 JSON 轮询读取                   │
 │                                                              │
 │  窗口效果                                                    │
@@ -200,7 +200,7 @@ Chromium 的 backdrop image 只包含同一 WebView 渲染树内元素背后的�
 
 ```
 src-tauri/resources/monitor/          # 打包资源（.NET 子进程 + 依赖 DLL）
-├── NexBoxMonitor.exe                 # C# 子进程，调 LibreHardwareMonitorLib.dll
+├── ExeroMonitor.exe                 # C# 子进程，调 LibreHardwareMonitorLib.dll
 └── *.dll                             # LHM + .NET 依赖
 
 src-tauri/src/sensors/

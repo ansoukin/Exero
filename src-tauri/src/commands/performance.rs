@@ -515,7 +515,7 @@ fn empty_working_set_win32(pid: u32) -> bool {
 /// 从 LHM 传感器读取 GPU 状态
 ///
 /// LHM 不可用或读取失败时返回全 None 的 GpuStatus（前端显示"--"）。
-/// 支持多 GPU：取第一个非 Intel 核显的 GPU（与 NexBox 策略一致）。
+/// 支持多 GPU：取第一个非 Intel 核显的 GPU。
 fn read_gpu_from_lhm() -> GpuStatus {
     use crate::sensors::read_sensors;
     use crate::sensors::bridge::SensorReading;

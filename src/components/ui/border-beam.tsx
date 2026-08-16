@@ -3,8 +3,6 @@
  *
  * 可复用的边框光效，用于关于页 Hero 卡片高亮。
  * framer-motion 实现：顶部光带从左到右流动，周期 3s。
- *
- * 参考：NexBox src/components/ui/border-beam.tsx
  */
 
 import { motion } from "framer-motion";

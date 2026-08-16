@@ -1,8 +1,7 @@
 /**
  * 硬件监控面板（Beta9 · 任务3 重做）
  *
- * 参考 NexBox HardwarePage 的 StatCard 设计，精简为四卡片：
- * CPU / GPU / 内存 / 存储，每卡片含图标+标题+大数值+副数值+底部 recharts 折线趋势图。
+ * 四卡片布局：CPU / GPU / 内存 / 存储，每卡片含图标+标题+大数值+副数值+底部 recharts 折线趋势图。
  *
  * 历史数据：组件内部维护 60 点滚动窗口（约 2 分钟，2 秒轮询），
  * 每次 hardware props 更新时 push 一个采样点。
@@ -44,7 +43,7 @@ function formatPercent(value: number | null | undefined): string {
   return `${value.toFixed(0)}%`;
 }
 
-/** 四卡片配置色（参考 NexBox） */
+/** 四卡片配置色 */
 const COLORS = {
   cpu: "#3b82f6",
   gpu: "#22c55e",

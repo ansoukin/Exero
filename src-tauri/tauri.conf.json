@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeDevCommand": "pnpm.CMD dev",
-    "beforeBuildCommand": "pnpm.CMD build"
+    "beforeDevCommand": "pnpm.CMD build:monitor && pnpm.CMD dev",
+    "beforeBuildCommand": "pnpm.CMD build:monitor && pnpm.CMD build"
   },
   "app": {
     "windows": [
@@ -69,19 +69,7 @@
     "resources": [
       "../CHANGELOG.md",
       "../LICENSE",
-      "resources/monitor/NexBoxMonitor.exe",
-      "resources/monitor/NexBoxMonitor.exe.config",
-      "resources/monitor/LibreHardwareMonitorLib.dll",
-      "resources/monitor/HidSharp.dll",
-      "resources/monitor/System.Buffers.dll",
-      "resources/monitor/System.Memory.dll",
-      "resources/monitor/System.Numerics.Vectors.dll",
-      "resources/monitor/System.Runtime.CompilerServices.Unsafe.dll",
-      "resources/monitor/System.Text.Json.dll",
-      "resources/monitor/System.Text.Encodings.Web.dll",
-      "resources/monitor/System.Threading.Tasks.Extensions.dll",
-      "resources/monitor/Microsoft.Bcl.AsyncInterfaces.dll",
-      "resources/monitor/System.ValueTuple.dll"
+      "resources/monitor/*"
     ],
     "windows": {
       "nsis": {
