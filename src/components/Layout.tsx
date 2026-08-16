@@ -49,6 +49,12 @@ export function Layout() {
   // Beta9 任务17：亚克力适配，根 div 设置 data-acrylic 触发全局半透明着色
   // （模糊由 Rust 侧 Effect::Acrylic 系统级提供，CSS 只叠着色/噪点/光影）
   const acrylicEnabled = useThemeStore((s) => s.config.acrylic_enabled);
+  // B9 第三阶段任务2：窗口圆角
+  // - Win11：恒 8px（DWM 物理圆角，Windows 特性）
+  // - Win10：由用户开关控制（与亚克力互斥，store 层保证不同时开）
+  const isWindows11 = useThemeStore((s) => s.isWindows11);
+  const windowRounded = useThemeStore((s) => s.appearance.windowRounded);
+  const cornerRadius = isWindows11 === false && !windowRounded ? 0 : 8;
 
   const renderPage = () => {
     // 扩展包详情页（pack:{id} 前缀）
@@ -87,10 +93,14 @@ export function Layout() {
   return (
     <div
       data-acrylic={acrylicEnabled ? "true" : "false"}
-      className="flex h-screen w-screen overflow-hidden rounded-[8px]"
-      // Beta9 窗口修复：clip-path 裁剪内容到圆角内（Win11 由 DWMWCP_ROUND 物理圆角
-      // 裁剪系统亚克力；此处裁剪 WebView 内容，Win10 上是唯一圆角来源）
-      style={{ clipPath: "inset(0 round 8px)" }}
+      className="flex h-screen w-screen overflow-hidden"
+      // B9 第三阶段任务2：圆角由平台 + 用户开关驱动
+      // - Win11 恒 8px（DWMWCP_ROUND 物理圆角在系统层裁剪，CSS 双保险）
+      // - Win10 开关开 8px / 关 0px（纯 CSS clip-path 圆角，是唯一圆角来源）
+      style={{
+        borderRadius: cornerRadius,
+        clipPath: `inset(0 round ${cornerRadius}px)`,
+      }}
     >
       <Sidebar />
       <main className="flex flex-1 flex-col overflow-hidden surface-bg">

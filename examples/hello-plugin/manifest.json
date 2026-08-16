@@ -1,6 +1,6 @@
 {
   "id": "hello-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": "Hello Plugin",
   "description": "Exero 官方示例插件：演示插件系统完整链路（侧边栏入口 + iframe UI + Rust .dll 动作联动）",
   "author": "Exero",

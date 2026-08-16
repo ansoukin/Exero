@@ -204,7 +204,7 @@ export type FontSize = "small" | "standard" | "large";
 /** 图标风格（lucide 默认；segoe = 侧边栏切换 Segoe 系统图标字体） */
 export type IconStyle = "lucide" | "segoe";
 
-/** 外观选项（Beta9 任务17 外观扩充） */
+/** 外观选项（Beta9 任务17 外观扩充 + 第三阶段任务2 圆角） */
 export interface AppearanceOptions {
   density: Density;
   fontFamily: FontFamily;
@@ -212,6 +212,12 @@ export interface AppearanceOptions {
   iconStyle: IconStyle;
   /** LiquidGlass 实验性玻璃效果（默认关，仅展示页生效） */
   liquidGlass: boolean;
+  /**
+   * 窗口圆角（B9 第三阶段任务2，仅 Win10 生效）
+   * - Win11：恒视为 true（DWM 物理圆角，Windows 特性），此值被忽略
+   * - Win10：与亚克力互斥——开圆角自动关亚克力，开亚克力自动关圆角
+   */
+  windowRounded: boolean;
 }
 
 /** 外观默认值 */
@@ -221,6 +227,7 @@ export const DEFAULT_APPEARANCE: AppearanceOptions = {
   fontSize: "standard",
   iconStyle: "lucide",
   liquidGlass: false,
+  windowRounded: true,
 };
 
 /** settings 表键名 */
@@ -230,6 +237,7 @@ export const APPEARANCE_KEYS = {
   fontSize: "theme.font_size",
   iconStyle: "theme.icon_style",
   liquidGlass: "theme.liquid_glass",
+  windowRounded: "theme.window_rounded",
 } as const;
 
 /** html font-size 映射（rem 基准，Tailwind 间距/字号全局缩放） */

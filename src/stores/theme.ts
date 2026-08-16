@@ -23,7 +23,7 @@ import {
   DEFAULT_APPEARANCE,
   type AppearanceOptions,
 } from "@/lib/theme";
-import { settingCommands, type Setting } from "@/lib/tauri";
+import { settingCommands, systemCommands, type Setting } from "@/lib/tauri";
 
 interface ThemeState {
   /** 当前主题配置（启动时从后端加载，默认 system/blue/true） */
@@ -34,8 +34,10 @@ interface ThemeState {
   unwatchSystem: (() => void) | null;
   /** 自定义主题色（hex 字符串，设置后覆盖预设色，null 表示用预设色） */
   customColor: string | null;
-  /** 外观扩充选项（Beta9 任务17：密度/字体/图标风格/LiquidGlass） */
+  /** 外观扩充选项（Beta9 任务17：密度/字体/图标风格/LiquidGlass/圆角） */
   appearance: AppearanceOptions;
+  /** 平台信息（B9 第三阶段任务2：null = 加载中） */
+  isWindows11: boolean | null;
 
   /** 启动时初始化：从后端加载配置 + 应用到 DOM + 注册系统监听 */
   init: () => Promise<void>;
@@ -51,6 +53,11 @@ interface ThemeState {
   clearCustomColor: () => Promise<void>;
   /** 更新外观选项（立即应用 + 逐项持久化，Beta9 任务17） */
   setAppearance: (patch: Partial<AppearanceOptions>) => Promise<void>;
+  /**
+   * Win10 圆角开关（B9 第三阶段任务2，带互斥）
+   * 开圆角 → 自动关亚克力；关圆角不主动开亚克力（由亚克力开关独立控制）
+   */
+  setWindowRounded: (enabled: boolean) => Promise<void>;
 }
 
 /** 默认主题配置（与后端 ThemeConfig::default() 一致） */
@@ -66,6 +73,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   unwatchSystem: null,
   customColor: null,
   appearance: DEFAULT_APPEARANCE,
+  isWindows11: null,
 
   init: async () => {
     try {
@@ -82,15 +90,25 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       } catch {
         // 自定义色读取失败不影响主题加载
       }
-      // 加载外观扩充选项（Beta9 任务17：密度/字体/图标风格/LiquidGlass）
+      // 加载平台信息（B9 第三阶段任务2：Win10 圆角/亚克力互斥判断）
+      let isWin11 = false;
       try {
-        const [density, fontFamily, fontSize, iconStyle, liquidGlass] =
+        const platform = await systemCommands.getPlatformInfo();
+        isWin11 = platform.is_windows_11;
+      } catch {
+        // 平台检测失败按 Win10 处理（保守：提供全部开关）
+      }
+      set({ isWindows11: isWin11 });
+      // 加载外观扩充选项（Beta9 任务17 + 第三阶段任务2 圆角）
+      try {
+        const [density, fontFamily, fontSize, iconStyle, liquidGlass, windowRounded] =
           await Promise.all([
             settingCommands.get(APPEARANCE_KEYS.density),
             settingCommands.get(APPEARANCE_KEYS.fontFamily),
             settingCommands.get(APPEARANCE_KEYS.fontSize),
             settingCommands.get(APPEARANCE_KEYS.iconStyle),
             settingCommands.get(APPEARANCE_KEYS.liquidGlass),
+            settingCommands.get(APPEARANCE_KEYS.windowRounded),
           ]);
         const opts: AppearanceOptions = {
           density: (density?.value as AppearanceOptions["density"]) || DEFAULT_APPEARANCE.density,
@@ -100,7 +118,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
           iconStyle:
             (iconStyle?.value as AppearanceOptions["iconStyle"]) || DEFAULT_APPEARANCE.iconStyle,
           liquidGlass: liquidGlass ? liquidGlass.value === "true" : DEFAULT_APPEARANCE.liquidGlass,
+          windowRounded: windowRounded
+            ? windowRounded.value === "true"
+            : DEFAULT_APPEARANCE.windowRounded,
         };
+        // Win10 互斥归一（B9 第三阶段任务2）：升级后圆角与亚克力可能同时为开，
+        // 按亚克力优先——关圆角并回写持久化，保证 UI 开关与实际状态一致
+        if (!isWin11 && opts.windowRounded && config.acrylic_enabled) {
+          opts.windowRounded = false;
+          try {
+            await settingCommands.set({
+              key: APPEARANCE_KEYS.windowRounded,
+              value: "false",
+              value_type: "bool",
+            });
+          } catch {
+            // 归一回写失败不阻塞启动，下次启动会再次归一
+          }
+        }
         applyAppearance(opts);
         set({ appearance: opts });
       } catch {
@@ -165,13 +200,17 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   setAcrylicEnabled: async (acrylic_enabled) => {
-    const { config } = get();
+    const { config, appearance, isWindows11 } = get();
     const next: ThemeConfig = { ...config, acrylic_enabled };
     set({ config: next });
     try {
       await themeCommands.setConfig(next);
     } catch (e) {
       console.error("[theme] 保存 Acrylic 开关失败:", e);
+    }
+    // Win10 互斥（B9 第三阶段任务2）：开亚克力自动关圆角
+    if (acrylic_enabled && isWindows11 === false && appearance.windowRounded) {
+      await get().setAppearance({ windowRounded: false });
     }
   },
 
@@ -217,6 +256,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       fontSize: APPEARANCE_KEYS.fontSize,
       iconStyle: APPEARANCE_KEYS.iconStyle,
       liquidGlass: APPEARANCE_KEYS.liquidGlass,
+      windowRounded: APPEARANCE_KEYS.windowRounded,
     };
     for (const [field, value] of Object.entries(patch)) {
       const key = keyOf[field as keyof AppearanceOptions];
@@ -230,6 +270,17 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       } catch (e) {
         console.error(`[theme] 保存外观项 ${key} 失败:`, e);
       }
+    }
+  },
+
+  setWindowRounded: async (enabled) => {
+    const { config, isWindows11 } = get();
+    // Win11 圆角恒开（DWM 物理圆角），开关调用无效
+    if (isWindows11 === true) return;
+    await get().setAppearance({ windowRounded: enabled });
+    // 互斥（B9 第三阶段任务2）：开圆角自动关亚克力
+    if (enabled && config.acrylic_enabled) {
+      await get().setAcrylicEnabled(false);
     }
   },
 }));

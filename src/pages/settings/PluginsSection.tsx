@@ -11,13 +11,17 @@
  */
 
 import { useEffect, useState } from "react";
-import { Plug, Loader2, Trash2, Square } from "lucide-react";
+import { Plug, Loader2, Trash2, Square, Sun, Moon, MonitorSmartphone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { extensionPackCommands, settingCommands, type Setting, type PackSummary } from "@/lib/tauri";
-import { keepAliveKey, usePluginHostStore } from "@/stores/pluginHost";
+import {
+  keepAliveKey,
+  usePluginHostStore,
+  type PluginThemePref,
+} from "@/stores/pluginHost";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +48,50 @@ function PermissionBadges({ keepAlive }: { keepAlive: boolean }) {
       <MiniBadge>页面显示</MiniBadge>
       <MiniBadge>本地存储</MiniBadge>
       {keepAlive && <MiniBadge primary>后台运行</MiniBadge>}
+    </div>
+  );
+}
+
+/** 明暗偏好三态分段选择（任务6：自动跟随 / 强制浅色 / 强制深色） */
+const THEME_PREF_OPTIONS: { key: PluginThemePref; label: string; Icon: typeof Sun }[] = [
+  { key: "auto", label: "自动", Icon: MonitorSmartphone },
+  { key: "light", label: "浅色", Icon: Sun },
+  { key: "dark", label: "深色", Icon: Moon },
+];
+
+function ThemePrefSelector({ packId }: { packId: string }) {
+  const themePref = usePluginHostStore(
+    (s) => s.themePrefs[packId] ?? "auto",
+  );
+  const loadThemePref = usePluginHostStore((s) => s.loadThemePref);
+  const setThemePref = usePluginHostStore((s) => s.setThemePref);
+
+  useEffect(() => {
+    void loadThemePref(packId);
+  }, [packId, loadThemePref]);
+
+  return (
+    <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+      {THEME_PREF_OPTIONS.map(({ key, label, Icon }) => (
+        <button
+          key={key}
+          onClick={() => void setThemePref(packId, key)}
+          className={cn(
+            "flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+            themePref === key
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          title={
+            key === "auto"
+              ? "跟随软件明暗（默认）"
+              : `强制插件以${label}模式运行`
+          }
+        >
+          <Icon className="h-3 w-3" />
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -139,6 +187,17 @@ function PluginCard({ pack }: { pack: PackSummary }) {
         ) : (
           <Switch checked={keepAlive} onCheckedChange={toggleKeepAlive} />
         )}
+      </div>
+
+      {/* 明暗适配（任务6）：默认跟随软件，可强制浅色/深色 */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">外观明暗</p>
+          <p className="text-xs text-muted-foreground">
+            默认跟随软件明暗自动切换，可强制指定
+          </p>
+        </div>
+        <ThemePrefSelector packId={pack.id} />
       </div>
 
       {/* 权限徽章 */}

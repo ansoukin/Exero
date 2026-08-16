@@ -6,6 +6,26 @@
   <title>Hello Plugin</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      /* 浅色主题（B9 任务6 明暗适配） */
+      --bg: #f9fbfd;
+      --fg: #1a2233;
+      --fg-muted: #6b7280;
+      --card-bg: rgba(0, 0, 0, 0.03);
+      --card-border: rgba(0, 0, 0, 0.08);
+      --error: #dc2626;
+      --success: #059669;
+    }
+    [data-theme="dark"] {
+      /* 深色主题 */
+      --bg: #0a0f1a;
+      --fg: #e5e7eb;
+      --fg-muted: #9ca3af;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --error: #f87171;
+      --success: #34d399;
+    }
     body {
       margin: 0;
       display: flex;
@@ -14,10 +34,11 @@
       justify-content: center;
       min-height: 100vh;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      background: #0a0f1a;
-      color: #e5e7eb;
+      background: var(--bg);
+      color: var(--fg);
       gap: 1.5rem;
       padding: 2rem;
+      transition: background 0.2s ease, color 0.2s ease;
     }
     h1 {
       margin: 0;
@@ -28,7 +49,7 @@
     .subtitle {
       margin-top: -0.75rem;
       font-size: 0.875rem;
-      color: #9ca3af;
+      color: var(--fg-muted);
       text-align: center;
     }
     button {
@@ -46,8 +67,8 @@
     button:active { background: #005a9e; transform: scale(0.98); }
     #result {
       padding: 1rem 1.5rem;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 10px;
       font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
       font-size: 0.9rem;
@@ -60,20 +81,42 @@
       justify-content: center;
       text-align: center;
     }
-    .error { color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
-    .success { color: #34d399; border-color: rgba(52, 211, 153, 0.3); }
+    .error { color: var(--error); }
+    .success { color: var(--success); }
+    /* 当前主题指示（演示 onTheme 订阅生效） */
+    #themeTag {
+      position: fixed;
+      top: 0.75rem;
+      right: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--fg-muted);
+    }
   </style>
 </head>
 <body>
+  <span id="themeTag">theme: ...</span>
   <h1>Hello Plugin</h1>
   <p class="subtitle">点击按钮调用 Rust .dll 的 say_hello 动作</p>
   <button id="callBtn">Call Rust</button>
   <div id="result">等待调用...</div>
   <script>
-    // window.exero.invoke 由 Exero 主程序注入的桥接脚本提供
+    // window.exero.* 由 Exero 主程序注入的桥接脚本提供
     // （见 src-tauri/src/lib.rs 的 PLUGIN_BRIDGE_SCRIPT）
     const btn = document.getElementById('callBtn');
     const resultEl = document.getElementById('result');
+    const themeTag = document.getElementById('themeTag');
+
+    // B9 任务6 明暗适配：初始查询 + 订阅宿主推送（应用切换 / 设置页手动配置）
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeTag.textContent = 'theme: ' + theme;
+    }
+    window.exero.getTheme().then(applyTheme);
+    window.exero.onTheme(applyTheme);
 
     btn.addEventListener('click', async () => {
       resultEl.classList.remove('error', 'success');

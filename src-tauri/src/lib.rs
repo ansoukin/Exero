@@ -40,8 +40,9 @@ const DWMWA_COLOR_NONE: u32 = 0xFFFFFFFE;
 
 /// 检测是否 Windows 11（build >= 22000）
 /// Win11 才支持 DWM 物理窗口圆角，Win10 不支持
+/// B9 第三阶段任务2：改 pub 供 commands/system.rs 的 get_platform_info 暴露给前端
 #[cfg(windows)]
-fn is_windows_11() -> bool {
+pub fn is_windows_11() -> bool {
     use windows_sys::Win32::System::SystemInformation::{
         GetVersionExW, OSVERSIONINFOEXW,
     };
@@ -576,6 +577,8 @@ pub fn run() {
             commands::system::exit_app,
             commands::system::hide_main_window,
             commands::system::restart_app,
+            // 平台信息（B9 第三阶段 · 任务2：Win10 圆角/亚克力互斥判断）
+            commands::system::get_platform_info,
             // 托盘菜单"检查更新"命令（Beta9 任务4）
             commands::system::check_update_and_show,
             // 课表初始化向导命令（Phase 6a · SPEC 11.2）
@@ -712,14 +715,18 @@ fn guess_content_type(path: &std::path::Path) -> &'static str {
 
 /// 插件桥接脚本（注入到插件 HTML 的 `<head>` 中）
 ///
-/// 提供两套接口：
+/// 提供三套接口：
 /// - `window.exero.invoke(actionId, params)`：调用插件 Rust .dll 动作
 /// - `window.exero.storage.*`：读写宿主持久化存储（Phase 3 补充）
+/// - `window.exero.getTheme()` / `onTheme(cb)`：明暗适配（B9 第三阶段任务6）
+///   getTheme 主动查询当前生效主题（"light"/"dark"，已应用手动覆盖）；
+///   onTheme 订阅主题变化（宿主在 iframe 加载完成、应用切换明暗、
+///   设置页手动配置变化时推送 {type:"exero-theme"}，iframe 不重载）
 ///
-/// 通信方式均为 postMessage，由主窗口（PluginPage）转发到对应 Tauri 命令，
+/// 通信方式均为 postMessage，由主窗口（PluginHostLayer）转发到对应 Tauri 命令，
 /// 结果再通过 postMessage 返回 iframe。
 const PLUGIN_BRIDGE_SCRIPT: &str = r#"<script>
-window.exero={_post:function(m){return new Promise(function(r,j){var i=Math.random().toString(36).slice(2);var h=function(e){if(e.data&&e.data.type==='exero-result'&&e.data.id===i){window.removeEventListener('message',h);if(e.data.error)j(new Error(e.data.error));else r(e.data.result);}};window.addEventListener('message',h);m.id=i;window.parent.postMessage(m,'*');});},invoke:function(a,p){return window.exero._post({type:'exero-invoke',actionId:a,params:p||{}});},storage:{get:function(k){return window.exero._post({type:'exero-storage',op:'get',key:k});},set:function(k,v){return window.exero._post({type:'exero-storage',op:'set',key:k,value:v});},remove:function(k){return window.exero._post({type:'exero-storage',op:'remove',key:k});},clear:function(){return window.exero._post({type:'exero-storage',op:'clear'});},keys:function(){return window.exero._post({type:'exero-storage',op:'keys'});}}};
+window.exero={_post:function(m){return new Promise(function(r,j){var i=Math.random().toString(36).slice(2);var h=function(e){if(e.data&&e.data.type==='exero-result'&&e.data.id===i){window.removeEventListener('message',h);if(e.data.error)j(new Error(e.data.error));else r(e.data.result);}};window.addEventListener('message',h);m.id=i;window.parent.postMessage(m,'*');});},invoke:function(a,p){return window.exero._post({type:'exero-invoke',actionId:a,params:p||{}});},getTheme:function(){return window.exero._post({type:'exero-get-theme'});},onTheme:function(cb){window.addEventListener('message',function(e){if(e.data&&e.data.type==='exero-theme'){cb(e.data.theme);}});},storage:{get:function(k){return window.exero._post({type:'exero-storage',op:'get',key:k});},set:function(k,v){return window.exero._post({type:'exero-storage',op:'set',key:k,value:v});},remove:function(k){return window.exero._post({type:'exero-storage',op:'remove',key:k});},clear:function(){return window.exero._post({type:'exero-storage',op:'clear'});},keys:function(){return window.exero._post({type:'exero-storage',op:'keys'});}}};
 </script>"#;
 
 /// 向插件 HTML 注入桥接脚本

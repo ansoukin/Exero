@@ -41,44 +41,57 @@ pub fn stop_sensor_process(_app: &AppHandle) {
 /// 首次调用时若桥接未启动则尝试延迟启动；子进程死亡则尝试重启。
 /// 失败返回 Err，调用方可降级为 None。
 pub fn read_sensors() -> Result<SensorsResponse, String> {
-    let need_restart = {
-        let guard = super::bridge::with_bridge_mut(|b| match b {
-            Some(bridge) => !bridge.is_alive(),
-            None => false,
-        })?;
-        // guard 为 true 表示子进程已死或不存在
-        if !guard {
-            // 子进程存活，直接读取
-            return super::bridge::with_bridge_mut(|b| {
-                let bridge = b.as_mut().ok_or("传感器桥接未启动")?;
-                bridge.read_sensors()
-            })?;
-        }
-        true
-    };
-
-    if need_restart {
-        // 旧桥接已死，清理后重建
-        super::bridge::set_bridge(None);
-        match spawn_sensor() {
-            Ok(Some(new_bridge)) => {
-                tracing::info!("NexBoxMonitor 重启成功 (pid={})", new_bridge.child.id());
-                super::bridge::set_bridge(Some(new_bridge));
-                // 重启后立即读取可能数据不全，返回提示让调用方重试
-                return Err("子进程已重启，请重试".to_string());
-            }
-            _ => return Err("NexBoxMonitor 不可用".to_string()),
-        }
+    // BUG 修复（B9 三阶段）：原实现 bridge=None 时走"存活读取"分支直接报
+    // "传感器桥接未启动"，下方延迟启动逻辑永远不可达。改为三态：
+    // - Some && alive → 直接读取
+    // - Some && dead  → 清理重启
+    // - None          → 延迟启动
+    enum BridgeState {
+        Alive,
+        Dead,
+        Missing,
     }
 
-    // 桥接不存在，尝试延迟启动
-    match spawn_sensor() {
-        Ok(Some(bridge)) => {
-            tracing::info!("延迟启动 NexBoxMonitor (pid={})", bridge.child.id());
-            super::bridge::set_bridge(Some(bridge));
-            Err("子进程已启动，请重试".to_string())
+    let state = super::bridge::with_bridge_mut(|b| match b {
+        Some(bridge) => {
+            if bridge.is_alive() {
+                BridgeState::Alive
+            } else {
+                BridgeState::Dead
+            }
         }
-        _ => Err("NexBoxMonitor 不可用".to_string()),
+        None => BridgeState::Missing,
+    })?;
+
+    match state {
+        BridgeState::Alive => super::bridge::with_bridge_mut(|b| {
+            let bridge = b.as_mut().ok_or("传感器桥接未启动")?;
+            bridge.read_sensors()
+        }),
+        BridgeState::Dead => {
+            // 旧桥接已死，清理后重建
+            super::bridge::set_bridge(None);
+            match spawn_sensor() {
+                Ok(Some(new_bridge)) => {
+                    tracing::info!("监测器重启成功 (pid={})", new_bridge.child.id());
+                    super::bridge::set_bridge(Some(new_bridge));
+                    // 重启后立即读取可能数据不全，返回提示让调用方重试
+                    Err("子进程已重启，请重试".to_string())
+                }
+                _ => Err("监测器不可用".to_string()),
+            }
+        }
+        BridgeState::Missing => {
+            // 桥接不存在，尝试延迟启动
+            match spawn_sensor() {
+                Ok(Some(bridge)) => {
+                    tracing::info!("延迟启动监测器 (pid={})", bridge.child.id());
+                    super::bridge::set_bridge(Some(bridge));
+                    Err("子进程已启动，请重试".to_string())
+                }
+                _ => Err("监测器不可用".to_string()),
+            }
+        }
     }
 }
 

@@ -683,6 +683,8 @@ export const systemCommands = {
   hideMainWindow: () => invoke<void>("hide_main_window"),
   /** 重启应用（OOBE 字体安装后重启） */
   restartApp: () => invoke<void>("restart_app"),
+  /** 平台信息（B9 第三阶段任务2：Win10 圆角/亚克力互斥判断） */
+  getPlatformInfo: () => invoke<{ is_windows_11: boolean }>("get_platform_info"),
 };
 
 // ============================================================

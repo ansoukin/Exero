@@ -69,8 +69,12 @@ export function AppearanceSection() {
     clearCustomColor,
     appearance,
     setAppearance,
+    isWindows11,
+    setWindowRounded,
   } = useThemeStore();
   const [pickerOpen, setPickerOpen] = useState(false);
+  // B9 第三阶段任务2：圆角开关仅 Win10 显示（Win11 圆角为 Windows 特性恒开）
+  const showRoundedToggle = isWindows11 === false;
 
   return (
     <div className="flex flex-col gap-8">
@@ -157,12 +161,14 @@ export function AppearanceSection() {
         )}
       </section>
 
-      {/* 亚克力背景 */}
+      {/* 亚克力背景（Win10 下与圆角互斥：开亚克力自动关圆角） */}
       <section className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <h3 className="text-base font-medium">亚克力背景</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            系统级磨砂玻璃效果（Win11 DWMSB / Win10 兼容降级，默认开启）。低性能机器可关闭以减少 GPU 占用
+            {showRoundedToggle
+              ? "系统级磨砂玻璃效果，与窗口圆角互斥（开启后圆角自动关闭）。低性能机器可关闭以减少 GPU 占用"
+              : "系统级磨砂玻璃效果（Win11 DWMSB，默认开启）。低性能机器可关闭以减少 GPU 占用"}
           </p>
         </div>
         <Switch
@@ -170,6 +176,22 @@ export function AppearanceSection() {
           onCheckedChange={setAcrylicEnabled}
         />
       </section>
+
+      {/* 窗口圆角（B9 第三阶段任务2：仅 Win10 显示；Win11 圆角为系统特性恒开） */}
+      {showRoundedToggle && (
+        <section className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <h3 className="text-base font-medium">窗口圆角</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              圆角窗口外观，与亚克力互斥（开启后亚克力自动关闭，关闭亚克力不会自动开启圆角）
+            </p>
+          </div>
+          <Switch
+            checked={appearance.windowRounded}
+            onCheckedChange={setWindowRounded}
+          />
+        </section>
+      )}
 
       {/* 界面密度（Beta9 任务17a） */}
       <section className="flex flex-col gap-3">

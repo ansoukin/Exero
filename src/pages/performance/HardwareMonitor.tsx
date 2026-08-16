@@ -205,15 +205,18 @@ export function HardwareMonitor({ hardware, loading, error }: HardwareMonitorPro
         />
       </div>
 
-      {/* GPU 占位提示（Beta9 任务10：LHM 资源缺失时显示根因 + 解决方案） */}
+      {/* GPU 占位提示（B9 三阶段修复：LHM 资源缺失时显示编译指引） */}
       {!lhmReady && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-400">
           <span className="font-medium">GPU 数据不可用：</span>
-          LHM 子进程未启动。根因：<code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">NexBoxMonitor.exe</code>
-          及依赖 DLL（共 12 个文件）被 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">.gitignore</code> 的
-          <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">*.exe / *.dll</code> 规则排除入库。
-          请从 NexBox 项目 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">src-tauri/resources/monitor/</code>
-          复制这些二进制资源到 Exero 同名目录后重启应用。
+          传感器子进程（<code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">ExeroMonitor.exe</code>
+          及依赖 DLL）未就绪。二进制不入库（.gitignore 排除
+          <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">*.exe / *.dll</code>），
+          请在仓库根 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">monitor/</code>
+          子项目执行 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">dotnet build -c Release</code>，
+          并将 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">bin/Release/net48/</code>
+          产物复制到 <code className="mx-1 rounded bg-amber-500/10 px-1 py-0.5 font-mono">src-tauri/resources/monitor/</code>
+          后重启应用。
         </div>
       )}
     </div>

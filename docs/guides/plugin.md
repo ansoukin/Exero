@@ -170,6 +170,8 @@ Exero 会自动在 HTML 的 `</head>` 前注入桥接脚本，无需手动引入
 
 ```javascript
 window.exero.invoke(actionId, params)  // Promise<any> 调用 .dll 动作
+window.exero.getTheme()                // Promise<"light"|"dark"> 查询当前生效主题
+window.exero.onTheme(cb)               // 订阅明暗变化（cb 收到 "light"|"dark"）
 window.exero.storage.set(key, value)   // Promise<void> 宿主持久化存储
 window.exero.storage.get(key)          // Promise<any>
 window.exero.storage.remove(key)       // Promise<void>
@@ -196,6 +198,35 @@ allow-scripts allow-forms allow-popups allow-modals
 4. **XMLHttpRequest**：无法直接请求本地文件
 
 **解决方案**：使用 `local-file` 协议（见下方说明）
+:::
+
+### 明暗模式适配（Beta9）
+
+插件默认**自动跟随软件明暗**：宿主通过 postMessage 向插件推送当前生效主题，iframe 不会重载（保活不断）。用户也可在 **设置 → 插件 → 外观明暗** 中为单个插件强制指定浅色/深色（覆盖应用主题）。
+
+**宿主推送时机**：iframe 加载完成、应用切换明暗、设置页手动配置变化。
+
+**插件侧适配**：
+
+```javascript
+// 1. 初始主题
+const theme = await window.exero.getTheme(); // "light" | "dark"
+applyTheme(theme);
+
+// 2. 订阅变化（应用切换 / 用户手动指定都会触发）
+window.exero.onTheme((theme) => applyTheme(theme));
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme; // 或切换自己的 class
+}
+```
+
+::: tip 推荐 CSS 变量方案
+```css
+:root { --bg: #f9fbfd; --fg: #1a2233; }
+[data-theme="dark"] { --bg: #0b0f17; --fg: #e6eaf2; }
+body { background: var(--bg); color: var(--fg); }
+```
 :::
 
 ### 本地文件访问（local-file 协议）

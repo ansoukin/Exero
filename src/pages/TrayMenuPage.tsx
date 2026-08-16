@@ -4,7 +4,9 @@
  * 参考 NexBox TrayMenuPage 设计：纯色背景 + 8px 圆角 + 无边框。
  *
  * 设计要点：
- * - 圆角 8px（与主窗口统一）
+ * - 圆角按平台自动判定（任务5）：Win11 = 8px 圆角（DWM 物理圆角 + CSS 双保险），
+ *   Win10 = 直角（系统不支持 DWM 圆角，CSS 圆角会在四角露出透明缺角）
+ *   此规则硬编码按平台，不受设置-外观圆角/亚克力选项影响
  * - 纯色背景 #1a1a1a（无毛玻璃，避免透明窗口渲染黑色）
  * - 无 border（去掉窗口边框感）
  * - 窗口尺寸 160×114，3 项菜单紧凑排列
@@ -15,7 +17,7 @@
  * 3. 退出（LogOut 图标，红色 #e74c3c）
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Monitor, RefreshCw, LogOut } from "lucide-react";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
@@ -46,7 +48,14 @@ function MenuItem({ icon, label, onClick, color = "#e0e0e0" }: MenuItemProps) {
 }
 
 export function TrayMenuPage() {
+  // 圆角按平台（任务5）：Win11 圆角 / Win10 直角，不受外观设置影响
+  const [rounded, setRounded] = useState(true);
+
   useEffect(() => {
+    invoke<{ is_windows_11: boolean }>("get_platform_info")
+      .then((info) => setRounded(info.is_windows_11))
+      .catch(() => setRounded(true));
+
     // 失焦自动隐藏
     const unlisten = getCurrentWindow().onFocusChanged((event) => {
       if (!event.payload) {
@@ -100,7 +109,7 @@ export function TrayMenuPage() {
   return (
     <div className="h-screen w-screen p-0">
       <motion.div
-        className="h-full w-full overflow-hidden rounded-[8px]"
+        className={`h-full w-full overflow-hidden ${rounded ? "rounded-[8px]" : ""}`}
         style={{ backgroundColor: "#1a1a1a" }}
         initial={{ opacity: 0, scale: 0.95, y: -4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -24,10 +24,10 @@ document.addEventListener("contextmenu", (e) => {
 });
 
 /**
- * 隐藏 boot-splash（上滑淡出 300ms）
+ * 隐藏 boot-splash（淡出 300ms）
  *
- * 单窗口方案（Beta3 · SPEC 3.4 重做）：
- * 给 #boot-splash 添加 .leaving 类触发 CSS 动画，动画结束后 display:none。
+ * B9 第三阶段任务1：#boot-splash 已改为纯主题背景色占位（老横幅开屏彻底移除），
+ * 给 #boot-splash 添加 .leaving 类触发 CSS 淡出，动画结束后 display:none。
  */
 function hideBootSplash() {
   const el = document.getElementById("boot-splash");
